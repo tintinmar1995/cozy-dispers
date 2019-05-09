@@ -1,6 +1,8 @@
 package dispers
 
 import (
+    "strings"
+
   	"github.com/cozy/echo"
     "github.com/cozy/cozy-stack/pkg/couchdb"
     "github.com/cozy/cozy-stack/pkg/prefixer"
@@ -14,6 +16,46 @@ import (
 // - Actors : to work with several api
 // - queryDoc : to update the initial doc made by tis querier in the cozy app
 // - AggregationLayer : to add layers of DA
+
+func MakeRequestGet(host string, api string, job string) map[string]interface{} {
+
+  url := strings.Join([]string{"http://", host, "/", job}, "")
+
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+  var result map[string]interface{}
+	json.NewDecoder(resp.Body).Decode(&result)
+	return result
+
+}
+
+func MakeRequestPost(host string, api string, job string, data string) map[string]interface{} {
+
+  url := strings.Join([]string{"http://", host, "/", job}, "application/json", bytes.NewBuffer(data))
+
+	resp, err := http.Post(url, )
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+  var result map[string]interface{}
+	json.NewDecoder(resp.Body).Decode(&result)
+  return result
+
+}
 
 
 // In the first part of this script, we deal with the use-case : the user want to decide if he wants to share or not its data
@@ -163,7 +205,21 @@ type conductor struct {
 // This object will be created directly in the cmd shell / web api
 // This object use the major part of what have been created before in this script
 func NewConductor(domain, prefix string) *conductor {
+
   pref := prefixer.NewPrefixer(domain, prefix)
+
+  // Doc's creation in CouchDB
+  couchdb.EnsureDBExist(prefixer.DataAggregatorPrefixer, "io.cozy.aggregation")
+
+  doc := &DataAggrDoc{
+    dataAggrDocID: "",
+    dataAggrDocRev: "",
+    Input: inputDA,
+  }
+
+ couchdb.CreateDoc(prefixer.DataAggregatorPrefixer, doc)
+
+
   // récupérer l'id du doc sur prefix/io.cozy.ml
   doc_id := "17f78f7e8f7484z6"
   doc_rev := "2-46148"

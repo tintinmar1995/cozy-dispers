@@ -177,21 +177,19 @@ func Routes(router *echo.Group) {
 	router.GET("/:actor", IndexBis)
 
 	// Subscriptions
-	router.GET("/conductor/subscribe/_all_data", allData)
-	//router.POST("/conductor/:domain/subscription", subscribe)
-	//router.DELETE("/conductor/:domain/subscription", unsubscribe)
+	router.GET("/conductor/training/:idtrain", showTraining) // Used by the user to know the training's state
+	router.POST("/conductor/training", createTraining) // Used by the user to launch a training
+	//router.DELETE("/conductor/training", deleteTraining) // Used by the user to cancel a training
 
-	// Trainings (used by the querier)
-	router.GET("/conductor/training/:idtrain", showTraining)
-	router.POST("/conductor/training", createTraining)
-	//router.DELETE("/conductor/training", deleteTraining)
-
-	router.POST("/conceptindexor/hash/:concept", hashConcept)
-	router.POST("/conceptindexor/addconcept/:concept", addConcept) // used to add a concept to his list and generate SymCk
+	router.POST("/conceptindexor/hash?concept=:concept", hashConcept) // used to hash a concept
+	router.POST("/conceptindexor/addconcept?concept=:concept", addConcept) // used to add a concept to his list and generate SymCk
 
 	router.POST("/targetfinder/adresses", selectAdresses)
 
 	router.POST("/target/gettokens", getQueriesAndTokens)
+	router.GET("/conductor/subscribe/_all_data", allData)
+	//router.POST("/target/subscribe?id=:domain", subscribe)
+	//router.DELETE("/target/subscribe?id=:domain", unsubscribe)
 
 	router.GET("/dataaggregator/aggregate/:id", getStateAggr)
 	router.POST("/dataaggregator/aggregate", launchAggr)
