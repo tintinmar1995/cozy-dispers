@@ -1,4 +1,4 @@
-package utils
+package dispers
 
 // This script is defining metadata's interface. It will be use to define metadata for each api/treatment
 type Metadata interface {

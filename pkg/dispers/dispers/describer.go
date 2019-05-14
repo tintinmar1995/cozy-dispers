@@ -1,4 +1,4 @@
-package utils
+package dispers
 
 type Describer struct {
 	Dataset          string    `json:"dataset,omitempty"`

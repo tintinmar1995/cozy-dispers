@@ -1,4 +1,4 @@
-package dispers
+package enclave
 
 import (
   	"github.com/cozy/echo"
