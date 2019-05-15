@@ -29,7 +29,7 @@ func indexBis(c echo.Context) error {
 				out = "Hello ! I'm ruling the game !"
 			case "conceptindexor":
 				out = "Hello ! I will do Concept Indexor's dishes !"
-			case "target":
+			case "_target":
 				out = "Hello ! I will do Target's dishes !"
 			case "dataaggregator":
 				out = "Hello ! I will do Data Aggregator's dishes !"
@@ -89,6 +89,8 @@ func createTraining(c echo.Context) error {
 	if err := couchdb.CreateDoc(prefixer.ConductorPrefixer, querydoc); err != nil {
 		return err
 	}
+
+	enclave.NewConductor("domain.cozy.tool:8080", "cozyv585s6s68k5d4s").Lead()
 
 	return c.JSON(http.StatusCreated, echo.Map{
 		"ok":   true,
@@ -204,12 +206,12 @@ func Routes(router *echo.Group) {
 	router.GET("/conductor/training/:idtrain", showTraining) // Used by the user to know the training's state
 	router.POST("/conductor/training", createTraining) // Used by the user to launch a training
 	//router.DELETE("/conductor/training", deleteTraining) // Used by the user to cancel a training
-	//router.POST("/conductor/subscribe?id=:domain", subscribe)
-	//router.DELETE("/conductor/subscribe?id=:domain", unsubscribe)
+	//router.POST("/conductor/subscribe/id=:domain", subscribe)
+	//router.DELETE("/conductor/subscribe/id=:domain", unsubscribe)
 
 	//router.GET("/conceptindexor/_all_concepts", allConcepts)
-	router.POST("/conceptindexor/hash?concept=:concept", hashConcept) // used to hash a concept
-	router.POST("/conceptindexor/addconcept?concept=:concept", addConcept) // used to add a concept to his list and generate SymCk
+	router.POST("/conceptindexor/hash/concept=:concept", hashConcept) // used to hash a concept
+	router.POST("/conceptindexor/addconcept/concept=:concept", addConcept) // used to add a concept to his list and generate SymCk
 
 	//router.POST("/targetfinder/listofadresses", insertAdress)
 	//router.DELETE("/targetfinder/listofadresses", deleteAdress)

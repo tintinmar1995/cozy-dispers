@@ -9,10 +9,12 @@ A conductor is instanciated when a user call the associated route of this API.
 package enclave
 
 import (
-    //"strings"
-    //"encoding/json"
-    //"io/ioutil"
-  	//"net/http"
+    "strings"
+    "encoding/json"
+    "io/ioutil"
+  	"net/http"
+    "bytes"
+    "fmt"
 
   	"github.com/cozy/echo"
     "github.com/cozy/cozy-stack/pkg/couchdb"
@@ -79,14 +81,20 @@ and to communicate with it.
 type actor struct{
   host      string
   api       string
+  outstr    string
   out       map[string]interface{}
-  outmeta   []actor
+  outmeta   string
 }
 
-/*
-func (a actor) makeRequestGet(job string) error {
+func (a *actor) makeRequestGet(job string) error {
 
-  url := strings.Join([]string{"http://", a.host, "/", a.api,"/", job}, "")
+  url := ""
+
+  if job == "" {
+    url = strings.Join([]string{"http:/", a.host, "dispers", a.api}, "/")
+  } else {
+    url = strings.Join([]string{"http:/", a.host, "dispers", a.api, job}, "/")
+  }
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -98,31 +106,31 @@ func (a actor) makeRequestGet(job string) error {
 		return err
 	}
 
-	json.NewDecoder(body).Decode(&a.out)
+  a.outstr = string(body)
+	json.NewDecoder(bytes.NewReader(body)).Decode(&a.out)
 	return nil
 
 }
 
-func MakeRequestPost(job string, data string) map[string]interface{} {
+func (a *actor) makeRequestPost(job string, data string) error {
 
-  url := strings.Join([]string{"http://", a.host, "/", a.api,"/", job}, "application/json", bytes.NewBuffer(data))
+  url := strings.Join([]string{"http://", a.host, "/dispers/", a.api,"/", job}, "")
 
-	resp, err := http.Post(url, )
+	resp, err := http.Post(url, "application/json", bytes.NewBufferString(data))
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 
-  var result map[string]interface{}
-  json.NewDecoder(body).Decode(&a.out)
+  a.outstr = string(body)
+  json.NewDecoder(bytes.NewReader(body)).Decode(&a.out)
 	return nil
 
 }
-*/
 
 // makeRequestPatch
 
@@ -271,6 +279,49 @@ func (c *conductor) UpdateDoc(key string, metadata dispers.Metadata) error { ret
 
 // This method is the most general. This is the only one used in CMD and Web's files. It will use the 5 previous methods to work
 func (c *conductor) Lead() error {
+
+  ci := actor{
+    host: "localhost:8080",
+    api: "conceptindexor",
+  }
+  fmt.Println("")
+  ci.makeRequestPost("hash/concept=lib", "")
+  fmt.Println(ci.outstr)
+
+  tf := actor{
+    host: "localhost:8080",
+    api: "targetfinder",
+  }
+  fmt.Println("")
+  tf.makeRequestPost("adresses", "{ \"concepts\" : [ { \"adresses\" : [\"avr\", \"mai\"] } , {\"adresses\" : [\"hey\", \"oh\"] }, { \"adresses\" : [\"bla\", \"bla\"] } ] }")
+  fmt.Println(tf.outstr)
+
+  t := actor{
+    host: "localhost:8080",
+    api: "target",
+  }
+  fmt.Println("")
+  t.makeRequestPost("gettokens", "{ \"localquery\" : \"blafjiejfi\", \"adresses\" : [ \"abc\", \"iji\", \"jio\" ] }")
+  fmt.Println(t.outstr)
+
+  da := actor{
+    host: "localhost:8080",
+    api: "dataaggregator",
+  }
+  fmt.Println("")
+  da.makeRequestPost("aggregate", "{ \"type\" : { \"dataset\" : \"bank.lib\", \"preprocess\" : \"tf-idf\", \"standardization\" : \"None\", \"shape\" : [20000, 1], \"fakelabels\" : [ \"X1\", \"X2\" ] } , \"data\" : \"here_is_some_data_encrypted_to_train_on\" }")
+  fmt.Println(da.outstr)
+
+
+  /*
+  keys := make([]string, "", len(act.out))
+  for k := range act.out {
+      keys = append(keys, k)
+  }
+
+  fmt.Println(strings.Join(keys, " "))
+  */
+
   /*
   tempMetadata := dispers.NewMetadata("aujourd'hui", true)
   UpdateDoc("meta-task-0-init", tempMetadata)
