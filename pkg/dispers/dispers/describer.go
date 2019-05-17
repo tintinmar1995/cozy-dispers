@@ -1,5 +1,10 @@
 package dispers
 
+/*
+Describer is a struct used by DAs on different layers to communicate on the shape
+of the data they dealt with. 
+*/
+
 type Describer struct {
 	Dataset          string    `json:"dataset,omitempty"`
   Preprocess       string    `json:"preprocess,omitempty"`

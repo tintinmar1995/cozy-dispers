@@ -13,7 +13,11 @@ import (
 )
 
 /*
+*
+*
 COMMON ROUTES : those 3 functions are used on route ./dispers/
+*
+*
 */
 func index(c echo.Context) error {
 
@@ -67,7 +71,11 @@ func getPublicKey(c echo.Context) error {
 }
 
 /*
+*
+*
 CONDUCTOR'S ROUTES : those functions are used on route ./dispers/conductor/
+*
+*
 */
 func showTraining(c echo.Context) error {
 	// TODO : Prévoir sûrement un token pour mettre des droits d'accès
@@ -101,7 +109,11 @@ func createTraining(c echo.Context) error {
 }
 
 /*
+*
+*
 CONCEPT INDEXOR'S ROUTES : those functions are used on route ./dispers/conceptindexor/
+*
+*
 */
 func hashConcept(c echo.Context) error {
 
@@ -116,7 +128,11 @@ func addConcept(c echo.Context) error {
 }
 
 /*
+*
+*
 TARGET FINDER'S ROUTES : those functions are used on route ./dispers/targetfinder/
+*
+*
 */
 func selectAdresses(c echo.Context) error {
 
@@ -137,7 +153,11 @@ func selectAdresses(c echo.Context) error {
 }
 
 /*
+*
+*
 Target'S ROUTES : those functions are used on route ./dispers/target/
+*
+*
 */
 func getQueriesAndTokens(c echo.Context) error {
 
@@ -169,7 +189,11 @@ func allData(c echo.Context) error {
 }
 
 /*
+*
+*
 DATA AGGREGATOR'S ROUTES : those functions are used on route ./dispers/dataaggregator/
+*
+*
 */
 func launchAggr(c echo.Context) error {
 

@@ -267,18 +267,8 @@ func NewConductor(domain, prefix string) *conductor {
   }
 }
 
-func (c *conductor) DecrypteConcept() dispers.Metadata { return nil }
-
-func (c *conductor) ReachTargets() dispers.Metadata { return nil }
-
-func (c *conductor) GetTrain() dispers.Metadata { return nil }
-
-func (c *conductor) Aggregate() dispers.Metadata { return nil }
-
-func (c *conductor) UpdateDoc(key string, metadata dispers.Metadata) error { return nil }
-
-// This method is the most general. This is the only one used in CMD and Web's files. It will use the 5 previous methods to work
-func (c *conductor) Lead() error {
+// Works with CI's API
+func (c *conductor) DecrypteConcept() dispers.Metadata {
 
   ci := actor{
     host: "localhost:8080",
@@ -288,6 +278,13 @@ func (c *conductor) Lead() error {
   ci.makeRequestPost("hash/concept=lib", "")
   fmt.Println(ci.outstr)
 
+  return dispers.NewMetadata("nom de la metadata", "description", "aujourd'hui à telle heure", true)
+
+ }
+
+// Works with TF's API
+func (c *conductor) GetTargets() dispers.Metadata {
+
   tf := actor{
     host: "localhost:8080",
     api: "targetfinder",
@@ -295,6 +292,12 @@ func (c *conductor) Lead() error {
   fmt.Println("")
   tf.makeRequestPost("adresses", "{ \"concepts\" : [ { \"adresses\" : [\"avr\", \"mai\"] } , {\"adresses\" : [\"hey\", \"oh\"] }, { \"adresses\" : [\"bla\", \"bla\"] } ] }")
   fmt.Println(tf.outstr)
+
+  return dispers.NewMetadata("nom de la metadata", "description", "aujourd'hui à telle heure", true)
+}
+
+// Works with T's API
+func (c *conductor) GetTokens() dispers.Metadata {
 
   t := actor{
     host: "localhost:8080",
@@ -304,6 +307,19 @@ func (c *conductor) Lead() error {
   t.makeRequestPost("gettokens", "{ \"localquery\" : \"blafjiejfi\", \"adresses\" : [ \"abc\", \"iji\", \"jio\" ] }")
   fmt.Println(t.outstr)
 
+  return dispers.NewMetadata("nom de la metadata", "description", "aujourd'hui à telle heure", true)
+}
+
+// Works with stacks
+func (c *conductor) GetData() dispers.Metadata {
+
+  return dispers.NewMetadata("nom de la metadata", "description", "aujourd'hui à telle heure", true)
+
+}
+
+// Works with DA's API
+func (c *conductor) Aggregate() dispers.Metadata {
+
   da := actor{
     host: "localhost:8080",
     api: "dataaggregator",
@@ -312,41 +328,43 @@ func (c *conductor) Lead() error {
   da.makeRequestPost("aggregate", "{ \"type\" : { \"dataset\" : \"bank.lib\", \"preprocess\" : \"tf-idf\", \"standardization\" : \"None\", \"shape\" : [20000, 1], \"fakelabels\" : [ \"X1\", \"X2\" ] } , \"data\" : \"here_is_some_data_encrypted_to_train_on\" }")
   fmt.Println(da.outstr)
 
+  return dispers.NewMetadata("nom de la metadata", "description", "aujourd'hui à telle heure", true)
 
-  /*
-  keys := make([]string, "", len(act.out))
-  for k := range act.out {
-      keys = append(keys, k)
-  }
+}
 
-  fmt.Println(strings.Join(keys, " "))
-  */
+// This method is used to add a metadata to the Query Doc so that the querier is able to know the state of his training
+func (c *conductor) UpdateDoc(key string, metadata dispers.Metadata) error { return nil }
 
-  /*
-  tempMetadata := dispers.NewMetadata("aujourd'hui", true)
-  UpdateDoc("meta-task-0-init", tempMetadata)
+// This method is the most general. This is the only one used in CMD and Web's files. It will use the 5 previous methods to work
+func (c *conductor) Lead() error {
 
-  if (tempMetadata.Outcome()){
-    tempMetadata = DecrypteConcept()
-    UpdateDoc("meta-task-1-ci", tempMetadata)
-  }
+  tempMetadata := dispers.NewMetadata("nom de la metadata", "description", "aujourd'hui à telle heure", true)
+  c.UpdateDoc("meta-task-0-init", tempMetadata)
 
   if (tempMetadata.Outcome()){
-    tempMetadata = ReachTargets()
-    UpdateDoc("meta-task-2-tf", tempMetadata)
+    tempMetadata = c.DecrypteConcept()
+    c.UpdateDoc("meta-task-1-ci", tempMetadata)
   }
 
   if (tempMetadata.Outcome()){
-    tempMetadata = GetData()
-    UpdateDoc("meta-task-3-d", tempMetadata)
+    tempMetadata = c.GetTargets()
+    c.UpdateDoc("meta-task-2-tf", tempMetadata)
   }
 
   if (tempMetadata.Outcome()){
-    tempMetadata = Aggregate()
-    UpdateDoc("meta-task-4-da", tempMetadata)
+    tempMetadata = c.GetTokens()
+    c.UpdateDoc("meta-task-3-t", tempMetadata)
   }
-*/
+
+  if (tempMetadata.Outcome()){
+    tempMetadata = c.GetData()
+    c.UpdateDoc("meta-task-4-slack", tempMetadata)
+  }
+
+  if (tempMetadata.Outcome()){
+    tempMetadata = c.Aggregate()
+    c.UpdateDoc("meta-task-5-da", tempMetadata)
+  }
 
   return nil
-
 }
