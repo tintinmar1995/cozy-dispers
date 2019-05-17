@@ -317,7 +317,7 @@ func (c *conductor) GetData() (string, dispers.Metadata) {
   s := ""
   fmt.Println("")
   fmt.Println("Import Dummy Dataset..")
-  absPath, _ := filepath.Abs("../cozy-stack/pkg/dispers/dummy_dataset.json")
+  absPath, _ := filepath.Abs("../cozy-stack/pkg/dispers/dispers/dummy_dataset.json")
   buf, err := ioutil.ReadFile(absPath)
   if err == nil {
     s = string(buf)
