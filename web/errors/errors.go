@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"strconv"
 
 	"github.com/cozy/cozy-stack/pkg/couchdb"
 	"github.com/cozy/cozy-stack/pkg/jsonapi"
@@ -82,18 +83,6 @@ func HTMLErrorHandler(err error, c echo.Context) {
 		he.Inner = err
 	}
 
-	var title, value string
-
-	if title == "" {
-		if status >= 500 {
-			title = "Error Internal Server Error Title"
-			value = "Error Internal Server Error Message"
-		} else {
-			title = "Error Title"
-			value = fmt.Sprintf("%v", he.Message)
-		}
-	}
-
 	accept := req.Header.Get("Accept")
 	acceptHTML := strings.Contains(accept, echo.MIMETextHTML)
 	acceptJSON := strings.Contains(accept, echo.MIMEApplicationJSON)
@@ -102,19 +91,7 @@ func HTMLErrorHandler(err error, c echo.Context) {
 	} else if acceptJSON {
 		err = c.JSON(status, echo.Map{"error": he.Message})
 	} else if acceptHTML {
-		var buttonTitle, buttonURL string
-
-		err = c.Render(status, "error.html", echo.Map{
-			"Title":       "instance.DefaultTemplateTitle",
-			"CozyUI":      "middlewares.CozyUI(i)",
-			"ThemeCSS":    "middlewares.ThemeCSS(i)",
-			"Domain":      "i.ContextualDomain()",
-			"ContextName": "i.ContextName",
-			"ErrorTitle":  title,
-			"Error":       value,
-			"Button":      buttonTitle,
-			"ButtonLink":  buttonURL,
-		})
+		err = c.String(http.StatusOK, strings.Join([]string{"Problème dans le chargement du HTML. Erreur ", strconv.Itoa(status)}, " "))
 	} else {
 		err = c.String(status, fmt.Sprintf("%v", he.Message))
 	}

@@ -80,6 +80,10 @@ func NewDirRenderer(assetsPath string) (AssetRenderer, error) {
 
 	t := template.New("stub")
 	h := http.StripPrefix(assetsPrefix, http.FileServer(dir(assetsPath)))
+
+	fmt.Println("PATH", assetPath)
+	fmt.Println("Pref", assetsPrefix)
+
 	middlewares.FuncsMap = template.FuncMap{
 		"t":     fmt.Sprintf,
 		"split": strings.Split,

@@ -42,6 +42,7 @@ var hstsMaxAge = 365 * 24 * time.Hour // 1 year
 // adds a Renderer to render templates.
 func SetupAssets(router *echo.Echo, assetsPath string) (err error) {
 	var r statik.AssetRenderer
+
 	if assetsPath != "" {
 		r, err = statik.NewDirRenderer(assetsPath)
 	} else {
@@ -50,21 +51,10 @@ func SetupAssets(router *echo.Echo, assetsPath string) (err error) {
 	if err != nil {
 		return err
 	}
-	middlewares.BuildTemplates()
-
-	cacheControl := middlewares.CacheControl(middlewares.CacheOptions{
-		MaxAge: 24 * time.Hour,
-	})
 
 	router.Renderer = r
-	router.HEAD("/assets/*", echo.WrapHandler(r))
-	router.GET("/assets/*", echo.WrapHandler(r))
-	router.GET("/favicon.ico", echo.WrapHandler(r), cacheControl)
-	router.GET("/robots.txt", echo.WrapHandler(r), cacheControl)
-	router.GET("/security.txt", echo.WrapHandler(r), cacheControl)
 	return nil
 }
-
 
 // SetupAdminRoutes sets the routing for the administration HTTP endpoints
 func SetupAdminRoutes(router *echo.Echo) error {
@@ -89,7 +79,7 @@ func SetupAdminRoutes(router *echo.Echo) error {
 // SetupMajorRoutes (previous CreateSubdomainProxy) returns a new web server that will handle that apps
 // proxy routing if the host of the request match an application, and route to
 // the given router otherwise.
-func SetupMajorRoutes(router *echo.Echo /*, appsHandler echo.HandlerFunc*/) (*echo.Echo, error) {
+func SetupMajorRoutes(router *echo.Echo) (*echo.Echo, error) {
 	if err := SetupAssets(router, config.GetConfig().Assets); err != nil {
 		return nil, err
 	}
