@@ -11,14 +11,11 @@ import (
 	"path"
 	"time"
 
-	"github.com/cozy/cozy-stack/model/app"
 	build "github.com/cozy/cozy-stack/pkg/config"
 	"github.com/cozy/cozy-stack/pkg/config/config"
 	"github.com/cozy/cozy-stack/pkg/consts"
 	"github.com/cozy/cozy-stack/pkg/i18n"
-	"github.com/cozy/cozy-stack/pkg/logger"
 	"github.com/cozy/cozy-stack/pkg/utils"
-	"github.com/cozy/cozy-stack/web/apps"
 
 	"github.com/cozy/echo"
 	"github.com/cozy/echo/middleware"
@@ -63,35 +60,6 @@ func LoadSupportedLocales() error {
 	return nil
 }
 
-// ListenAndServeWithAppDir creates and setup all the necessary http endpoints
-// and serve the specified application on a app subdomain.
-//
-// In order to serve the application, the specified directory should provide
-// a manifest.webapp file that will be used to parameterize the application
-// permissions.
-func ListenAndServeWithAppDir(appsdir map[string]string) (*Servers, error) {
-	for slug, dir := range appsdir {
-		dir = utils.AbsPath(dir)
-		appsdir[slug] = dir
-		exists, err := utils.DirExists(dir)
-		if err != nil {
-			return nil, err
-		}
-		if !exists {
-			return nil, fmt.Errorf("Directory %s does not exist", dir)
-		}
-		if err = checkExists(path.Join(dir, app.WebappManifestName)); err != nil {
-			logger.WithNamespace("dev").Warnf("The app manifest is missing: %s", err)
-		}
-		if err = checkExists(path.Join(dir, "index.html")); err != nil {
-			logger.WithNamespace("dev").Warnf("The index.html is missing: %s", err)
-		}
-	}
-
-	app.SetupAppsDir(appsdir)
-	return ListenAndServe()
-}
-
 func checkExists(filepath string) error {
 	exists, err := utils.FileExists(filepath)
 	if err != nil {
@@ -111,7 +79,7 @@ func ListenAndServe() (*Servers, error) {
 	e.HideBanner = true
 	e.HidePort = true
 
-	major, err := CreateSubdomainProxy(e, apps.Serve)
+	major, err := SetupMajorRoutes(e)
 	if err != nil {
 		return nil, err
 	}

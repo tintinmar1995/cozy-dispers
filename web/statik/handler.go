@@ -80,6 +80,10 @@ func NewDirRenderer(assetsPath string) (AssetRenderer, error) {
 
 	t := template.New("stub")
 	h := http.StripPrefix(assetsPrefix, http.FileServer(dir(assetsPath)))
+
+	fmt.Println("PATH", assetPath)
+	fmt.Println("Pref", assetsPrefix)
+
 	middlewares.FuncsMap = template.FuncMap{
 		"t":     fmt.Sprintf,
 		"split": strings.Split,
@@ -134,13 +138,8 @@ type renderer struct {
 
 func (r *renderer) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
 	var funcMap template.FuncMap
-	i, ok := middlewares.GetInstanceSafe(c)
-	if ok {
-		funcMap = template.FuncMap{"t": i.Translate}
-	} else {
-		lang := GetLanguageFromHeader(c.Request().Header)
-		funcMap = template.FuncMap{"t": i18n.Translator(lang)}
-	}
+	lang := GetLanguageFromHeader(c.Request().Header)
+	funcMap = template.FuncMap{"t": i18n.Translator(lang)}
 	var t *template.Template
 	var err error
 	if m, ok := data.(echo.Map); ok {
