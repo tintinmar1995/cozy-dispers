@@ -88,11 +88,8 @@ example), you can use the --appdir flag like this:
 		}
 
 		var servers *web.Servers
-		if apps != nil {
-			servers, err = web.ListenAndServeWithAppDir(apps)
-		} else {
-			servers, err = web.ListenAndServe()
-		}
+		servers, err = web.ListenAndServe()
+		
 		if err != nil {
 			return err
 		}

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,7 +11,6 @@ import (
 	"path/filepath"
 
 	"github.com/cozy/cozy-stack/client/request"
-	"github.com/cozy/cozy-stack/model/account"
 	"github.com/cozy/cozy-stack/pkg/config/config"
 	"github.com/cozy/cozy-stack/pkg/crypto"
 	"github.com/cozy/cozy-stack/pkg/keymgmt"
@@ -161,124 +159,6 @@ keyfiles written in:
 			return err
 		}
 		errPrintfln("keyfiles written in:\n  %s\n  %s", encryptorFilename, decryptorFilename)
-		return nil
-	},
-}
-
-var encryptCredentialsDataCmd = &cobra.Command{
-	Use:   "encrypt-data <encoding keyfile> <text>",
-	Short: "Encrypt data with the specified encryption keyfile.",
-	Long:  `cozy-stack config encrypt-data encrypts any valid JSON data`,
-	Example: `
-$ ./cozy-stack config encrypt-data ~/.cozy/key.enc "{\"foo\": \"bar\"}"
-$ bmFjbNFjY+XZkS26YtVPUIKKm/JdnAGwG30n6A4ypS1p1dHev8hOtaRbW+lGneoO7PS9JCW8U5GSXhASu+c3UkaZ
-`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) != 2 {
-			return cmd.Usage()
-		}
-
-		// Check if we have good-formatted JSON
-		var result map[string]interface{}
-		err := json.Unmarshal([]byte(args[1]), &result)
-		if err != nil {
-			return err
-		}
-
-		encKeyStruct, err := readKeyFromFile(args[0])
-		if err != nil {
-			return err
-		}
-		dataEncrypted, err := account.EncryptBufferWithKey(encKeyStruct, []byte(args[1]))
-		if err != nil {
-			return err
-		}
-		data := base64.StdEncoding.EncodeToString(dataEncrypted)
-		fmt.Printf("%s\n", data)
-
-		return nil
-	},
-}
-
-var decryptCredentialsDataCmd = &cobra.Command{
-	Use:   "decrypt-data <decoding keyfile> <ciphertext>",
-	Short: "Decrypt data with the specified decryption keyfile.",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) != 2 {
-			return cmd.Usage()
-		}
-
-		decKeyStruct, err := readKeyFromFile(args[0])
-		if err != nil {
-			return err
-		}
-
-		dataEncrypted, err := base64.StdEncoding.DecodeString(args[1])
-		if err != nil {
-			return err
-		}
-		decrypted, err := account.DecryptBufferWithKey(decKeyStruct, dataEncrypted)
-		if err != nil {
-			return err
-		}
-
-		fmt.Printf("%s\n", decrypted)
-
-		return nil
-	},
-}
-
-var encryptCredentialsCmd = &cobra.Command{
-	Use:     "encrypt-creds <keyfile> <login> <password>",
-	Aliases: []string{"encrypt-credentials"},
-	Short:   "Encrypt the given credentials with the specified decryption keyfile.",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) != 3 {
-			return cmd.Usage()
-		}
-
-		credsEncryptor, err := readKeyFromFile(args[0])
-		if err != nil {
-			return err
-		}
-
-		encryptedCreds, err := account.EncryptCredentialsWithKey(credsEncryptor, args[1], args[2])
-		if err != nil {
-			return err
-		}
-		fmt.Printf("Encrypted credentials: %s\n", encryptedCreds)
-		return nil
-	},
-}
-
-var decryptCredentialsCmd = &cobra.Command{
-	Use:     "decrypt-creds <keyfile> <ciphertext>",
-	Aliases: []string{"decrypt-credentials"},
-	Short:   "Decrypt the given credentials cipher text with the specified decryption keyfile.",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) != 2 {
-			return cmd.Usage()
-		}
-
-		credsDecryptor, err := readKeyFromFile(args[0])
-		if err != nil {
-			return err
-		}
-
-		credentialsEncrypted, err := base64.StdEncoding.DecodeString(args[1])
-		if err != nil {
-			return fmt.Errorf("Cipher text is not properly base64 encoded: %s", err)
-		}
-
-		login, password, err := account.DecryptCredentialsWithKey(credsDecryptor, credentialsEncrypted)
-		if err != nil {
-			return fmt.Errorf("Could not decrypt cipher text: %s", err)
-		}
-
-		fmt.Printf(`Decrypted credentials:
-login:    %q
-password: %q
-`, login, password)
 		return nil
 	},
 }
@@ -447,10 +327,6 @@ func init() {
 	configCmdGroup.AddCommand(configPrintCmd)
 	configCmdGroup.AddCommand(adminPasswdCmd)
 	configCmdGroup.AddCommand(genKeysCmd)
-	configCmdGroup.AddCommand(encryptCredentialsDataCmd)
-	configCmdGroup.AddCommand(decryptCredentialsDataCmd)
-	configCmdGroup.AddCommand(encryptCredentialsCmd)
-	configCmdGroup.AddCommand(decryptCredentialsCmd)
 	configCmdGroup.AddCommand(insertAssetCmd)
 	configCmdGroup.AddCommand(listAssetCmd)
 	configCmdGroup.AddCommand(rmAssetCmd)

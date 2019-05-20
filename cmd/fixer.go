@@ -16,15 +16,10 @@ import (
 
 	"github.com/cozy/cozy-stack/client"
 	"github.com/cozy/cozy-stack/client/request"
-	"github.com/cozy/cozy-stack/model/app"
 	"github.com/cozy/cozy-stack/model/contact"
-	"github.com/cozy/cozy-stack/model/instance/lifecycle"
-	"github.com/cozy/cozy-stack/model/oauth"
 	"github.com/cozy/cozy-stack/model/vfs"
 	"github.com/cozy/cozy-stack/pkg/config/config"
 	"github.com/cozy/cozy-stack/pkg/consts"
-	"github.com/cozy/cozy-stack/pkg/couchdb"
-	"github.com/cozy/cozy-stack/web/auth"
 
 	"github.com/spf13/cobra"
 )
@@ -438,59 +433,6 @@ var contactEmailsFixer = &cobra.Command{
 	},
 }
 
-var linkedAppFixer = &cobra.Command{
-	Use:   "link-app <domain>",
-	Short: "Link an old OAuth client to a webapp",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) != 1 {
-			return cmd.Usage()
-		}
-
-		domain := args[0]
-		i, err := lifecycle.GetInstance(domain)
-		if err != nil {
-			return err
-		}
-		clients, err := oauth.GetAll(i, true)
-		if err != nil {
-			return err
-		}
-		for _, client := range clients {
-			for key, value := range softwareIDs {
-				if client.SoftwareID == key {
-					slug := auth.GetLinkedAppSlug(value)
-
-					// Change softwareID
-					client.SoftwareID = value
-
-					// Install app
-					installer, err := app.NewInstaller(i, i.AppsCopier(consts.WebappType),
-						&app.InstallerOptions{
-							Operation:  app.Install,
-							Type:       consts.WebappType,
-							Slug:       slug,
-							SourceURL:  value,
-							Registries: i.Registries(),
-						})
-
-					if err != app.ErrAlreadyExists {
-						if err != nil {
-							return err
-						}
-						installer.Run()
-					}
-
-					err = couchdb.UpdateDoc(i, client)
-					if err != nil {
-						return err
-					}
-					break
-				}
-			}
-		}
-		return nil
-	},
-}
 
 var contentMismatch64Kfixer = &cobra.Command{
 	Use:   "content-mismatch <domain>",
@@ -501,7 +443,6 @@ var contentMismatch64Kfixer = &cobra.Command{
 		}
 
 		domain := args[0]
-		corruptedSuffix := "-corrupted"
 
 		if !noDryRunFlag {
 			fmt.Println("This is a dry-run, no file will be altered")
@@ -514,11 +455,6 @@ var contentMismatch64Kfixer = &cobra.Command{
 		})
 		if err != nil {
 			return err
-		}
-
-		inst, err := lifecycle.GetInstance(domain)
-		if err != nil {
-			return fmt.Errorf("Cannot find instance %s", domain)
 		}
 
 		var content map[string]interface{}
@@ -551,46 +487,6 @@ var contentMismatch64Kfixer = &cobra.Command{
 				continue
 			}
 
-			// Removes/update
-			fileDoc := content["file_doc"].(map[string]interface{})
-
-			doc := &vfs.FileDoc{}
-			err = couchdb.GetDoc(inst, consts.Files, fileDoc["_id"].(string), doc)
-			if err != nil {
-				return err
-			}
-			instanceVFS := inst.VFS()
-
-			// Checks if the file is trashed
-			if fileDoc["restore_path"] != nil {
-				// This is a trashed file, just delete it
-				fmt.Printf("Removing file %s from instance %s\n", fileDoc["path"].(string), domain)
-				if noDryRunFlag {
-					err := instanceVFS.DestroyFile(doc)
-					if err != nil {
-						fmt.Printf("Error while removing file %s: %s", fileDoc["path"].(string), err)
-					}
-				}
-				continue
-			}
-
-			// Fixing :
-			// - Appending a corrupted suffix to the file
-			// - Force the file index size to the real file size
-			newFileDoc := doc.Clone().(*vfs.FileDoc)
-
-			newFileDoc.DocName = doc.DocName + corruptedSuffix
-			newFileDoc.ByteSize = contentMismatch.SizeFile
-
-			fmt.Printf("Updating index document for file %s\n", fileDoc["path"].(string))
-			if noDryRunFlag {
-				// Let the UpdateFileDoc handles the file doc update. For swift
-				// layout V1, the file should also be renamed
-				err := instanceVFS.UpdateFileDoc(doc, newFileDoc)
-				if err != nil {
-					fmt.Printf("Error while updating document %s: %s\n", doc.DocID, err)
-				}
-			}
 		}
 
 		return nil
@@ -611,7 +507,6 @@ func init() {
 	fixerCmdGroup.AddCommand(redisFixer)
 	fixerCmdGroup.AddCommand(thumbnailsFixer)
 	fixerCmdGroup.AddCommand(contactEmailsFixer)
-	fixerCmdGroup.AddCommand(linkedAppFixer)
 	fixerCmdGroup.AddCommand(contentMismatch64Kfixer)
 
 	RootCmd.AddCommand(fixerCmdGroup)

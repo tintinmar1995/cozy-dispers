@@ -1,11 +1,7 @@
 package middlewares
 
 import (
-	"bytes"
 	"html/template"
-
-	"github.com/cozy/cozy-stack/model/instance"
-	"github.com/cozy/echo"
 )
 
 // FuncsMap is a the helper functions used in templates.
@@ -30,44 +26,4 @@ func BuildTemplates() {
 	<link rel="icon" type="image/png" href="{{asset .Domain "/favicon-32x32.png" .ContextName}}" sizes="32x32">
 	<link rel="apple-touch-icon" sizes="180x180" href="{{asset .Domain "/apple-touch-icon.png" .ContextName}}"/>
 		`))
-}
-
-// CozyUI returns an HTML template to insert the Cozy-UI assets.
-func CozyUI(i *instance.Instance) template.HTML {
-	buf := new(bytes.Buffer)
-	err := cozyUITemplate.Execute(buf, echo.Map{
-		"Domain":      i.ContextualDomain(),
-		"ContextName": i.ContextName,
-	})
-	if err != nil {
-		panic(err)
-	}
-	return template.HTML(buf.String())
-}
-
-// ThemeCSS returns an HTML template for inserting the HTML tag for the custom
-// CSS theme
-func ThemeCSS(i *instance.Instance) template.HTML {
-	buf := new(bytes.Buffer)
-	err := themeTemplate.Execute(buf, echo.Map{
-		"Domain":      i.ContextualDomain(),
-		"ContextName": i.ContextName,
-	})
-	if err != nil {
-		panic(err)
-	}
-	return template.HTML(buf.String())
-}
-
-// Favicon returns a helper to insert the favicons in an HTML template.
-func Favicon(i *instance.Instance) template.HTML {
-	buf := new(bytes.Buffer)
-	err := faviconTemplate.Execute(buf, echo.Map{
-		"Domain":      i.ContextualDomain(),
-		"ContextName": i.ContextName,
-	})
-	if err != nil {
-		panic(err)
-	}
-	return template.HTML(buf.String())
 }
