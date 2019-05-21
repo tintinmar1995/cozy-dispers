@@ -9,22 +9,27 @@ import (
 	"github.com/cozy/cozy-stack/pkg/config/config"
 	"github.com/cozy/cozy-stack/pkg/couchdb"
 	"github.com/cozy/cozy-stack/pkg/prefixer"
+	"github.com/stretchr/testify/assert"
 )
 
 /*
 General tests on DISPERS API. HTTP requests are sent and answers are analysed.
 */
-
-/*
 func TestDecrypteConcept(t *testing.T) {
 	testCI := Actor{
 		host: "localhost:8080",
 		api:  "conceptindexor",
 	}
-	testCI.makeRequestPost("hash/concept=lib", "")
-	assert.Equal(t, "foo", testCI.outstr)
+	testCI.makeRequestPost("hash/concept=majeur", "")
+	req1 := testCI.outstr
+	testCI.makeRequestPost("hash/concept=majeur", "")
+	req2 := testCI.outstr
+	assert.Equal(t, req1, req2)
+	//testCI.makeRequestDelete("hash/concept=majeur", "")
+	//req2 := testCI.outstr
 }
 
+/*
 func TestGetTargets(t *testing.T) {
 	testTF := Actor{
 		host: "localhost:8080",

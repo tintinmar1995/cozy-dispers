@@ -65,7 +65,6 @@ func TestConceptIndexor(t *testing.T) {
 
 }
 
-
 func TestAddSalt(t *testing.T) {
 	conceptTestRandom := string(crypto.GenerateRandomBytes(50))
 	errAdd := AddSalt(conceptTestRandom)
@@ -74,8 +73,8 @@ func TestAddSalt(t *testing.T) {
 
 func TestDeleteSalt(t *testing.T) {
 	conceptTestRandom := string(crypto.GenerateRandomBytes(50))
-	HashMeThat(conceptTestRandom)
-	err := DeleteConcept(conceptTestRandom)
+	AddSalt(conceptTestRandom)
+	err := DeleteSalt(conceptTestRandom)
 	assert.NoError(t, err)
 }
 
@@ -87,26 +86,35 @@ func TestGetSalt(t *testing.T) {
 }
 
 func TestHash(t *testing.T) {
-  	conceptTestRandom := string(crypto.GenerateRandomBytes(10))
-    res, err := Hash(conceptTestRandom, "")
-    assert.NoError(t, err)
-    res2, _ := Hash(conceptTestRandom, "")
-    assert.Equal(t, res, res2)
+	conceptTestRandom := string(crypto.GenerateRandomBytes(10))
+  res, err := Hash(conceptTestRandom, "")
+  assert.NoError(t, err)
+  res2, _ := Hash(conceptTestRandom, "")
+  assert.Equal(t, res, res2)
 }
 
 func TestHashMeThat(t *testing.T) {
-  	conceptTestRandom := string(crypto.GenerateRandomBytes(10))
-    res, err := HashMeThat(conceptTestRandom)
-    assert.NoError(t, err)
-    res2, _ := HashMeThat(conceptTestRandom)
-    assert.Equal(t, res, res2)
+	conceptTestRandom := string(crypto.GenerateRandomBytes(10))
+  res, err := HashMeThat(conceptTestRandom)
+  assert.NoError(t, err)
+  res2, _ := HashMeThat(conceptTestRandom)
+  assert.Equal(t, res, res2)
+}
+
+func TestHashIsNotDeterministic(t *testing.T) {
+	conceptTestRandom := string(crypto.GenerateRandomBytes(10))
+	hash1, _ := HashMeThat(conceptTestRandom)
+	DeleteConcept(conceptTestRandom)
+	hash2, _ := HashMeThat(conceptTestRandom)
+	DeleteConcept(conceptTestRandom)
+	assert.NotEqual(t, hash1, hash2)
 }
 
 func TestIsExistantSaltExisting(t *testing.T) {
 	conceptTestRandom := string(crypto.GenerateRandomBytes(50))
 	AddSalt(conceptTestRandom)
 	_, err := IsConceptExisting(conceptTestRandom)
-		assert.NoError(t, err)
+	assert.NoError(t, err)
 }
 
 func TestIsUnexistantSaltExisting(t *testing.T) {

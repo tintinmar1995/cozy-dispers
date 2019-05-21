@@ -43,7 +43,7 @@ func (t *ConceptDoc) Rev() string {
 
 // DocType is used to get DocType
 func (t *ConceptDoc) DocType() string {
-	return "io.cozy.Hashconcept"
+	return "io.cozy.hashconcept"
 }
 
 // Clone is used to create another ConceptDoc from this ConceptDoc
@@ -63,19 +63,19 @@ func (t *ConceptDoc) SetRev(rev string) {
 }
 
 // AddSalt does not check is one salt is already existing
-func AddSalt(concept string) error {
+func AddSalt(hashedConcept string) error {
 
 	ConceptDoc := &ConceptDoc{
 		ConceptID:  "",
 		ConceptRev: "",
-		Concept:    concept,
+		Concept:    hashedConcept,
 		Salt:       string(crypto.GenerateRandomBytes(5)),
 	}
 
 	return couchdb.CreateDoc(prefixer.ConceptIndexorPrefixer, ConceptDoc)
 }
 
-func GetSalt(concept string) (string, error) {
+func GetSalt(hashedConcept string) (string, error) {
 
 	salt := ""
 	err := couchdb.DefineIndex(prefixer.ConceptIndexorPrefixer, mango.IndexOnFields("io.cozy.Hashconcept", "concept-index", []string{"concept"}))
@@ -84,7 +84,7 @@ func GetSalt(concept string) (string, error) {
 	}
 
 	var out []ConceptDoc
-	req := &couchdb.FindRequest{Selector: mango.Equal("concept", concept)}
+	req := &couchdb.FindRequest{Selector: mango.Equal("concept", hashedConcept)}
 	err = couchdb.FindDocs(prefixer.ConceptIndexorPrefixer, "io.cozy.Hashconcept", req, &out)
 	if err != nil {
 		return salt, err
@@ -140,24 +140,11 @@ func IsConceptExisting(hashedConcept string) (bool, error) {
 	return false, nil
 }
 
-/*
-DeleteConcept is used to delete a salt in ConceptIndexor Database. It has to be
-used to update a salt.
-*/
-func DeleteConcept(encryptedConcept string) error {
-
-	// TODO: Decrypte concept with private key
-	concept := encryptedConcept
-
-	hashedConcept, err := Hash(concept, "")
-	if err != nil {
-		return err
-	}
-
+func DeleteSalt(hashedConcept string) error {
 	// Delete document in database
 	var out []ConceptDoc
 	req := &couchdb.FindRequest{Selector: mango.Equal("concept", hashedConcept)}
-	err = couchdb.FindDocs(prefixer.ConceptIndexorPrefixer, "io.cozy.Hashconcept", req, &out)
+	err := couchdb.FindDocs(prefixer.ConceptIndexorPrefixer, "io.cozy.Hashconcept", req, &out)
 	if err != nil {
 		return err
 	}
@@ -173,6 +160,25 @@ func DeleteConcept(encryptedConcept string) error {
 			return err
 		}
 	}
+
+	return nil
+}
+
+/*
+DeleteConcept is used to delete a salt in ConceptIndexor Database. It has to be
+used to update a salt.
+*/
+func DeleteConcept(encryptedConcept string) error {
+
+	// TODO: Decrypte concept with private key
+	concept := encryptedConcept
+
+	hashedConcept, err := Hash(concept, "")
+	if err != nil {
+		return err
+	}
+
+	DeleteSalt(hashedConcept)
 
 	return err
 }
