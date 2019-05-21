@@ -10,48 +10,57 @@ import (
 	"github.com/cozy/cozy-stack/pkg/prefixer"
 )
 
-type conceptDoc struct {
-	conceptID  string `json:"_id,omitempty"`
-	conceptRev string `json:"_rev,omitempty"`
-	concept    string `json:"concept,omitempty"`
-	salt       string `json:"salt,omitempty"`
+/*
+ConceptDoc is used to save a concept's salt into Concept Indexor's database
+*/
+type ConceptDoc struct {
+	ConceptID  string `json:"_id,omitempty"`
+	ConceptRev string `json:"_rev,omitempty"`
+	Concept    string `json:"concept,omitempty"`
+	Salt       string `json:"salt,omitempty"`
 }
 
-func (t *conceptDoc) ID() string {
-	return t.conceptID
+// ID is used to get ID
+func (t *ConceptDoc) ID() string {
+	return t.ConceptID
 }
 
-func (t *conceptDoc) Rev() string {
-	return t.conceptRev
+// Rev is used to get Rev
+func (t *ConceptDoc) Rev() string {
+	return t.ConceptRev
 }
 
-func (t *conceptDoc) DocType() string {
+// DocType is used to get DocType
+func (t *ConceptDoc) DocType() string {
 	return "io.cozy.hashconcept"
 }
 
-func (t *conceptDoc) Clone() couchdb.Doc {
+// Clone is used to create another ConceptDoc from this ConceptDoc
+func (t *ConceptDoc) Clone() couchdb.Doc {
 	cloned := *t
 	return &cloned
 }
 
-func (t *conceptDoc) SetID(id string) {
-	t.conceptID = id
+// SetID is used to set the Doc ID
+func (t *ConceptDoc) SetID(id string) {
+	t.ConceptID = id
 }
 
-func (t *conceptDoc) SetRev(rev string) {
-	t.conceptRev = rev
+// SetRev is used to set Rev
+func (t *ConceptDoc) SetRev(rev string) {
+	t.ConceptRev = rev
 }
 
 func addSalt(concept string) error {
 
-	conceptDoc := &conceptDoc{
-		conceptID:  "",
-		conceptRev: "",
-		concept:    concept,
-		salt:       string(crypto.GenerateRandomBytes(5)),
+	ConceptDoc := &ConceptDoc{
+		ConceptID:  "",
+		ConceptRev: "",
+		Concept:    concept,
+		Salt:       string(crypto.GenerateRandomBytes(5)),
 	}
 
-	return couchdb.CreateDoc(prefixer.ConceptIndexorPrefixer, conceptDoc)
+	return couchdb.CreateDoc(prefixer.ConceptIndexorPrefixer, ConceptDoc)
 }
 
 func getSalt(concept string) (string, error) {
@@ -62,7 +71,7 @@ func getSalt(concept string) (string, error) {
 		return salt, err
 	}
 
-	var out []conceptDoc
+	var out []ConceptDoc
 	req := &couchdb.FindRequest{Selector: mango.Equal("concept", concept)}
 	err = couchdb.FindDocs(prefixer.ConceptIndexorPrefixer, "io.cozy.hashconcept", req, out)
 	if err != nil {
@@ -70,24 +79,31 @@ func getSalt(concept string) (string, error) {
 	}
 
 	if len(out) == 1 {
-		salt = out[0].salt
+		salt = out[0].Salt
 	} else if len(out) == 0 {
 		// TODO: Creation an error
-		errors.New("Concept Indexor : no existing salt for this concept")
+		return "", errors.New("Concept Indexor : no existing salt for this concept")
 	} else {
-		errors.New("Concept Indexor : several salts for this concept")
+		return "", errors.New("Concept Indexor : several salts for this concept")
 	}
 
 	return salt, err
 }
 
-func hash(str string) string {
-	return ""
+// TODO: Implements bcrypt or argon instead of scrypt
+func hash(str string) (string, error) {
+
+	scrypt, err := crypto.GenerateFromPassphrase([]byte(str))
+	if err != nil {
+		return "", err
+	}
+
+	return string(scrypt), err
 }
 
 func isConceptExisting(concept string) (bool, error) {
 
-	var out []conceptDoc
+	var out []ConceptDoc
 	req := &couchdb.FindRequest{Selector: mango.Equal("concept", concept)}
 	err := couchdb.FindDocs(prefixer.ConceptIndexorPrefixer, "io.cozy.hashconcept", req, out)
 	if err != nil {
@@ -111,7 +127,7 @@ func DeleteConcept(encryptedConcept string) error {
 	concept := encryptedConcept
 
 	// TODO: Delete document in database
-	var out []conceptDoc
+	var out []ConceptDoc
 	req := &couchdb.FindRequest{Selector: mango.Equal("concept", concept)}
 	err := couchdb.FindDocs(prefixer.ConceptIndexorPrefixer, "io.cozy.hashconcept", req, out)
 	if err != nil {
@@ -159,13 +175,17 @@ func HashMeThat(encryptedConcept string) (string, error) {
 	}
 
 	// Get salt with hash(concept)
-	salt, err := getSalt(hash(concept))
+	hashedConcept, err := hash(concept)
+	if err != nil {
+		return "", err
+	}
+	salt, err := getSalt(hashedConcept)
 	if err != nil {
 		return "", err
 	}
 
-	// Merge concept and salt
-	justHashed := hash(strings.Join([]string{concept, salt}, ""))
+	// Merge concept and salt, then hash
+	justHashed, err := hash(strings.Join([]string{concept, salt}, ""))
 
-	return justHashed, nil
+	return justHashed, err
 }
