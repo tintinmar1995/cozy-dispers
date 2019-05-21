@@ -2,13 +2,24 @@ package enclave
 
 import (
 	"errors"
-	"strings"
+
+	"golang.org/x/crypto/scrypt"
 
 	"github.com/cozy/cozy-stack/pkg/couchdb"
 	"github.com/cozy/cozy-stack/pkg/couchdb/mango"
 	"github.com/cozy/cozy-stack/pkg/crypto"
 	"github.com/cozy/cozy-stack/pkg/prefixer"
 )
+
+const defaultN = 32768
+const defaultR = 8
+const defaultP = 1
+
+// hash length
+const defaultDkLen = 32
+
+// salt length
+var defaultSalt = "CozyCloud"
 
 /*
 ConceptDoc is used to save a concept's salt into Concept Indexor's database
@@ -32,7 +43,7 @@ func (t *ConceptDoc) Rev() string {
 
 // DocType is used to get DocType
 func (t *ConceptDoc) DocType() string {
-	return "io.cozy.hashconcept"
+	return "io.cozy.Hashconcept"
 }
 
 // Clone is used to create another ConceptDoc from this ConceptDoc
@@ -51,7 +62,8 @@ func (t *ConceptDoc) SetRev(rev string) {
 	t.ConceptRev = rev
 }
 
-func addSalt(concept string) error {
+// AddSalt does not check is one salt is already existing
+func AddSalt(concept string) error {
 
 	ConceptDoc := &ConceptDoc{
 		ConceptID:  "",
@@ -63,17 +75,17 @@ func addSalt(concept string) error {
 	return couchdb.CreateDoc(prefixer.ConceptIndexorPrefixer, ConceptDoc)
 }
 
-func getSalt(concept string) (string, error) {
+func GetSalt(concept string) (string, error) {
 
 	salt := ""
-	err := couchdb.DefineIndex(prefixer.ConceptIndexorPrefixer, mango.IndexOnFields("io.cozy.hashconcept", "concept-index", []string{"concept"}))
+	err := couchdb.DefineIndex(prefixer.ConceptIndexorPrefixer, mango.IndexOnFields("io.cozy.Hashconcept", "concept-index", []string{"concept"}))
 	if err != nil {
 		return salt, err
 	}
 
 	var out []ConceptDoc
 	req := &couchdb.FindRequest{Selector: mango.Equal("concept", concept)}
-	err = couchdb.FindDocs(prefixer.ConceptIndexorPrefixer, "io.cozy.hashconcept", req, out)
+	err = couchdb.FindDocs(prefixer.ConceptIndexorPrefixer, "io.cozy.Hashconcept", req, &out)
 	if err != nil {
 		return salt, err
 	}
@@ -91,21 +103,32 @@ func getSalt(concept string) (string, error) {
 }
 
 // TODO: Implements bcrypt or argon instead of scrypt
-func hash(str string) (string, error) {
+func Hash(str string, saltIn string) (string, error) {
 
-	scrypt, err := crypto.GenerateFromPassphrase([]byte(str))
+	salt := saltIn
+	if saltIn == "" {
+		salt = defaultSalt
+	}
+
+	// scrypt the cleartext passphrase with the same parameters
+	other, err := scrypt.Key([]byte(str), []byte(salt), defaultN, defaultR, defaultP, defaultDkLen)
 	if err != nil {
 		return "", err
 	}
 
-	return string(scrypt), err
+	return string(other), err
 }
 
-func isConceptExisting(concept string) (bool, error) {
+func IsConceptExisting(hashedConcept string) (bool, error) {
+
+	err := couchdb.DefineIndex(prefixer.ConceptIndexorPrefixer, mango.IndexOnFields("io.cozy.Hashconcept", "concept-index", []string{"concept"}))
+	if err != nil {
+		return false, err
+	}
 
 	var out []ConceptDoc
-	req := &couchdb.FindRequest{Selector: mango.Equal("concept", concept)}
-	err := couchdb.FindDocs(prefixer.ConceptIndexorPrefixer, "io.cozy.hashconcept", req, out)
+	req := &couchdb.FindRequest{Selector: mango.Equal("concept", hashedConcept)}
+	err = couchdb.FindDocs(prefixer.ConceptIndexorPrefixer, "io.cozy.Hashconcept", req, &out)
 	if err != nil {
 		return false, err
 	}
@@ -126,10 +149,15 @@ func DeleteConcept(encryptedConcept string) error {
 	// TODO: Decrypte concept with private key
 	concept := encryptedConcept
 
-	// TODO: Delete document in database
+	hashedConcept, err := Hash(concept, "")
+	if err != nil {
+		return err
+	}
+
+	// Delete document in database
 	var out []ConceptDoc
-	req := &couchdb.FindRequest{Selector: mango.Equal("concept", concept)}
-	err := couchdb.FindDocs(prefixer.ConceptIndexorPrefixer, "io.cozy.hashconcept", req, out)
+	req := &couchdb.FindRequest{Selector: mango.Equal("concept", hashedConcept)}
+	err = couchdb.FindDocs(prefixer.ConceptIndexorPrefixer, "io.cozy.Hashconcept", req, &out)
 	if err != nil {
 		return err
 	}
@@ -154,12 +182,18 @@ HashMeThat is used to get a concept's salt. If the salt is absent from CI databa
 the function creates the salt and notify the user that the salt has just been created
 */
 func HashMeThat(encryptedConcept string) (string, error) {
-	couchdb.EnsureDBExist(prefixer.ConceptIndexorPrefixer, "io.cozy.hashconcept")
+	couchdb.EnsureDBExist(prefixer.ConceptIndexorPrefixer, "io.cozy.Hashconcept")
 
 	// TODO: Decrypte concept with private key
 	concept := encryptedConcept
 
-	isExisting, err := isConceptExisting(concept)
+	// Get salt with Hash(concept)
+	hashedConcept, err := Hash(concept, "")
+	if err != nil {
+		return "", err
+	}
+
+	isExisting, err := IsConceptExisting(hashedConcept)
 	if err != nil {
 		return "", err
 	}
@@ -167,25 +201,20 @@ func HashMeThat(encryptedConcept string) (string, error) {
 	if isExisting {
 		// Write in Metadata that concept has been retrieved
 	} else {
-		err = addSalt(concept)
+		err = AddSalt(hashedConcept)
 		if err != nil {
 			return "", err
 		}
 		// Write in Metadata that concept has been created
 	}
 
-	// Get salt with hash(concept)
-	hashedConcept, err := hash(concept)
-	if err != nil {
-		return "", err
-	}
-	salt, err := getSalt(hashedConcept)
+	salt, err := GetSalt(hashedConcept)
 	if err != nil {
 		return "", err
 	}
 
-	// Merge concept and salt, then hash
-	justHashed, err := hash(strings.Join([]string{concept, salt}, ""))
+	// Merge concept and salt, then Hash
+	justHashed, err := Hash(concept, salt)
 
 	return justHashed, err
 }

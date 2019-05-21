@@ -2,18 +2,20 @@ package enclave
 
 import (
 	"fmt"
-	"io/ioutil"
-	"path/filepath"
-	"strings"
+	"os"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/cozy/checkup"
+	"github.com/cozy/cozy-stack/pkg/config/config"
+	"github.com/cozy/cozy-stack/pkg/couchdb"
+	"github.com/cozy/cozy-stack/pkg/prefixer"
 )
 
 /*
 General tests on DISPERS API. HTTP requests are sent and answers are analysed.
 */
 
+/*
 func TestDecrypteConcept(t *testing.T) {
 	testCI := Actor{
 		host: "localhost:8080",
@@ -69,4 +71,24 @@ func TestUpdateDoc(t *testing.T) {
 }
 
 func TestLead(t *testing.T) {
+}
+*/
+
+func TestMain(m *testing.M) {
+	config.UseTestFile()
+
+	// First we make sure couchdb is started
+	db, err := checkup.HTTPChecker{URL: config.CouchURL().String()}.Check()
+	if err != nil || db.Status() != checkup.Healthy {
+		fmt.Println("This test need couchdb to run.")
+		os.Exit(1)
+	}
+
+	couchdb.EnsureDBExist(prefixer.TestConceptIndexorPrefixer, "io.cozy.hashconcept")
+	couchdb.DeleteDB(prefixer.TestConceptIndexorPrefixer, "io.cozy.hashconcept")
+	couchdb.EnsureDBExist(prefixer.TestConceptIndexorPrefixer, "io.cozy.hashconcept")
+
+	res := m.Run()
+	os.Exit(res)
+
 }
