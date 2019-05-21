@@ -5,25 +5,25 @@ This script is defining metadata's interface. It will be use to define metadata 
 Metadata are written on the confuctor's database. The querier can read those metadata to know his training's state
 */
 type Metadata interface {
-    Name()        string
-    Date()        string
-    Outcome()     bool
-    Description() string
+	Name() string
+	Date() string
+	Outcome() bool
+	Description() string
 }
 
 type metadata struct {
-    date        string   `json:"date,omitempty"`
-    description string   `json:"description,omitempty"`
-    name        string   `json:"name,omitempty"`
-    outcome     bool     `json:"outcome,omitempty"`
+	date        string `json:"date,omitempty"`
+	description string `json:"description,omitempty"`
+	name        string `json:"name,omitempty"`
+	outcome     bool   `json:"outcome,omitempty"`
 }
 
 func NewMetadata(name string, description string, date string, outcome bool) Metadata {
 	return &metadata{
-		date: date,
-    description: description,
-    outcome: outcome,
-    name: name,
+		date:        date,
+		description: description,
+		outcome:     outcome,
+		name:        name,
 	}
 }
 
