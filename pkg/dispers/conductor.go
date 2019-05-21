@@ -3,7 +3,7 @@ In this file, we lead a DISPERS-ML learning. We're going to choose the Actors in
 the process and talk with them. We're probabliy going to interact with several
 stacks and several servers. This script is also going to keep the querier (front
 -end) acknowledge of the process by updating repeatedly the doc in his Couchdb.
-A conductor is instanciated when a user call the associated route of this API.
+A Conductor is instanciated when a user call the associated route of this API.
 */
 
 package enclave
@@ -11,7 +11,6 @@ package enclave
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -88,12 +87,12 @@ func Subscribe(domain, prefix string, adresses []string) {
 			}
 
 		  couchdb.CreateNamedDocWithDB(mPrefixer, doc)
-		  // TO DO : update doc in conductor/shared4ml
+		  // TO DO : update doc in Conductor/shared4ml
 	*/
 }
 
 /*
-Actor structure gives the conductor a way to consider every distant Actors
+Actor structure gives the Conductor a way to consider every distant Actors
 and to communicate with it.
 */
 type Actor struct {
@@ -157,7 +156,7 @@ func (a *Actor) makeRequestPost(job string, data string) error {
 /*
 The script is going to retrieve informations in the querier's db and follows
 this informations to the different api. The most part of this informations is
-encrypted, the conductor is not supposed to deduced anything from all what he is
+encrypted, the Conductor is not supposed to deduced anything from all what he is
 manipulating.
 */
 
@@ -175,22 +174,22 @@ type Training struct {
 }
 
 /*
-Every training has metadata saved in the conductor's database. Thanks to that,
+Every training has metadata saved in the Conductor's database. Thanks to that,
 the querier can retrieve the learning's state.
 */
 type queryDoc struct {
-	queryID    string           `json:"_id,omitempty"`
-	queryRev   string           `json:"_rev,omitempty"`
+	QueryID    string           `json:"_id,omitempty"`
+	QueryRev   string           `json:"_rev,omitempty"`
 	MyTraining Training         `json:"training,omitempty"`
 	MyMetada   dispers.Metadata `json:"metadata,omitempty"` // A changer pour différencier chaque acteur
 }
 
 func (t *queryDoc) ID() string {
-	return t.queryID
+	return t.QueryID
 }
 
 func (t *queryDoc) Rev() string {
-	return t.queryRev
+	return t.QueryRev
 }
 
 func (t *queryDoc) DocType() string {
@@ -203,17 +202,20 @@ func (t *queryDoc) Clone() couchdb.Doc {
 }
 
 func (t *queryDoc) SetID(id string) {
-	t.queryID = id
+	t.QueryID = id
 }
 
 func (t *queryDoc) SetRev(rev string) {
-	t.queryRev = rev
+	t.QueryRev = rev
 }
 
-func NewQueryDoc(queryID string, queryRev string, MyTraining Training, MyMetada dispers.Metadata) *queryDoc {
+/*
+NewQueryDoc is used to initiate a QueryDoc
+*/
+func newQueryDoc(MyTraining Training, MyMetada dispers.Metadata) *queryDoc {
 	return &queryDoc{
-		queryID:    queryID,
-		queryRev:   queryRev,
+		QueryID:    "",
+		QueryRev:   "",
 		MyTraining: MyTraining,
 		MyMetada:   MyMetada,
 	}
@@ -244,8 +246,8 @@ type aggregationLayer struct {
 }
 */
 
-type conductor struct {
-	doc                queryDoc // Doc in the querier's database where are saved parameters, metadata and results
+type Conductor struct {
+	Doc                queryDoc // Doc in the querier's database where are saved parameters, metadata and results
 	mPrefixer          prefixer.Prefixer
 	targetfinders      []Actor
 	conceptindexors    []Actor
@@ -261,86 +263,64 @@ NewConductor returns a Conductor object with the specified values.
 This object will be created directly in the cmd shell / web api
 This object use the major part of what have been created before in this script
 */
-func NewConductor(domain, prefix string) *conductor {
+func NewConductor(domain, prefix string, mytraining Training) (*Conductor, error) {
 
-	pref := prefixer.NewPrefixer(domain, prefix)
+	mytraining.State = "Training"
+	querydoc := newQueryDoc(mytraining, dispers.NewMetadata("creation", "creation du training", "aujourd'hui", true))
+
+	if err := couchdb.CreateDoc(prefixer.ConductorPrefixer, querydoc); err != nil {
+		return &Conductor{}, err
+	}
 
 	// Doc's creation in CouchDB
 	couchdb.EnsureDBExist(prefixer.DataAggregatorPrefixer, "io.cozy.aggregation")
-
-	/*
-	  doc := &DataAggrDoc{
-	    dataAggrDocID: "",
-	    dataAggrDocRev: "",
-	    Input: inputDA,
-	  }
-
-	 couchdb.CreateDoc(prefixer.DataAggregatorPrefixer, doc)
-	*/
 
 	// récupérer l'id du doc sur prefix/io.cozy.ml
 	docID := "17f78f7e8f7484z6"
 	docRev := "2-46148"
 
-	return &conductor{
-		mPrefixer: pref,
-		doc: queryDoc{
-			queryID:  docID,
-			queryRev: docRev,
+	retour := &Conductor{
+		Doc: queryDoc{
+			QueryID:  docID,
+			QueryRev: docRev,
 		},
 	}
+
+	return retour, nil
 }
 
 // Works with CI's API
-func (c *conductor) DecrypteConcept() dispers.Metadata {
-
-	ci := Actor{
-		host: "localhost:8080",
-		api:  "conceptindexor",
-	}
-	fmt.Println("")
-	ci.makeRequestPost("hash/concept=lib", "")
-	fmt.Println(ci.outstr)
-
+func (c *Conductor) DecrypteConcept() dispers.Metadata {
 	return dispers.NewMetadata("nom de la metadata", "description", "aujourd'hui à telle heure", true)
 
 }
 
 // Works with TF's API
-func (c *conductor) GetTargets() dispers.Metadata {
-
-	tf := Actor{
-		host: "localhost:8080",
-		api:  "targetfinder",
-	}
-	fmt.Println("")
-	tf.makeRequestPost("adresses", "{ \"concepts\" : [ { \"adresses\" : [\"avr\", \"mai\"] } , {\"adresses\" : [\"hey\", \"oh\"] }, { \"adresses\" : [\"bla\", \"bla\"] } ] }")
-	fmt.Println(tf.outstr)
-
+func (c *Conductor) GetTargets() dispers.Metadata {
 	return dispers.NewMetadata("nom de la metadata", "description", "aujourd'hui à telle heure", true)
 }
 
 // Works with T's API
-func (c *conductor) GetTokens() dispers.Metadata {
+func (c *Conductor) GetTokens() dispers.Metadata {
 	return dispers.NewMetadata("nom de la metadata", "description", "aujourd'hui à telle heure", true)
 }
 
 // Works with stacks
-func (c *conductor) GetData() (string, dispers.Metadata) {
+func (c *Conductor) GetData() (string, dispers.Metadata) {
 	s := ""
 	return s, dispers.NewMetadata("nom de la metadata", "description", "aujourd'hui à telle heure", true)
 }
 
 // Works with DA's API
-func (c *conductor) Aggregate() dispers.Metadata {
+func (c *Conductor) Aggregate() dispers.Metadata {
 	return dispers.NewMetadata("nom de la metadata", "description", "aujourd'hui à telle heure", true)
 }
 
 // This method is used to add a metadata to the Query Doc so that the querier is able to know the state of his training
-func (c *conductor) UpdateDoc(key string, metadata dispers.Metadata) error { return nil }
+func (c *Conductor) UpdateDoc(key string, metadata dispers.Metadata) error { return nil }
 
 // This method is the most general. This is the only one used in CMD and Web's files. It will use the 5 previous methods to work
-func (c *conductor) Lead() error {
+func (c *Conductor) Lead() error {
 
 	tempMetadata := dispers.NewMetadata("nom de la metadata", "description", "aujourd'hui à telle heure", true)
 	c.UpdateDoc("meta-task-0-init", tempMetadata)

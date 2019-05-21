@@ -6,12 +6,30 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
+/*
+General tests on DISPERS API. HTTP requests are sent and answers are analysed.
+*/
+
 func TestDecrypteConcept(t *testing.T) {
+	testCI := Actor{
+		host: "localhost:8080",
+		api:  "conceptindexor",
+	}
+	testCI.makeRequestPost("hash/concept=lib", "")
+	assert.Equal(t, "foo", testCI.outstr)
 }
 
 func TestGetTargets(t *testing.T) {
+	testTF := Actor{
+		host: "localhost:8080",
+		api:  "targetfinder",
+	}
+	testTF.makeRequestPost("adresses", "{ \"concepts\" : [ { \"adresses\" : [\"avr\", \"mai\"] } , {\"adresses\" : [\"hey\", \"oh\"] }, { \"adresses\" : [\"bla\", \"bla\"] } ] }")
+	assert.Equal(t, "foo", testTF.outstr)
 }
 
 func TestGetTokens(t *testing.T) {
@@ -20,7 +38,7 @@ func TestGetTokens(t *testing.T) {
 		api:  "target",
 	}
 	testT.makeRequestPost("gettokens", "{ \"localquery\" : \"blafjiejfi\", \"adresses\" : [ \"abc\", \"iji\", \"jio\" ] }")
-	fmt.Println(testT.outstr)
+	assert.Equal(t, "foo", testT.outstr)
 
 }
 
@@ -44,7 +62,7 @@ func TestAggregate(t *testing.T) {
 		api:  "dataaggregator",
 	}
 	testDA.makeRequestPost("aggregate", strings.Join([]string{"{ \"type\" : { \"dataset\" : \"bank.lib\", \"preprocess\" : \"tf-idf\", \"standardization\" : \"None\", \"shape\" : [20000, 1], \"fakelabels\" : [ \"X1\", \"X2\" ] } , \"data\" : \"", s, "\" }"}, ""))
-	fmt.Println(testDA.outstr)
+	assert.Equal(t, "foo", testDA.outstr)
 }
 
 func TestUpdateDoc(t *testing.T) {
