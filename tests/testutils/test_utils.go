@@ -10,15 +10,9 @@ import (
 	"net/url"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/cozy/checkup"
-	"github.com/cozy/cozy-stack/model/instance"
-	"github.com/cozy/cozy-stack/model/instance/lifecycle"
-	"github.com/cozy/cozy-stack/model/oauth"
-	"github.com/cozy/cozy-stack/model/stack"
 	"github.com/cozy/cozy-stack/pkg/config/config"
-	"github.com/cozy/cozy-stack/pkg/consts"
 	"github.com/cozy/cozy-stack/pkg/utils"
 	"github.com/cozy/echo"
 )
@@ -47,7 +41,6 @@ type TestSetup struct {
 	testingM *testing.M
 	name     string
 	host     string
-	inst     *instance.Instance
 	ts       *httptest.Server
 	cleanup  func()
 }
@@ -98,61 +91,6 @@ func (c *TestSetup) GetTmpDirectory() string {
 	return tempdir
 }
 
-// GetTestInstance creates an instance with a random host
-// The instance will be removed on container cleanup
-func (c *TestSetup) GetTestInstance(opts ...*lifecycle.Options) *instance.Instance {
-	if c.inst != nil {
-		return c.inst
-	}
-	var err error
-	if !stackStarted {
-		_, err = stack.Start()
-		if err != nil {
-			c.CleanupAndDie("Error while starting job system", err)
-		}
-		stackStarted = true
-	}
-	if len(opts) == 0 {
-		opts = []*lifecycle.Options{{}}
-	}
-	if opts[0].Domain == "" {
-		opts[0].Domain = c.host
-	} else {
-		c.host = opts[0].Domain
-	}
-	err = lifecycle.Destroy(c.host)
-	if err != nil && err != instance.ErrNotFound {
-		c.CleanupAndDie("Error while destroying instance", err)
-	}
-	i, err := lifecycle.Create(opts[0])
-
-	if err != nil {
-		c.CleanupAndDie("Cannot create test instance", err)
-	}
-	c.AddCleanup(func() error { err := lifecycle.Destroy(i.Domain); return err })
-	c.inst = i
-	return i
-}
-
-// GetTestClient creates an oauth client and associated token
-func (c *TestSetup) GetTestClient(scopes string) (*oauth.Client, string) {
-	inst := c.GetTestInstance()
-	client := oauth.Client{
-		RedirectURIs: []string{"http://localhost/oauth/callback"},
-		ClientName:   "client-" + c.host,
-		SoftwareID:   "github.com/cozy/cozy-stack/testing/" + c.name,
-	}
-	client.Create(inst)
-	token, err := c.inst.MakeJWT(consts.AccessTokenAudience,
-		client.ClientID, scopes, "", time.Now())
-
-	if err != nil {
-		c.CleanupAndDie("Cannot create oauth token", err)
-	}
-
-	return &client, token
-}
-
 // stupidRenderer is a renderer for echo that does nothing.
 // It is used just to avoid the error "Renderer not registered" for rendering
 // error pages.
@@ -160,40 +98,6 @@ type stupidRenderer struct{}
 
 func (sr *stupidRenderer) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
 	return nil
-}
-
-// GetTestServer start a testServer with a single group on prefix
-// The server will be closed on container cleanup
-func (c *TestSetup) GetTestServer(prefix string, routes func(*echo.Group),
-	mws ...func(*echo.Echo) *echo.Echo) *httptest.Server {
-	return c.GetTestServerMultipleRoutes(map[string]func(*echo.Group){prefix: routes}, mws...)
-}
-
-// GetTestServerMultipleRoutes starts a testServer and creates a group for each
-// pair of (prefix, routes) given.
-// The server will be closed on container cleanup.
-func (c *TestSetup) GetTestServerMultipleRoutes(mpr map[string]func(*echo.Group), mws ...func(*echo.Echo) *echo.Echo) *httptest.Server {
-	handler := echo.New()
-
-	for prefix, routes := range mpr {
-		group := handler.Group(prefix, func(next echo.HandlerFunc) echo.HandlerFunc {
-			return func(context echo.Context) error {
-				context.Set("instance", c.inst)
-				return next(context)
-			}
-		})
-
-		routes(group)
-	}
-
-	for _, mw := range mws {
-		handler = mw(handler)
-	}
-	handler.Renderer = &stupidRenderer{}
-	ts := httptest.NewServer(handler)
-	c.AddCleanup(func() error { ts.Close(); return nil })
-	c.ts = ts
-	return ts
 }
 
 // Run runs the underlying testing.M and cleanup
@@ -219,23 +123,4 @@ func (j *CookieJar) Cookies(u *url.URL) (cookies []*http.Cookie) {
 // SetCookies implements http.CookieJar interface
 func (j *CookieJar) SetCookies(u *url.URL, cookies []*http.Cookie) {
 	j.Jar.SetCookies(j.URL, cookies)
-}
-
-// GetCookieJar returns a cookie jar valable for test
-// the jar discard the url passed to Cookies and SetCookies and always use
-// the setup instance URL instead.
-func (c *TestSetup) GetCookieJar() http.CookieJar {
-	instance := c.GetTestInstance()
-	instanceURL, err := url.Parse("https://" + instance.Domain + "/")
-	if err != nil {
-		c.CleanupAndDie("Cant create cookie jar url", err)
-	}
-	j, err := cookiejar.New(nil)
-	if err != nil {
-		c.CleanupAndDie("Cant create cookie jar", err)
-	}
-	return &CookieJar{
-		Jar: j,
-		URL: instanceURL,
-	}
 }

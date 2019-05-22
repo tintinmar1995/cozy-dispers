@@ -6,17 +6,13 @@ import (
 	"os"
 	"strings"
 
-	"github.com/cozy/cozy-stack/model/app"
-	"github.com/cozy/cozy-stack/model/instance"
-	build "github.com/cozy/cozy-stack/pkg/config"
-	"github.com/cozy/cozy-stack/pkg/config/config"
 	"github.com/cozy/cozy-stack/pkg/couchdb"
 	"github.com/cozy/cozy-stack/pkg/jsonapi"
 	"github.com/cozy/cozy-stack/pkg/logger"
 	"github.com/cozy/cozy-stack/web/middlewares"
+	"github.com/sirupsen/logrus"
 
 	"github.com/cozy/echo"
-	"github.com/sirupsen/logrus"
 )
 
 // ErrorHandler is the default error handler of our APIs.
@@ -48,17 +44,6 @@ func ErrorHandler(err error, c echo.Context) {
 		}
 	}
 
-	if build.IsDevRelease() {
-		var log *logrus.Entry
-		inst, ok := middlewares.GetInstanceSafe(c)
-		if ok {
-			log = inst.Logger().WithField("nspace", "http")
-		} else {
-			log = logger.WithNamespace("http")
-		}
-		log.Errorf("%s %s %s", req.Method, req.URL.Path, err)
-	}
-
 	if res.Committed {
 		return
 	}
@@ -84,47 +69,26 @@ func HTMLErrorHandler(err error, c echo.Context) {
 	req := c.Request()
 
 	var log *logrus.Entry
-	inst, ok := middlewares.GetInstanceSafe(c)
-	if ok {
-		log = inst.Logger().WithField("nspace", "http")
-	} else {
-		log = logger.WithNamespace("http")
-	}
+	log = logger.WithNamespace("http")
 	log.Errorf("%s %s %s", req.Method, req.URL.Path, err)
 
 	var he *echo.HTTPError
-	if he, ok = err.(*echo.HTTPError); ok {
+	if he, ok := err.(*echo.HTTPError); ok {
 		status = he.Code
-		if he.Inner != nil {
-			err = he.Inner
-		}
 	} else {
 		he = echo.NewHTTPError(status, err)
 		he.Inner = err
 	}
 
 	var title, value string
-	switch err {
-	case instance.ErrNotFound:
-		status = http.StatusNotFound
-		title = "Error Instance not found Title"
-		value = "Error Instance not found Message"
-	case app.ErrNotFound:
-		status = http.StatusNotFound
-		title = "Error Application not found Title"
-		value = "Error Application not found Message"
-	case app.ErrInvalidSlugName:
-		status = http.StatusBadRequest
-	}
 
-	if title == "" {
-		if status >= 500 {
-			title = "Error Internal Server Error Title"
-			value = "Error Internal Server Error Message"
-		} else {
-			title = "Error Title"
-			value = fmt.Sprintf("%v", he.Message)
-		}
+	if status >= 500 {
+		title = "Error Internal Server Error Title"
+		value = "Error Internal Server Error Message"
+	} else {
+		title = "Error Title"
+		value = "Error"
+		//value = fmt.Sprintf("%v", he.Message)
 	}
 
 	accept := req.Header.Get("Accept")
@@ -135,33 +99,17 @@ func HTMLErrorHandler(err error, c echo.Context) {
 	} else if acceptJSON {
 		err = c.JSON(status, echo.Map{"error": he.Message})
 	} else if acceptHTML {
-		i, ok := middlewares.GetInstanceSafe(c)
-		if !ok {
-			i = &instance.Instance{
-				Domain:      req.Host,
-				ContextName: config.DefaultInstanceContext,
-			}
-		}
 
-		var buttonTitle, buttonURL string
-		if ok && err == app.ErrNotFound {
-			buttonURL = i.DefaultRedirection().String()
-			buttonTitle = "Error Application not found Action"
-		}
-
-		err = c.Render(status, "error.html", echo.Map{
-			"Title":       instance.DefaultTemplateTitle,
-			"CozyUI":      middlewares.CozyUI(i),
-			"ThemeCSS":    middlewares.ThemeCSS(i),
-			"Domain":      i.ContextualDomain(),
-			"ContextName": i.ContextName,
-			"ErrorTitle":  title,
-			"Error":       value,
-			"Button":      buttonTitle,
-			"ButtonLink":  buttonURL,
+		err = c.Render(status, "error_new.html", echo.Map{
+			"Title":      "Cozy-DISPERS - Erreur",
+			"CozyUI":     middlewares.CozyUI("localhost:8080/"),
+			"ThemeCSS":   middlewares.ThemeCSS("localhost:8080/"),
+			"ErrorTitle": title,
+			"Error":      value,
 		})
 	} else {
-		err = c.String(status, fmt.Sprintf("%v", he.Message))
+		//err = c.String(status, fmt.Sprintf("%v", he.Message))
+		err = c.String(status, fmt.Sprintf("Error"))
 	}
 
 	if err != nil && log != nil {
