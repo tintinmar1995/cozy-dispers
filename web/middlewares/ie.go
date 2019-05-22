@@ -18,11 +18,10 @@ func CheckIE(next echo.HandlerFunc) echo.HandlerFunc {
 
 		if strings.Contains(acceptHeader, echo.MIMETextHTML) &&
 			browser == "Internet Explorer" {
-			instance := GetInstance(c)
 			return c.Render(http.StatusOK, "compat.html", echo.Map{
-				"Domain":      instance.ContextualDomain(),
-				"ContextName": instance.ContextName,
-				"Locale":      instance.Locale,
+				"Domain":      "instance.ContextualDomain()",
+				"ContextName": "instance.ContextName",
+				"Locale":      "instance.Locale",
 			})
 		}
 

@@ -134,13 +134,9 @@ type renderer struct {
 
 func (r *renderer) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
 	var funcMap template.FuncMap
-	i, ok := middlewares.GetInstanceSafe(c)
-	if ok {
-		funcMap = template.FuncMap{"t": i.Translate}
-	} else {
-		lang := GetLanguageFromHeader(c.Request().Header)
-		funcMap = template.FuncMap{"t": i18n.Translator(lang)}
-	}
+	lang := GetLanguageFromHeader(c.Request().Header)
+	funcMap = template.FuncMap{"t": i18n.Translator(lang)}
+
 	var t *template.Template
 	var err error
 	if m, ok := data.(echo.Map); ok {
