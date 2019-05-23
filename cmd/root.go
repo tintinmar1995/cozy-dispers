@@ -10,7 +10,6 @@ import (
 	"github.com/cozy/cozy-stack/client/request"
 	build "github.com/cozy/cozy-stack/pkg/config"
 	"github.com/cozy/cozy-stack/pkg/config/config"
-	"github.com/cozy/cozy-stack/pkg/consts"
 	"github.com/cozy/cozy-stack/pkg/tlsclient"
 	"github.com/howeyc/gopass"
 	"github.com/spf13/cobra"
@@ -47,49 +46,6 @@ profiles you.`,
 	SilenceUsage: true,
 	// We have our own way to display error messages
 	SilenceErrors: true,
-}
-
-func newClientSafe(domain string, scopes ...string) (*client.Client, error) {
-	// For the CLI client, we rely on the admin APIs to generate a CLI token.
-	// We may want in the future rely on OAuth to handle the permissions with
-	// more granularity.
-	c := newAdminClient()
-	token, err := c.GetToken(&client.TokenOptions{
-		Domain:   domain,
-		Subject:  "CLI",
-		Audience: consts.CLIAudience,
-		Scope:    scopes,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	httpClient, clientURL, err := tlsclient.NewHTTPClient(tlsclient.HTTPEndpoint{
-		Host:      config.GetConfig().Host,
-		Port:      config.GetConfig().Port,
-		Timeout:   5 * time.Minute,
-		EnvPrefix: "COZY_HOST",
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &client.Client{
-		Scheme:     clientURL.Scheme,
-		Addr:       clientURL.Host,
-		Domain:     domain,
-		Client:     httpClient,
-		Authorizer: &request.BearerAuthorizer{Token: token},
-	}, nil
-}
-
-func newClient(domain string, scopes ...string) *client.Client {
-	client, err := newClientSafe(domain, scopes...)
-	if err != nil {
-		errPrintfln("Could not generate access to domain %s", domain)
-		errPrintfln("%s", err)
-		os.Exit(1)
-	}
-	return client
 }
 
 func newAdminClient() *client.Client {
