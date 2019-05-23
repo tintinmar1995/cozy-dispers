@@ -18,16 +18,16 @@ var faviconTemplate *template.Template
 // BuildTemplates ensure that the cozy-ui can be injected in templates
 func BuildTemplates() {
 	cozyUITemplate = template.Must(template.New("cozy-ui").Funcs(FuncsMap).Parse(`` +
-		`<link rel="stylesheet" type="text/css" href="{{asset .Host "/css/cozy-ui.min.css"}}">`,
+		`<link rel="stylesheet" type="text/css" href="assets/css/cozy-ui.min.css">`,
 	))
 	themeTemplate = template.Must(template.New("theme").Funcs(FuncsMap).Parse(`` +
-		`<link rel="stylesheet" type="text/css" href="{{asset .Host "/styles/theme.css"}}">`,
+		`<link rel="stylesheet" type="text/css" href="assets/styles/theme.css">`,
 	))
 	faviconTemplate = template.Must(template.New("favicon").Funcs(FuncsMap).Parse(`
-	<link rel="icon" href="{{asset .Host "/favicon.ico"}}">
-	<link rel="icon" type="image/png" href="{{asset .Host "/favicon-16x16.png"}}" sizes="16x16">
-	<link rel="icon" type="image/png" href="{{asset .Host "/favicon-32x32.png"}}" sizes="32x32">
-	<link rel="apple-touch-icon" sizes="180x180" href="{{asset .Host "/apple-touch-icon.png"}}"/>
+	<link rel="icon" href="assets/favicon.ico"}}">
+	<link rel="icon" type="image/png" href="assets/favicon-16x16.png" sizes="16x16">
+	<link rel="icon" type="image/png" href="assets/favicon-32x32.png" sizes="32x32">
+	<link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png"/>
 		`))
 }
 

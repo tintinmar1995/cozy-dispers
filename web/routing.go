@@ -86,7 +86,7 @@ func SetupRoutes(router *echo.Echo) error {
 	}))
 
 	/*
-		// non-authentified HTML routes for authentication1
+		// non-authentified HTML routes
 		{
 			mws := []echo.MiddlewareFunc{
 				middlewares.Accept(middlewares.AcceptOptions{

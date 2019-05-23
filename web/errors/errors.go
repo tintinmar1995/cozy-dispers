@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/cozy/cozy-stack/pkg/couchdb"
@@ -87,7 +88,7 @@ func HTMLErrorHandler(err error, c echo.Context) {
 		value = "Error Internal Server Error Message"
 	} else {
 		title = "Error Title"
-		value = "Error"
+		value = strings.Join([]string{"Error", strconv.Itoa(status)}, " ")
 		//value = fmt.Sprintf("%v", he.Message)
 	}
 
@@ -100,12 +101,14 @@ func HTMLErrorHandler(err error, c echo.Context) {
 		err = c.JSON(status, echo.Map{"error": he.Message})
 	} else if acceptHTML {
 
-		err = c.Render(status, "error_new.html", echo.Map{
-			"Title":      "Cozy-DISPERS - Erreur",
-			"CozyUI":     middlewares.CozyUI("localhost:8080/"),
-			"ThemeCSS":   middlewares.ThemeCSS("localhost:8080/"),
-			"ErrorTitle": title,
-			"Error":      value,
+		err = c.Render(status, "error.html", echo.Map{
+			"Title":       "Cozy-DISPERS - Erreur",
+			"Domain":      "Mock",
+			"ContextName": "Context Dispers",
+			"CozyUI":      middlewares.CozyUI("localhost:8080/"),
+			"ThemeCSS":    middlewares.ThemeCSS("localhost:8080/"),
+			"ErrorTitle":  title,
+			"Error":       value,
 		})
 	} else {
 		//err = c.String(status, fmt.Sprintf("%v", he.Message))
