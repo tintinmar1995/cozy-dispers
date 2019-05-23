@@ -9,7 +9,6 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/cozy/cozy-stack/model/stack"
@@ -44,10 +43,6 @@ to mount a directory as the application with the 'app' slug.
 
 	$ cozy-stack serve
 
-But if you want to develop two apps in local (to test their interactions for
-example), you can use the --appdir flag like this:
-
-	$ cozy-stack serve --appdir appone:/path/to/app_one,apptwo:/path/to/app_two
 `,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if !flagAllowRoot && os.Getuid() == 0 {
@@ -57,22 +52,6 @@ example), you can use the --appdir flag like this:
 
 		if flagDevMode {
 			build.BuildMode = build.ModeDev
-		}
-
-		var apps map[string]string
-		if len(flagAppdirs) > 0 {
-			apps = make(map[string]string)
-			for _, app := range flagAppdirs {
-				parts := strings.Split(app, ":")
-				switch len(parts) {
-				case 1:
-					apps["app"] = parts[0]
-				case 2:
-					apps[parts[0]] = parts[1]
-				default:
-					return errors.New("Invalid appdir value")
-				}
-			}
 		}
 
 		if !build.IsDevRelease() {
@@ -88,11 +67,7 @@ example), you can use the --appdir flag like this:
 		}
 
 		var servers *web.Servers
-		if apps != nil {
-			servers, err = web.ListenAndServeWithAppDir(apps)
-		} else {
-			servers, err = web.ListenAndServe()
-		}
+		servers, err = web.ListenAndServe()
 		if err != nil {
 			return err
 		}
@@ -128,8 +103,6 @@ func init() {
 	}
 
 	flags := serveCmd.PersistentFlags()
-	flags.String("subdomains", "nested", "how to structure the subdomains for apps (can be nested or flat)")
-	checkNoErr(viper.BindPFlag("subdomains", flags.Lookup("subdomains")))
 
 	flags.String("assets", "", "path to the directory with the assets (use the packed assets by default)")
 	checkNoErr(viper.BindPFlag("assets", flags.Lookup("assets")))

@@ -12,19 +12,16 @@ import (
 	"github.com/cozy/cozy-stack/pkg/config/config"
 	"github.com/cozy/cozy-stack/pkg/statik/fs"
 	"github.com/cozy/cozy-stack/tests/testutils"
-	"github.com/cozy/cozy-stack/web"
-	"github.com/cozy/cozy-stack/web/middlewares"
 	"github.com/cozy/echo"
 	"github.com/stretchr/testify/assert"
 )
 
 var ts *httptest.Server
-var testInstance *instance.Instance
 var client *http.Client
 
 func TestTheme(t *testing.T) {
 	req, _ := http.NewRequest("GET", ts.URL+"/auth/login", nil)
-	req.Host = testInstance.Domain
+	req.Host = "localhost:8080/"
 	res, _ := client.Do(req)
 	body, _ := ioutil.ReadAll(res.Body)
 
@@ -32,7 +29,7 @@ func TestTheme(t *testing.T) {
 	assert.Contains(t, string(body), "/assets/styles/theme.css")
 
 	req2, _ := http.NewRequest("GET", ts.URL+"/assets/styles/theme.css", nil)
-	req2.Host = testInstance.Domain
+	req2.Host = "localhost:8080/"
 	res2, _ := client.Do(req2)
 	assert.Equal(t, 200, res2.StatusCode)
 	body2, _ := ioutil.ReadAll(res2.Body)
@@ -60,12 +57,9 @@ func TestThemeWithContext(t *testing.T) {
 	err = fs.RegisterCustomExternals(cacheStorage, assetsOptions, 1)
 	assert.NoError(t, err)
 	// Test the theme
-	_ = lifecycle.Patch(testInstance, &lifecycle.Options{
-		ContextName: context,
-	})
 	assert.NoError(t, err)
 	req, _ := http.NewRequest("GET", ts.URL+"/auth/login", nil)
-	req.Host = testInstance.Domain
+	req.Host = "localhost:8080/"
 	res, _ := client.Do(req)
 	body, _ := ioutil.ReadAll(res.Body)
 
@@ -75,7 +69,6 @@ func TestThemeWithContext(t *testing.T) {
 }
 
 func fakeAPI(g *echo.Group) {
-	g.Use(middlewares.NeedInstance, middlewares.LoadSession)
 	g.GET("", func(c echo.Context) error {
 		return c.String(http.StatusOK, "OK")
 	})
@@ -85,22 +78,7 @@ func TestMain(m *testing.M) {
 	config.UseTestFile()
 	config.GetConfig().Assets = "../../assets"
 	testutils.NeedCouchdb()
-	setup := testutils.NewSetup(m, "middlewares_test")
 
-	testInstance = setup.GetTestInstance(&lifecycle.Options{
-		Domain:     "middlewares.cozy.test",
-		Passphrase: "MyPassphrase",
-	})
-	ts = setup.GetTestServer("/test", fakeAPI, func(r *echo.Echo) *echo.Echo {
-		handler, err := web.CreateSubdomainProxy(r, apps.Serve)
-		if err != nil {
-			setup.CleanupAndDie("Cant start subdomain proxy", err)
-		}
-		return handler
-	})
+	// Deleted because functions deleted in testutils.TestSetup
 
-	jar := setup.GetCookieJar()
-	client = &http.Client{Jar: jar}
-
-	os.Exit(setup.Run())
 }

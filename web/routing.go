@@ -16,6 +16,7 @@ import (
 	"github.com/cozy/cozy-stack/web/status"
 	"github.com/cozy/cozy-stack/web/version"
 	"github.com/cozy/echo"
+	"github.com/cozy/echo/middleware"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -67,6 +68,7 @@ func SetupAssets(router *echo.Echo, assetsPath string) (err error) {
 
 // SetupRoutes sets the routing for HTTP endpoints
 func SetupRoutes(router *echo.Echo) error {
+
 	router.Use(timersMiddleware)
 
 	if !config.GetConfig().CSPDisabled {
@@ -83,9 +85,20 @@ func SetupRoutes(router *echo.Echo) error {
 		BlackList: []string{},
 	}))
 
-	// non-authentified routes
-	{
+	/*
+		// non-authentified HTML routes for authentication1
+		{
+			mws := []echo.MiddlewareFunc{
+				middlewares.Accept(middlewares.AcceptOptions{
+					DefaultContentTypeOffer: echo.MIMETextHTML,
+				}),
+				middlewares.CheckIE,
+			}
+		}
+	*/
 
+	// other non-authentified routes
+	{
 		dispers.Routes(router.Group("/dispers"))
 		status.Routes(router.Group("/status"))
 		version.Routes(router.Group("/version"))
@@ -112,16 +125,16 @@ func timersMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 // SetupAdminRoutes sets the routing for the administration HTTP endpoints
 func SetupAdminRoutes(router *echo.Echo) error {
 
-	/*
-		var mws []echo.MiddlewareFunc
-		if build.IsDevRelease() {
-			mws = append(mws, middleware.LoggerWithConfig(middleware.LoggerConfig{
-				Format: "time=${time_rfc3339}\tstatus=${status}\tmethod=${method}\thost=${host}\turi=${uri}\tbytes_out=${bytes_out}\n",
-			}))
-		} else {
-			mws = append(mws, middlewares.BasicAuth(config.GetConfig().AdminSecretFileName))
-		}
-	*/
+	var mws []echo.MiddlewareFunc
+	if build.IsDevRelease() {
+		mws = append(mws, middleware.LoggerWithConfig(middleware.LoggerConfig{
+			Format: "time=${time_rfc3339}\tstatus=${status}\tmethod=${method}\thost=${host}\turi=${uri}\tbytes_out=${bytes_out}\n",
+		}))
+	} else {
+		mws = append(mws, middlewares.BasicAuth(config.GetConfig().AdminSecretFileName))
+	}
+
+	version.Routes(router.Group("/version", mws...))
 
 	setupRecover(router)
 
@@ -133,6 +146,7 @@ func SetupAdminRoutes(router *echo.Echo) error {
 // proxy routing if the host of the request match an application, and route to
 // the given router otherwise.
 func SetupMajorRoutes(router *echo.Echo) (*echo.Echo, error) {
+
 	if err := SetupAssets(router, config.GetConfig().Assets); err != nil {
 		return nil, err
 	}
@@ -145,6 +159,10 @@ func SetupMajorRoutes(router *echo.Echo) (*echo.Echo, error) {
 	main.HideBanner = true
 	main.HidePort = true
 	main.Renderer = router.Renderer
+	main.Any("/*", func(c echo.Context) error {
+		router.ServeHTTP(c.Response(), c.Request())
+		return nil
+	})
 
 	main.HTTPErrorHandler = errors.HTMLErrorHandler
 	return main, nil

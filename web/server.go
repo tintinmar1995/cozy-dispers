@@ -68,6 +68,7 @@ func LoadSupportedLocales() error {
 // a manifest.webapp file that will be used to parameterize the application
 // permissions.
 func ListenAndServeWithAppDir(appsdir map[string]string) (*Servers, error) {
+
 	for slug, dir := range appsdir {
 		dir = utils.AbsPath(dir)
 		appsdir[slug] = dir

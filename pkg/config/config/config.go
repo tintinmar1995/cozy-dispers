@@ -48,18 +48,6 @@ var Paths = []string{
 // for registries.
 var hardcodedRegistry, _ = url.Parse("https://apps-registry.cozycloud.cc/")
 
-// SubdomainType specify how subdomains are structured.
-type SubdomainType int
-
-const (
-	// FlatSubdomains is the value for apps subdomains like
-	// https://<user>-<app>.<domain>/
-	FlatSubdomains SubdomainType = iota + 1
-	// NestedSubdomains is the value for apps subdomains like
-	// https://<app>.<user>.<domain>/ (used by default)
-	NestedSubdomains
-)
-
 const (
 	// SchemeFile is the URL scheme used to configure a file filesystem.
 	SchemeFile = "file"
@@ -92,7 +80,6 @@ type Config struct {
 
 	Assets                string
 	Doctypes              string
-	Subdomains            SubdomainType
 	NoReplyAddr           string
 	NoReplyName           string
 	Hooks                 string
@@ -456,20 +443,6 @@ func UseViper(v *viper.Viper) error {
 		return err
 	}
 
-	var subdomains SubdomainType
-	if subs := v.GetString("subdomains"); subs != "" {
-		switch subs {
-		case "flat":
-			subdomains = FlatSubdomains
-		case "nested":
-			subdomains = NestedSubdomains
-		default:
-			return fmt.Errorf(`Subdomains mode should either be "flat" or "nested", was: %q`, subs)
-		}
-	} else {
-		subdomains = NestedSubdomains
-	}
-
 	var redisOptions *redis.UniversalOptions
 	if v.GetString("redis.addrs") != "" {
 		redisOptions = &redis.UniversalOptions{
@@ -605,7 +578,6 @@ func UseViper(v *viper.Viper) error {
 		AdminPort:           v.GetInt("admin.port"),
 		AdminSecretFileName: adminSecretFile,
 
-		Subdomains:            subdomains,
 		Assets:                v.GetString("assets"),
 		Doctypes:              v.GetString("doctypes"),
 		NoReplyAddr:           v.GetString("mail.noreply_address"),
@@ -777,7 +749,6 @@ func createTestViper() *viper.Viper {
 	v.SetDefault("host", "localhost")
 	v.SetDefault("port", 8080)
 	v.SetDefault("assets", "./assets")
-	v.SetDefault("subdomains", "nested")
 	v.SetDefault("fs.url", "mem://test")
 	v.SetDefault("couchdb.url", "http://localhost:5984/")
 	v.SetDefault("log.level", "info")

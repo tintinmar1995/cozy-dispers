@@ -10,8 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var ins *instance.Instance
-
 type stupidRenderer struct{}
 
 func (sr *stupidRenderer) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
@@ -27,11 +25,8 @@ func TestUserAgent(t *testing.T) {
 	req.Header.Set(echo.HeaderAccept, "text/html")
 	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0") // Firefox
 
-	ins = &instance.Instance{Domain: "cozy.local", Locale: "en"}
-
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.Set("instance", ins)
 
 	h := CheckIE(echo.NotFoundHandler)
 	err := h(c)
