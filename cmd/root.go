@@ -17,7 +17,7 @@ import (
 )
 
 // DefaultStorageDir is the default directory name in which data
-// is stored relatively to the cozy-stack binary.
+// is stored relatively to the cozy-dispers binary.
 const DefaultStorageDir = "storage"
 
 const defaultDevDomain = "cozy.tools:8080"
@@ -29,12 +29,10 @@ var ErrUsage = errors.New("Bad usage of command")
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
-	Use:   "cozy-stack <command>",
-	Short: "cozy-stack is the main command",
-	Long: `Cozy is a platform that brings all your web services in the same private space.
-With it, your web apps and your devices can share data easily, providing you
-with a new experience. You can install Cozy on your own hardware where no one
-profiles you.`,
+	Use:   "cozy-dispers <command>",
+	Short: "cozy-dispers is the main command",
+	Long: `Cozy-DISPERS is a privacy-by-designed platform that make Cozy Stacks
+	participate to queries.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		return config.Setup(cfgFile)
 	},

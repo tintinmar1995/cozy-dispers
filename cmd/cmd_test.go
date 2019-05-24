@@ -44,7 +44,7 @@ func TestMain(m *testing.M) {
 		Path:   tempdir,
 	}
 	server := echo.New()
-	err = web.SetupRoutes(server)
+	_, err = web.SetupRoutes(server)
 	if err != nil {
 		fmt.Println("Could not start server", err)
 		os.Exit(1)
