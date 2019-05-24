@@ -74,6 +74,7 @@ func SetupAdminRoutes(router *echo.Echo) error {
 	}
 
 	version.Routes(router.Group("/version", mws...))
+	metrics.Routes(router.Group("/metrics", mws...))
 
 	setupRecover(router)
 
