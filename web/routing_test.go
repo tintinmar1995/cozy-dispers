@@ -91,7 +91,7 @@ func TestSetupAssetsStatik(t *testing.T) {
 
 func TestSetupRoutes(t *testing.T) {
 	e := echo.New()
-	err := SetupRoutes(e)
+	_, err := SetupRoutes(e)
 	if !assert.NoError(t, err) {
 		return
 	}

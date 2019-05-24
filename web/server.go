@@ -106,7 +106,7 @@ func ListenAndServe() (*Servers, error) {
 	e.HideBanner = true
 	e.HidePort = true
 
-	major, err := SetupMajorRoutes(e)
+	major, err := SetupRoutes(e)
 	if err != nil {
 		return nil, err
 	}

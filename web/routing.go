@@ -66,49 +66,6 @@ func SetupAssets(router *echo.Echo, assetsPath string) (err error) {
 	return nil
 }
 
-// SetupRoutes sets the routing for HTTP endpoints
-func SetupRoutes(router *echo.Echo) error {
-
-	router.Use(timersMiddleware)
-
-	if !config.GetConfig().CSPDisabled {
-		secure := middlewares.Secure(&middlewares.SecureConfig{
-			HSTSMaxAge:        hstsMaxAge,
-			CSPDefaultSrc:     []middlewares.CSPSource{middlewares.CSPSrcSelf},
-			CSPImgSrc:         []middlewares.CSPSource{middlewares.CSPSrcData, middlewares.CSPSrcBlob},
-			CSPFrameAncestors: []middlewares.CSPSource{middlewares.CSPSrcNone},
-		})
-		router.Use(secure)
-	}
-
-	router.Use(middlewares.CORS(middlewares.CORSOptions{
-		BlackList: []string{},
-	}))
-
-	/*
-		// non-authentified HTML routes
-		{
-			mws := []echo.MiddlewareFunc{
-				middlewares.Accept(middlewares.AcceptOptions{
-					DefaultContentTypeOffer: echo.MIMETextHTML,
-				}),
-				middlewares.CheckIE,
-			}
-		}
-	*/
-
-	// other non-authentified routes
-	{
-		dispers.Routes(router.Group("/dispers"))
-		status.Routes(router.Group("/status"))
-		version.Routes(router.Group("/version"))
-	}
-
-	setupRecover(router)
-	router.HTTPErrorHandler = errors.ErrorHandler
-	return nil
-}
-
 func timersMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {
@@ -142,18 +99,38 @@ func SetupAdminRoutes(router *echo.Echo) error {
 	return nil
 }
 
-// SetupMajorRoutes returns a new web server that will handle that apps
-// proxy routing if the host of the request match an application, and route to
-// the given router otherwise.
-func SetupMajorRoutes(router *echo.Echo) (*echo.Echo, error) {
+// SetupRoutes returns a new web server that will handle DISPERS' routes
+func SetupRoutes(router *echo.Echo) (*echo.Echo, error) {
 
 	if err := SetupAssets(router, config.GetConfig().Assets); err != nil {
 		return nil, err
 	}
 
-	if err := SetupRoutes(router); err != nil {
-		return nil, err
+	router.Use(timersMiddleware)
+
+	if !config.GetConfig().CSPDisabled {
+		secure := middlewares.Secure(&middlewares.SecureConfig{
+			HSTSMaxAge:        hstsMaxAge,
+			CSPDefaultSrc:     []middlewares.CSPSource{middlewares.CSPSrcSelf},
+			CSPImgSrc:         []middlewares.CSPSource{middlewares.CSPSrcData, middlewares.CSPSrcBlob},
+			CSPFrameAncestors: []middlewares.CSPSource{middlewares.CSPSrcNone},
+		})
+		router.Use(secure)
 	}
+
+	router.Use(middlewares.CORS(middlewares.CORSOptions{
+		BlackList: []string{},
+	}))
+
+	// other non-authentified routes
+	{
+		dispers.Routes(router.Group("/dispers"))
+		status.Routes(router.Group("/status"))
+		version.Routes(router.Group("/version"))
+	}
+
+	setupRecover(router)
+	router.HTTPErrorHandler = errors.ErrorHandler
 
 	main := echo.New()
 	main.HideBanner = true
