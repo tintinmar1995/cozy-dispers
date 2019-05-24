@@ -20,23 +20,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const (
-	// cspScriptSrcWhitelist is a whitelist for default allowed domains in CSP.
-	cspScriptSrcWhitelist = "https://piwik.cozycloud.cc https://matomo.cozycloud.cc"
-
-	// cspImgSrcWhitelist is a whitelist of images domains that are allowed in
-	// CSP.
-	cspImgSrcWhitelist = "https://piwik.cozycloud.cc https://matomo.cozycloud.cc " +
-		"https://*.tile.openstreetmap.org https://*.tile.osm.org " +
-		"https://*.tiles.mapbox.com https://api.mapbox.com"
-
-	// cspFrameSrcWhiteList is a whitelist of custom protocols that are allowed
-	// in the CSP. We are using iframes on these custom protocols to open
-	// deeplinks to them and have a fallback if the mobile apps are not
-	// available.
-	cspFrameSrcWhiteList = "cozydrive: cozybanks:"
-)
-
 var hstsMaxAge = 365 * 24 * time.Hour // 1 year
 
 // SetupAssets add assets routing and handling to the given router. It also
