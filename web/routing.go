@@ -51,7 +51,6 @@ func SetupAssets(router *echo.Echo, assetsPath string) (err error) {
 	if err != nil {
 		return err
 	}
-	middlewares.BuildTemplates()
 
 	cacheControl := middlewares.CacheControl(middlewares.CacheOptions{
 		MaxAge: 24 * time.Hour,
