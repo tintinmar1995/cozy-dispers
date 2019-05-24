@@ -1,16 +1,13 @@
 package errors
 
 import (
-	"fmt"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/cozy/cozy-stack/pkg/couchdb"
 	"github.com/cozy/cozy-stack/pkg/jsonapi"
 	"github.com/cozy/cozy-stack/pkg/logger"
-	"github.com/cozy/cozy-stack/web/middlewares"
 	"github.com/sirupsen/logrus"
 
 	"github.com/cozy/echo"
@@ -81,17 +78,6 @@ func HTMLErrorHandler(err error, c echo.Context) {
 		he.Inner = err
 	}
 
-	var title, value string
-
-	if status >= 500 {
-		title = "Error Internal Server Error Title"
-		value = "Error Internal Server Error Message"
-	} else {
-		title = "Error Title"
-		value = strings.Join([]string{"Error", strconv.Itoa(status)}, " ")
-		//value = fmt.Sprintf("%v", he.Message)
-	}
-
 	accept := req.Header.Get("Accept")
 	acceptHTML := strings.Contains(accept, echo.MIMETextHTML)
 	acceptJSON := strings.Contains(accept, echo.MIMEApplicationJSON)
@@ -100,19 +86,9 @@ func HTMLErrorHandler(err error, c echo.Context) {
 	} else if acceptJSON {
 		err = c.JSON(status, echo.Map{"error": he.Message})
 	} else if acceptHTML {
-
-		err = c.Render(status, "error.html", echo.Map{
-			"Title":       "Cozy-DISPERS - Erreur",
-			"Domain":      "Mock",
-			"ContextName": "Context Dispers",
-			"CozyUI":      middlewares.CozyUI("localhost:8080/"),
-			"ThemeCSS":    middlewares.ThemeCSS("localhost:8080/"),
-			"ErrorTitle":  title,
-			"Error":       value,
-		})
+		err = c.String(status, "Error")
 	} else {
-		//err = c.String(status, fmt.Sprintf("%v", he.Message))
-		err = c.String(status, fmt.Sprintf("Error"))
+		err = c.String(status, "Error")
 	}
 
 	if err != nil && log != nil {
