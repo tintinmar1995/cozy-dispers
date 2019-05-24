@@ -1,11 +1,6 @@
 Cozy DISPERS
 ==========
 
-[![GoDoc](https://godoc.org/github.com/cozy/cozy-stack?status.svg)](https://godoc.org/github.com/cozy/cozy-stack)
-[![Build Status](https://travis-ci.org/cozy/cozy-stack.svg?branch=master)](https://travis-ci.org/cozy/cozy-stack)
-[![Go Report Card](https://goreportcard.com/badge/github.com/cozy/cozy-stack)](https://goreportcard.com/report/github.com/cozy/cozy-stack)
-
-
 ## What is Cozy?
 
 ![Cozy Logo](https://cdn.rawgit.com/cozy/cozy-guidelines/master/templates/cozy_logo_small.svg)
@@ -18,7 +13,7 @@ hardware where no one profiles you.
 
 ## What is Cozy-DISPERS
 
-It is the core server of the Cozy-DISPERs platform.
+It is the core server of the Cozy-DISPERS platform.
 
 Cozy-DISPERS is in charge of serving a query over a list of stacks. This process is a privacy-by-design algorithm.
 
