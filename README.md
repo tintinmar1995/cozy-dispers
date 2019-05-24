@@ -1,10 +1,5 @@
-Cozy Cloud 
+Cozy DISPERS
 ==========
-
-[![GoDoc](https://godoc.org/github.com/cozy/cozy-stack?status.svg)](https://godoc.org/github.com/cozy/cozy-stack)
-[![Build Status](https://travis-ci.org/cozy/cozy-stack.svg?branch=master)](https://travis-ci.org/cozy/cozy-stack)
-[![Go Report Card](https://goreportcard.com/badge/github.com/cozy/cozy-stack)](https://goreportcard.com/report/github.com/cozy/cozy-stack)
-
 
 ## What is Cozy?
 
@@ -16,34 +11,34 @@ easily, providing you with a new experience. You can install Cozy on your own
 hardware where no one profiles you.
 
 
-## What is the Cozy-Stack
+## What is Cozy-DISPERS
 
-It is the core server of the Cozy platform. It consists of a single process, *the Cozy stack*. 
+It is the core server of the Cozy-DISPERS platform.
 
-[Full Cozy-Stack documentation here](https://docs.cozy.io/en/cozy-stack/README/).
-
-The Cozy-Stack is in charge of serving the Web applications users have installed from the application store.
+Cozy-DISPERS is in charge of serving a query over a list of stacks. This process is a privacy-by-design algorithm.
 
 It provides its services through a REST API that allows to:
 
- - create, update, delete documents inside the database;
- - authenticate users and client applications;
- - send emails;
- - launch jobs on the server. Connectors that import data from remote websites are some sort of jobs. Jobs can be one time tasks (sending a message) or periodic tasks. Some jobs, like the connectors, that require executing third party code on the server side, are sandboxed (we use `nsjail` for now).
- - …
+ - subscribe, or unsubscribe to queries
+ - launch a query or even a machine learning algorithm
 
-The Cozy-Stack also allows to access the database replication API, allowing to sync documents between the server and local databases, for example in mobile clients.
 
-Two authentication methods are available:
+Five actors are available:
 
- - Web applications running on the server get a session token when the user log in;
- - OAuth2 for other applications.
+ - Conductor
+ - Concept Indexor
+ - Target Finder
+ - Target
+ - Data Aggregator
 
-Feel free to [open an issue](https://github.com/cozy/cozy-stack/issues/new)
+
+Feel free to [open an issue](https://github.com/cozy/cozy-dispers/issues/new)
 for questions and suggestions.
 
 
-## Installing a `cozy-stack`
+## Installing `cozy-dispers`
+
+It is quite like installing a cozy-stack
 
 You can follow the [Install guide](docs/INSTALL.md) and the [configuration
 documentation](docs/config.md).
