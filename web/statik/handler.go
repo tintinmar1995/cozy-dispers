@@ -22,23 +22,6 @@ import (
 	"github.com/cozy/echo"
 )
 
-var (
-	templatesList = []string{
-		"authorize.html",
-		"authorize_app.html",
-		"authorize_sharing.html",
-		"compat.html",
-		"error.html",
-		"login.html",
-		"need_onboarding.html",
-		"passphrase_reset.html",
-		"passphrase_renew.html",
-		"passphrase_onboarding.html",
-		"sharing_discovery.html",
-		"instance_blocked.html",
-	}
-)
-
 const (
 	assetsPrefix    = "/assets"
 	assetsExtPrefix = "/assets/ext"
@@ -73,10 +56,6 @@ func (d dir) Open(name string) (http.File, error) {
 // NewDirRenderer returns a renderer with assets opened from a specified local
 // directory.
 func NewDirRenderer(assetsPath string) (AssetRenderer, error) {
-	list := make([]string, len(templatesList))
-	for i, name := range templatesList {
-		list[i] = filepath.Join(assetsPath, "templates", name)
-	}
 
 	t := template.New("stub")
 	h := http.StripPrefix(assetsPrefix, http.FileServer(dir(assetsPath)))
@@ -87,12 +66,6 @@ func NewDirRenderer(assetsPath string) (AssetRenderer, error) {
 		// the assets via the sum in the URL. But it means that we have no
 		// fallback to the default context.
 		"asset": assetPath,
-	}
-
-	var err error
-	t, err = t.Funcs(middlewares.FuncsMap).ParseFiles(list...)
-	if err != nil {
-		return nil, fmt.Errorf("Can't load the assets from %q: %s", assetsPath, err)
 	}
 
 	return &renderer{t: t, Handler: h}, nil
@@ -107,21 +80,6 @@ func NewRenderer() (AssetRenderer, error) {
 		"t":     fmt.Sprintf,
 		"split": strings.Split,
 		"asset": AssetPath,
-	}
-
-	for _, name := range templatesList {
-		tmpl := t.New(name).Funcs(middlewares.FuncsMap)
-		f, err := fs.Open("/templates/" + name)
-		if err != nil {
-			return nil, fmt.Errorf("Can't load asset %q: %s", name, err)
-		}
-		b, err := ioutil.ReadAll(f)
-		if err != nil {
-			return nil, err
-		}
-		if _, err = tmpl.Parse(string(b)); err != nil {
-			return nil, err
-		}
 	}
 
 	return &renderer{t: t, Handler: NewHandler()}, nil
