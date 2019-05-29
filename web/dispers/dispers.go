@@ -1,6 +1,7 @@
 package dispers
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/cozy/echo"
@@ -16,18 +17,31 @@ CONCEPT INDEXOR'S ROUTES : those functions are used on route ./dispers/conceptin
 
 func createConcept(c echo.Context) error {
 
-	// TODO: Get concept from body
+	// Get concept from body
+	var in dispers.InputCI
+	if err := json.NewDecoder(c.Request().Body).Decode(&in); err != nil {
+		return c.JSON(http.StatusOK, echo.Map{
+			"ok":    false,
+			"Error": err,
+		})
+	}
 
-	// TODO: Decrypt concepts
-
-	// TODO: Create array of hashes
-
-	// TODO: Call HashMeThat for each concept
-	hash, err := enclave.HashMeThat(concept)
-
+	// Create array of hashes
+	hashes := make([]string, len(in.EncryptedConcepts))
+	for index, element := range in.EncryptedConcepts {
+		out := enclave.CreateConcept(element)
+		if out.Error != nil {
+			return c.JSON(http.StatusOK, echo.Map{
+				"ok":    false,
+				"Error": out.Error,
+			})
+		}
+		hashes[index] = out.Hash
+	}
 	return c.JSON(http.StatusCreated, echo.Map{
-		"ok":   err == nil,
-		"hash": hash,
+		"ok":    true,
+		"Error": nil,
+		"hash":  hashes,
 	})
 }
 
