@@ -33,16 +33,19 @@ func createConcept(c echo.Context) error {
 
 func deleteConcept(c echo.Context) error {
 	concept := c.Param("concept")
-	err := enclave.DeleteConcept(concept)
+
+	err := enclave.DeleteConcept([]byte(concept))
+
 	return c.JSON(http.StatusCreated, echo.Map{
-		"ok": err == nil,
+		"ok":    err == nil,
+		"Error": err,
 	})
 }
 
 // Routes sets the routing for the dispers service
 func Routes(router *echo.Group) {
 	// TODO : Create a route to retrieve public key
-	router.POST("/conceptindexor/concept", createConcept)   // hash a concept (and save the salt if needed)
-	router.DELETE("/conceptindexor/concept", deleteConcept) // delete a salt in the database
+	router.POST("/conceptindexor/concept", createConcept)            // hash a concept (and save the salt if needed)
+	router.DELETE("/conceptindexor/concept/:concept", deleteConcept) // delete a salt in the database
 
 }
