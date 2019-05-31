@@ -20,28 +20,24 @@ func createConcept(c echo.Context) error {
 	// Get concept from body
 	var in dispers.InputCI
 	if err := json.NewDecoder(c.Request().Body).Decode(&in); err != nil {
-		return c.JSON(http.StatusOK, echo.Map{
-			"ok":    false,
-			"Error": err,
-		})
+		return err
 	}
 
 	// Create array of hashes
 	hashes := make([]string, len(in.EncryptedConcepts))
+	var sliceOfMeta []dispers.Metadata
 	for index, element := range in.EncryptedConcepts {
-		out := enclave.CreateConcept(element)
-		if out.Error != nil {
-			return c.JSON(http.StatusOK, echo.Map{
-				"ok":    false,
-				"Error": out.Error,
-			})
+		out, metas, err := enclave.CreateConcept(element)
+		if err != nil {
+			return err
 		}
-		hashes[index] = out.Hash
+
+		hashes[index] = out
+		sliceOfMeta = append(sliceOfMeta, metas...)
 	}
-	return c.JSON(http.StatusCreated, echo.Map{
-		"ok":    true,
-		"Error": nil,
-		"hash":  hashes,
+	return c.JSON(http.StatusOK, dispers.OutputCI{
+		Hashes: hashes,
+		Metadata: sliceOfMeta,
 	})
 }
 
@@ -49,11 +45,11 @@ func deleteConcept(c echo.Context) error {
 	concept := c.Param("concept")
 
 	err := enclave.DeleteConcept([]byte(concept))
+	if err != nil {
+		return err
+	}
 
-	return c.JSON(http.StatusCreated, echo.Map{
-		"ok":    err == nil,
-		"Error": err,
-	})
+	return c.NoContent(http.StatusNoContent)
 }
 
 // Routes sets the routing for the dispers service
