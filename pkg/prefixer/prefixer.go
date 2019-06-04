@@ -35,3 +35,6 @@ func NewPrefixer(domain, prefix string) Prefixer {
 
 // GlobalPrefixer returns a global prefixer with the wildcard '*' as prefix.
 var GlobalPrefixer = NewPrefixer("", "global")
+
+// ConductorPrefixer returns conductor's prefixer with the wildcard '*' as prefix.
+var ConductorPrefixer = NewPrefixer("", "conductor")
