@@ -1,7 +1,7 @@
 
 # Cozy-DISPERS
 
-## Integration in a network of stacks
+## Integration in a network of stacks and servers
 
 - [OAuth & Request](stack.md)
 - [Encrypted Communication]()
