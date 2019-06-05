@@ -82,9 +82,9 @@ type Operation struct {
 	ValueB interface{} `json:"value_b,omitempty"`
 }
 
-func (o *Operation) Compute(list map[string][]string) ([]string, error)
-func (o *Operation) MarshalJSON() ([]byte, error)
-func (o *Operation) UnmarshalJSON(data []byte) error
+func (o *Operation) Compute(list map[string][]string) ([]string, error){}
+func (o *Operation) MarshalJSON() ([]byte, error){}
+func (o *Operation) UnmarshalJSON(data []byte) error {}
 
 ```
 
