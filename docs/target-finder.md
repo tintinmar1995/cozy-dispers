@@ -8,7 +8,7 @@ Target Finder is used to get a list of users to request from a target profile an
 
 ## How-To Apply the target profile 
 
-** Step 1 ** : Create the target profile :
+**Step 1** : Create the target profile :
 
 ```golang
 targetProfile := dispers.Operation{
@@ -30,7 +30,7 @@ where :
 - test1 / test2 / test3 / test4 are key to reach lists
 - 4 types are understood : *single*, *intersection*, *union* and *nil* 
 
-** Step 2 ** : Create the lists of instances
+**Step 2** : Create the lists of instances
 
 ```golang
 m := make(map[string][]string)
@@ -40,7 +40,7 @@ m["test3"] = []string{"paul", "claire", "françois"}
 m["test4"] = []string{"paul", "benjamin", "florent"}
 ```
 
-** Step 3** : Create the input structure and make the request
+**Step 3** : Create the input structure and make the request
 
 Here we choose not to encrypt the inputs. Inputs will be encrypted in a proper Cozy-DISPERS request. 
 
@@ -60,7 +60,7 @@ Content-Type: application/json
 inputTF
 ```
 
-** Step 4** : get the result
+**Step 4** : get the result
 
 The result will be of type :
 
