@@ -3,7 +3,9 @@ package dispers
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
+	"github.com/cozy/cozy-stack/pkg/metadata"
 	"github.com/cozy/echo"
 )
 
@@ -25,19 +27,20 @@ func createConcept(c echo.Context) error {
 
 	// Create array of hashes
 	hashes := make([]string, len(in.EncryptedConcepts))
-	var sliceOfMeta []dispers.Metadata
+	var sliceOfMeta []metadata.Metadata
 	for index, element := range in.EncryptedConcepts {
-		out, metas, err := enclave.CreateConcept(element)
+		meta := metadata.NewMetadata("Hash concept", strings.Join([]string{in.EncryptedConcepts, in.Concepts}, ""), []string{"CI", "Concept"})
+		out, err := enclave.CreateConcept(element)
 		if err != nil {
 			return err
 		}
-
+		meta.Close(out, err)
 		hashes[index] = out
-		sliceOfMeta = append(sliceOfMeta, metas...)
+		sliceOfMeta = append(sliceOfMeta, meta)
 	}
 	return c.JSON(http.StatusOK, dispers.OutputCI{
-		Hashes: hashes,
-		Metadata: sliceOfMeta,
+		Hashes:            hashes,
+		metadata.Metadata: sliceOfMeta,
 	})
 }
 
