@@ -2,6 +2,11 @@
 
 Even if there is several Cozy-DISPERS server hosted, one server's conductor will always use the same server to decrypt a concept and get the associated hash. It prevents from dealing with consistency between one concept's hashes.
 
+1. How-To
+2. Unexported functions
+3. Exported functions
+4. Tests
+
 ## How-To
 
 ### Get one concept's hash
