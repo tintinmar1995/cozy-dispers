@@ -66,7 +66,8 @@ The result will be of type :
 
 ```golang
 type OutputTF struct {
-	ListOfAddresses []string `json:"addresses,omitempty"`
+	ListOfAddresses  	 []Instance  `json:"addresses,omitempty"`
+	EncryptedListOfAddresses []byte      `json:"enc_addresses,omitempty"`
 }
 ```
 
