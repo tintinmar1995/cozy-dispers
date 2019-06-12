@@ -35,3 +35,12 @@ func NewPrefixer(domain, prefix string) Prefixer {
 
 // GlobalPrefixer returns a global prefixer with the wildcard '*' as prefix.
 var GlobalPrefixer = NewPrefixer("", "global")
+
+// ConductorPrefixer returns a Conductor prefixer with the wildcard '*' as prefix.
+var ConductorPrefixer = NewPrefixer("", "conductor")
+
+// ConceptIndexorPrefixer returns a Concept Indexor prefixer with the wildcard '*' as prefix.
+var ConceptIndexorPrefixer = NewPrefixer("", "conceptindexor")
+
+// TestConceptIndexorPrefixer returns a Concept Indexor prefixer for tests with the wildcard '*' as prefix.
+var TestConceptIndexorPrefixer = NewPrefixer("", "testconceptindexor")
