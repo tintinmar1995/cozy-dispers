@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/cozy/cozy-stack/pkg/dispers"
+	"github.com/cozy/cozy-stack/pkg/dispers/dispers"
 	"github.com/cozy/cozy-stack/pkg/metadata"
 	"github.com/cozy/echo"
 )
@@ -55,10 +57,37 @@ func deleteConcept(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+/*
+*
+*
+TARGET FINDER'S ROUTES : those functions are used on route ./dispers/targetfinder/
+*
+*
+*/
+func selectAddresses(c echo.Context) error {
+
+	var inputTF dispers.InputTF
+	if err := json.NewDecoder(c.Request().Body).Decode(&inputTF); err != nil {
+		return err
+	}
+
+	finallist, err := enclave.SelectAddresses(inputTF)
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, dispers.OutputTF{
+		ListOfAddresses: finallist,
+    })
+}
+  
+
 // Routes sets the routing for the dispers service
 func Routes(router *echo.Group) {
+
 	// TODO : Create a route to retrieve public key
 	router.POST("/conceptindexor/concept", createConcept)            // hash a concept (and save the salt if needed)
 	router.DELETE("/conceptindexor/concept/:concept", deleteConcept) // delete a salt in the database
 
+	router.POST("/targetfinder/addresses", selectAddresses)
 }
