@@ -192,8 +192,8 @@ type InputTF struct {
 
 // OutputTF is what Target Finder send to the conductor
 type OutputTF struct {
-	ListOfAddresses          []Instance `json:"addresses,omitempty"`
-	EncryptedListOfAddresses []byte     `json:"enc_addresses,omitempty"`
+	ListOfAddresses          []string `json:"addresses,omitempty"`
+	EncryptedListOfAddresses []byte   `json:"enc_addresses,omitempty"`
 }
 
 // Token is used to serialize the token
