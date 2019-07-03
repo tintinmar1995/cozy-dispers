@@ -7,10 +7,12 @@ import (
 
 	"github.com/cozy/cozy-stack/pkg/dispers"
 	"github.com/cozy/cozy-stack/pkg/dispers/dispers"
+	"github.com/cozy/cozy-stack/pkg/metadata"
 	"github.com/cozy/echo"
 )
 
 /*
+*
 *
 CONCEPT INDEXOR'S ROUTES : those functions are used on route ./dispers/conceptindexor/
 *
@@ -51,6 +53,7 @@ func deleteConcept(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+
 	return c.NoContent(http.StatusNoContent)
 }
 
@@ -75,8 +78,9 @@ func selectAddresses(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, dispers.OutputTF{
 		ListOfAddresses: finallist,
-	})
+    })
 }
+  
 
 // Routes sets the routing for the dispers service
 func Routes(router *echo.Group) {
@@ -86,5 +90,4 @@ func Routes(router *echo.Group) {
 	router.DELETE("/conceptindexor/concept/:concept", deleteConcept) // delete a salt in the database
 
 	router.POST("/targetfinder/addresses", selectAddresses)
-
 }

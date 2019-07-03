@@ -8,6 +8,7 @@ import (
 	"github.com/cozy/checkup"
 	"github.com/cozy/cozy-stack/pkg/config/config"
 	"github.com/cozy/cozy-stack/pkg/couchdb"
+	"github.com/cozy/cozy-stack/pkg/prefixer"
 )
 
 func TestMain(m *testing.M) {
@@ -17,6 +18,14 @@ func TestMain(m *testing.M) {
 	db, err := checkup.HTTPChecker{URL: config.CouchURL().String()}.Check()
 	if err != nil || db.Status() != checkup.Healthy {
 		fmt.Println("This test need couchdb to run.")
+		os.Exit(1)
+	}
+
+	prefixerCI = prefixer.TestConceptIndexorPrefixer
+
+	err = couchdb.ResetDB(prefixerCI, "io.cozy.hashconcept")
+	if err != nil {
+		fmt.Printf("Cant reset db (%s, %s) %s\n", prefixerCI, "io.cozy.hashconcept", err.Error())
 		os.Exit(1)
 	}
 
