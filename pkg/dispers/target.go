@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/cozy/cozy-stack/pkg/dispers/dispers"
 )
@@ -19,6 +20,45 @@ func buildQuery(instance dispers.Instance, localQuery dispers.LocalQuery) disper
 	}
 
 	return query
+}
+
+func removeIndex(s *[]dispers.Instance, index int) []dispers.Instance {
+	return append((*s)[:index], (*s)[index+1:]...)
+}
+
+// cleanTargetsList clean Targets list inplace
+func cleanTargetsList(list *[]dispers.Instance) error {
+
+	i := 0
+	for i < len(*list) {
+		if isInstInvalid(&(*list)[i]) {
+			// Unvalid item
+			*list = removeIndex(list, i)
+			i--
+		} else {
+			// Valid item
+			// Check for duplicates
+			j := i + 1
+			iHasBeenDeleted := false
+			for !iHasBeenDeleted && j < len(*list) {
+				if (*list)[i].Domain == (*list)[j].Domain {
+					if (*list)[i].SubscriptionDate.After((*list)[j].SubscriptionDate) {
+						// Item i is kept
+						*list = removeIndex(list, j)
+						j--
+					} else {
+						// Item j is kept
+						*list = removeIndex(list, i)
+						iHasBeenDeleted = true
+					}
+				}
+				j++
+			}
+		}
+		i++
+	}
+	// Check missing data
+	return nil
 }
 
 func decryptInputT(in *dispers.InputT) error {
@@ -56,6 +96,31 @@ func retrieveData(in *dispers.InputT, queries *[]dispers.Query) ([]map[string]in
 	return data, nil
 }
 
+func isInstInvalid(inst *dispers.Instance) bool {
+	if len(inst.Domain) == 0 {
+		return true
+	}
+	if len(inst.Token.TokenBearer) == 0 {
+		return true
+	}
+	if &inst.Domain == nil {
+		return true
+	}
+	if &inst.SubscriptionDate == nil {
+		return true
+	}
+	if inst.SubscriptionDate == (time.Time{}) {
+		return true
+	}
+	if &inst.Token == nil {
+		return true
+	}
+	if &inst.Token.TokenBearer == nil {
+		return true
+	}
+	return false
+}
+
 // GetData decrypts instance given by the conductor and build queries
 func GetData(in dispers.InputT) ([]map[string]interface{}, error) {
 
@@ -63,8 +128,12 @@ func GetData(in dispers.InputT) ([]map[string]interface{}, error) {
 
 	if in.IsEncrypted {
 		if err := decryptInputT(&in); err != nil {
-			return []map[string]interface{}{}, err
+			return nil, err
 		}
+	}
+
+	if err := cleanTargetsList(&in.Targets); err != nil {
+		return nil, err
 	}
 
 	for index, item := range in.Targets {

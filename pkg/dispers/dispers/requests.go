@@ -1,5 +1,7 @@
 package dispers
 
+import "time"
+
 /*
 *
 Targets' Input & Output
@@ -41,8 +43,9 @@ type Token struct {
 }
 
 // Instance describes the location of an instance and the token it had created
+// When Target received twice the same Instance, it needs to be able to consider the more recent item
 type Instance struct {
-	Host   string `json:"host,omitempty"`
-	Domain string `json:"domain,omitempty"`
-	Token  Token  `json:"token,omitempty"`
+	Domain           string    `json:"domain"`
+	SubscriptionDate time.Time `json:"date"`
+	Token            Token     `json:"token"`
 }
