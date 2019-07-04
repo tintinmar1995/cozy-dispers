@@ -3,6 +3,7 @@ package dispers
 import (
 	"encoding/json"
 	"errors"
+	"time"
 )
 
 /*
@@ -203,7 +204,23 @@ type Token struct {
 
 // Instance describes the location of an instance and the token it had created
 type Instance struct {
-	Host   string `json:"host,omitempty"`
 	Domain string `json:"domain,omitempty"`
-	Token  Token  `json:"token,omitempty"`
+	// When Target received twice the same Instance, it needs to be able to consider the more recent item
+	SubscriptionDate time.Time `json:"date,omitempty"`
+	Token            Token     `json:"token,omitempty"`
+}
+
+// InputTFSubscribeMode is used by Conductor to add an instance in a list of instances
+type InputTFSubscribeMode struct {
+	IsEncrypted              bool     `json:"isencrypted,omitempty"`
+	ListOfInstances          []string `json:"Addresses,omitempty"`
+	EncryptedInstance        string   `json:"enc_instance,omitempty"`
+	EncryptedListOfInstances []byte   `json:"enc_addresses,omitempty"`
+}
+
+// OutputTFSubscribeMode is used by Conductor to add an instance in a list of instances
+type OutputTFSubscribeMode struct {
+	IsEncrypted              bool     `json:"isencrypted,omitempty"`
+	ListOfInstances          []string `json:"Addresses,omitempty"`
+	EncryptedListOfInstances []byte   `json:"enc_addresses,omitempty"`
 }

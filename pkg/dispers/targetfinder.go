@@ -25,3 +25,13 @@ func SelectAddresses(in dispers.InputTF) ([]string, error) {
 	return finalList, err
 
 }
+
+// CreateTokens is used by the conductor after a client subscribe to data sharing
+func CreateTokens(inst string, listOfInstances []string) ([]string, error) {
+
+	// TODO : Decrypt list
+	listOfInstances = append(listOfInstances, inst)
+	// TODO: Encrypt list
+
+	return listOfInstances, nil
+}

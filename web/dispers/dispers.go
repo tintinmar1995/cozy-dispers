@@ -78,9 +78,31 @@ func selectAddresses(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, dispers.OutputTF{
 		ListOfAddresses: finallist,
-    })
+	})
 }
-  
+
+func addInstance(c echo.Context) error {
+
+	var input dispers.InputTFSubscribeMode
+
+	if err := json.NewDecoder(c.Request().Body).Decode(&input); err != nil {
+		return err
+	}
+
+	// TODO: Decrypt inputs
+
+	listOfInstances, err := enclave.CreateTokens(input.EncryptedInstance, input.ListOfInstances)
+	if err != nil {
+		return err
+	}
+
+	// TODO: Encrypt listOfInstances
+
+	return c.JSON(http.StatusOK, dispers.OutputTFSubscribeMode{
+		IsEncrypted:     input.IsEncrypted,
+		ListOfInstances: listOfInstances,
+	})
+}
 
 // Routes sets the routing for the dispers service
 func Routes(router *echo.Group) {
@@ -90,4 +112,5 @@ func Routes(router *echo.Group) {
 	router.DELETE("/conceptindexor/concept/:concept", deleteConcept) // delete a salt in the database
 
 	router.POST("/targetfinder/addresses", selectAddresses)
+	router.POST("/targetfinder/subscribe", addInstance)
 }
