@@ -12,7 +12,7 @@ Targets' Input & Output
 type InputT struct {
 	IsEncrypted         bool       `json:"isencrypted,omitempty"`
 	LocalQuery          LocalQuery `json:"localquery,omitempty"`
-	Targets             []Instance `json:"Addresses,omitempty"`
+	Targets             []string   `json:"Addresses,omitempty"`
 	EncryptedLocalQuery []byte     `json:"enc_localquery,omitempty"`
 	EncryptedTargets    []byte     `json:"enc_addresses,omitempty"`
 }

@@ -128,16 +128,17 @@ func GetData(in dispers.InputT) ([]map[string]interface{}, error) {
 
 	if in.IsEncrypted {
 		if err := decryptInputT(&in); err != nil {
-			return nil, err
+			return []map[string]interface{}{}, err
 		}
 	}
 
-	if err := cleanTargetsList(&in.Targets); err != nil {
-		return nil, err
-	}
-
+	var item2instance dispers.Instance
 	for index, item := range in.Targets {
-		q := buildQuery(item, in.LocalQuery)
+		err := json.Unmarshal([]byte(item), &item2instance)
+		if err != nil {
+			return nil, err
+		}
+		q := buildQuery(item2instance, in.LocalQuery)
 		queries[index] = q
 	}
 
