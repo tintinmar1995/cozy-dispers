@@ -167,21 +167,18 @@ func DecryptConcept(in *dispers.Concept) error {
 }
 
 // DeleteConcept is used to delete a concept in ConceptIndexor Database.
-func DeleteConcept(in dispers.Concept) error {
+func DeleteConcept(in *dispers.Concept) error {
 
-	// Delete document in database
+	// Precise and run the mango query
 	var out []ConceptDoc
-	req := &couchdb.FindRequest{
-		UseIndex: "concept-index",
-		Selector: mango.Equal("concept", in.Concept),
-	}
+	req := &couchdb.FindRequest{Selector: mango.Equal("concept", in.Concept)}
 	err := couchdb.FindDocs(prefixerCI, doctypeSalt, req, &out)
 	if err != nil {
 		return err
 	}
 
 	if len(out) == 0 {
-		return errors.New("No concept to delete")
+		return errors.New("No concept to delete. " + in.Concept + " not found")
 	}
 
 	// Delete every doc that match concept
