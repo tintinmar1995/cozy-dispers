@@ -2,9 +2,9 @@ package dispers
 
 import (
 	"encoding/json"
-	"net/http"	
-  "strings"
-  
+	"net/http"
+	"strings"
+
 	"github.com/cozy/cozy-stack/pkg/dispers"
 	"github.com/cozy/cozy-stack/pkg/dispers/dispers"
 	"github.com/cozy/cozy-stack/pkg/metadata"
@@ -78,25 +78,28 @@ func selectAddresses(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, dispers.OutputTF{
 		ListOfAddresses: finallist,
-    })
+	})
 }
 
-/*  
+/*
 *
 *
 Target'S ROUTES : those functions are used on route ./dispers/target/
 *
 *
 */
-func getData(c echo.Context) error {
+func query(c echo.Context) error {
 
-	var localQuery dispers.InputT
+	var inputT dispers.InputT
 
-	if err := json.NewDecoder(c.Request().Body).Decode(&localQuery); err != nil {
+	if err := json.NewDecoder(c.Request().Body).Decode(&inputT); err != nil {
 		return err
 	}
 
-	data, err := enclave.GetData(localQuery)
+	data, err := enclave.QueryTarget(inputT)
+	if err != nil {
+		return err
+	}
 	return c.JSON(http.StatusOK, dispers.OutputT{Data: data})
 }
 
@@ -108,6 +111,6 @@ func Routes(router *echo.Group) {
 	router.DELETE("/conceptindexor/concept/:concept", deleteConcept) // delete a salt in the database
 
 	router.POST("/targetfinder/addresses", selectAddresses)
-  
-  router.POST("/target/getdata", getData)
+
+	router.POST("/target/query", query)
 }

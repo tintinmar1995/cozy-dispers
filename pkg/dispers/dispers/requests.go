@@ -3,7 +3,7 @@ package dispers
 import (
 	"encoding/json"
 	"errors"
-  "time"
+	"time"
 )
 
 /*
@@ -209,7 +209,7 @@ type Instance struct {
 	SubscriptionDate time.Time `json:"date"`
 	Token            Token     `json:"token"`
 }
-  
+
 /*
 *
 Targets' Input & Output
@@ -225,7 +225,7 @@ type InputT struct {
 	EncryptedTargets    []byte     `json:"enc_addresses,omitempty"`
 }
 
-// Query is all the information need by the conductor's and stack to make a query
+// Query is all the information needed by the conductor's and stack to make a query
 type Query struct {
 	Domain              string     `json:"domain,omitempty"`
 	LocalQuery          LocalQuery `json:"localquery,omitempty"`

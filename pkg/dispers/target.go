@@ -5,8 +5,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
-	"strings"
-	"time"
+	"net/url"
 
 	"github.com/cozy/cozy-stack/pkg/dispers/dispers"
 )
@@ -22,45 +21,6 @@ func buildQuery(instance dispers.Instance, localQuery dispers.LocalQuery) disper
 	return query
 }
 
-func removeIndex(s *[]dispers.Instance, index int) []dispers.Instance {
-	return append((*s)[:index], (*s)[index+1:]...)
-}
-
-// cleanTargetsList clean Targets list inplace
-func cleanTargetsList(list *[]dispers.Instance) error {
-
-	i := 0
-	for i < len(*list) {
-		if isInstInvalid(&(*list)[i]) {
-			// Unvalid item
-			*list = removeIndex(list, i)
-			i--
-		} else {
-			// Valid item
-			// Check for duplicates
-			j := i + 1
-			iHasBeenDeleted := false
-			for !iHasBeenDeleted && j < len(*list) {
-				if (*list)[i].Domain == (*list)[j].Domain {
-					if (*list)[i].SubscriptionDate.After((*list)[j].SubscriptionDate) {
-						// Item i is kept
-						*list = removeIndex(list, j)
-						j--
-					} else {
-						// Item j is kept
-						*list = removeIndex(list, i)
-						iHasBeenDeleted = true
-					}
-				}
-				j++
-			}
-		}
-		i++
-	}
-	// Check missing data
-	return nil
-}
-
 func decryptInputT(in *dispers.InputT) error {
 	return nil
 }
@@ -72,12 +32,17 @@ func retrieveData(in *dispers.InputT, queries *[]dispers.Query) ([]map[string]in
 
 	for _, query := range *queries {
 
-		url := strings.Join([]string{"http:/", query.Domain, "data/_find"}, "/")
+		url := &url.URL{
+			Scheme: "http",
+			Host:   query.Domain,
+			Path:   "data/_find/",
+		}
+
 		marshalFindRequest, err := json.Marshal(query.LocalQuery.FindRequest)
 		if err != nil {
 			return nil, nil
 		}
-		resp, err := http.Post(url, "application/json", bytes.NewReader(marshalFindRequest))
+		resp, err := http.Post(url.String(), "application/json", bytes.NewReader(marshalFindRequest))
 		if err != nil {
 			return nil, nil
 		}
@@ -96,33 +61,8 @@ func retrieveData(in *dispers.InputT, queries *[]dispers.Query) ([]map[string]in
 	return data, nil
 }
 
-func isInstInvalid(inst *dispers.Instance) bool {
-	if len(inst.Domain) == 0 {
-		return true
-	}
-	if len(inst.Token.TokenBearer) == 0 {
-		return true
-	}
-	if &inst.Domain == nil {
-		return true
-	}
-	if &inst.SubscriptionDate == nil {
-		return true
-	}
-	if inst.SubscriptionDate == (time.Time{}) {
-		return true
-	}
-	if &inst.Token == nil {
-		return true
-	}
-	if &inst.Token.TokenBearer == nil {
-		return true
-	}
-	return false
-}
-
-// GetData decrypts instance given by the conductor and build queries
-func GetData(in dispers.InputT) ([]map[string]interface{}, error) {
+// QueryTarget decrypts instance given by the conductor and build queries
+func QueryTarget(in dispers.InputT) ([]map[string]interface{}, error) {
 
 	queries := make([]dispers.Query, len(in.Targets))
 
