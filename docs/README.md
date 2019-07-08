@@ -3,15 +3,17 @@
 
 ## Structure
 
+```
 ---- pkg
 |--- dispers
--|-> metadata
--|-> network
--|-> query
--|-> subscribe
+||-> metadata
+||-> network
+||-> query
+||-> subscribe
 ---- web
 |--- query
 |--- subscribe
+```
 
 ## Integration in a network of stacks and servers
 
