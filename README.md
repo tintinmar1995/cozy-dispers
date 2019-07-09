@@ -22,15 +22,7 @@ It provides its services through a REST API that allows to:
  - subscribe, or unsubscribe to queries
  - launch a query or even a machine learning algorithm
 
-
-Five actors are available:
-
- - Conductor
- - Concept Indexor
- - Target Finder
- - Target
- - Data Aggregator
-
+[See Cozy-DISPERS documentation](docs/)
 
 Feel free to [open an issue](https://github.com/cozy/cozy-dispers/issues/new)
 for questions and suggestions.
