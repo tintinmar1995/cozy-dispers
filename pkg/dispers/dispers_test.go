@@ -46,6 +46,5 @@ func TestMain(m *testing.M) {
 	hosts = []url.URL{dispersURL}
 	network.Hosts = hosts
 
-	res := m.Run()
 	os.Exit(res)
 }
