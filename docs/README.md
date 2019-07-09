@@ -1,20 +1,6 @@
 
 # Cozy-DISPERS
 
-## Structure
-
-```
----- pkg
-|--- dispers
-||-> metadata
-||-> network
-||-> query
-||-> subscribe
----- web
-|--- query
-|--- subscribe
-```
-
 ## Integration in a network of stacks and servers
 
 - [OAuth & Request](stack.md)
