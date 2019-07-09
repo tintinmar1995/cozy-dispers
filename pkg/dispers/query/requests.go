@@ -4,13 +4,92 @@ import (
 	"encoding/json"
 	"errors"
 	"time"
+
+	"github.com/cozy/cozy-stack/pkg/couchdb"
 )
 
 /*
 *
-Queries' Input & Output
+Conductor's Input & Output
 *
 */
+
+type OutputQ struct {
+	DomainQuerier               string                `json:"domain,omitempty"`
+	Concepts                    []Concept             `json:"concepts,omitempty"`
+	PseudoConcepts              map[string]string     `json:"pseudo_concepts,omitempty"`
+	IsEncrypted                 bool                  `json:"encrypted"`
+	Jobs                        []AggregationFunction `json:"job,omitempty"`
+	LocalQuery                  LocalQuery            `json:"localquery,omitempty"`
+	TargetProfile               OperationTree         `json:"operation,omitempty"`
+	NumberActors                map[string]int        `json:"nb_actors,omitempty"`
+	SizeAggrLayers              []int                 `json:"size_aggr_layers,omitempty"`
+	EncryptedLocalQuery         []byte                `json:"enc_localquery,omitempty"`
+	EncryptedAggregateFunctions [][]byte              `json:"enc_job,omitempty"`
+	EncryptedConcepts           [][]byte              `json:"enc_concepts,omitempty"`
+	EncryptedTargetProfile      []byte                `json:"enc_operation,omitempty"`
+}
+
+// QueryDoc saves every information about the query. QueryDoc are saved in the
+// Conductor's database. Thanks to that, CheckPoints can be made, and a request
+// can be followed
+type QueryDoc struct {
+	QueryID                     string                   `json:"_id,omitempty"`
+	QueryRev                    string                   `json:"_rev,omitempty"`
+	IsEncrypted                 bool                     `json:"encrypted,omitempty"`
+	CheckPoints                 []bool                   `json:"checkpoints,omitempty"`
+	Concepts                    []Concept                `json:"concepts,omitempty"`
+	Data                        []map[string]interface{} `json:"data,omitempty"`
+	DomainQuerier               string                   `json:"domain,omitempty"`
+	Jobs                        []AggregationFunction    `json:"job,omitempty"`
+	ListsOfAddresses            map[string][]string      `json:"instances,omitempty"`
+	LocalQuery                  LocalQuery               `json:"localquery,omitempty"`
+	NumberActors                map[string]int           `json:"nb_actors,omitempty"`
+	OutputsDA                   [][]OutputDA             `json:"outputsda,omitempty"`
+	PseudoConcepts              map[string]string        `json:"pseudo_concepts,omitempty"`
+	SizeAggrLayers              []int                    `json:"size_aggr_layers,omitempty"`
+	TargetProfile               OperationTree            `json:"operation,omitempty"`
+	Targets                     []string                 `json:"Addresses,omitempty"`
+	EncryptedAggregateFunctions [][]byte                 `json:"enc_job,omitempty"`
+	EncryptedConcepts           [][]byte                 `json:"enc_concepts,omitempty"`
+	EncryptedData               []byte                   `json:"enc_data,omitempty"`
+	EncryptedJob                []byte                   `json:"enc_type,omitempty"`
+	EncryptedListsOfAddresses   []byte                   `json:"enc_instances,omitempty"`
+	EncryptedLocalQuery         []byte                   `json:"enc_localquery,omitempty"`
+	EncryptedTargetProfile      []byte                   `json:"enc_operation,omitempty"`
+	EncryptedTargets            []byte                   `json:"enc_addresses,omitempty"`
+}
+
+// ID returns the Doc ID
+func (t *QueryDoc) ID() string {
+	return t.QueryID
+}
+
+// Rev returns the doc's version
+func (t *QueryDoc) Rev() string {
+	return t.QueryRev
+}
+
+// DocType returns the DocType
+func (t *QueryDoc) DocType() string {
+	return "io.cozy.ml"
+}
+
+// Clone copy a brand new version of the doc
+func (t *QueryDoc) Clone() couchdb.Doc {
+	cloned := *t
+	return &cloned
+}
+
+// SetID set the ID
+func (t *QueryDoc) SetID(id string) {
+	t.QueryID = id
+}
+
+// SetRev set the version
+func (t *QueryDoc) SetRev(rev string) {
+	t.QueryRev = rev
+}
 
 /*
 *
@@ -243,4 +322,29 @@ type OutputT struct {
 // LocalQuery decribes which data the stack has to retrieve
 type LocalQuery struct {
 	FindRequest map[string]interface{} `json:"findrequest,omitempty"`
+}
+
+/*
+*
+Data Aggregators' Input & Output
+*
+*/
+
+// AggregationFunction is transmitted
+type AggregationFunction struct {
+	Function string                 `json:"func,omitempty"`
+	Args     map[string]interface{} `json:"args,omitempty"`
+}
+
+type InputDA struct {
+	Job           AggregationFunction      `json:"type,omitempty"`
+	Data          []map[string]interface{} `json:"data,omitempty"`
+	IsEncrypted   bool                     `json:"isencrypted,omitempty"`
+	EncryptedJob  []byte                   `json:"enc_type,omitempty"`
+	EncryptedData []byte                   `json:"enc_data,omitempty"`
+}
+
+type OutputDA struct {
+	Results []float64 `json:"results,omitempty"`
+	Length  int       `json:"length,omitempty"`
 }
