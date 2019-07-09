@@ -45,7 +45,7 @@ type InputT struct {
 NB : Behind []string Targets, we found a list of marshalled Instances
 
 ```http
-POST /target/query HTTP/1.1
+POST query/target/query HTTP/1.1
 Host: cozy.example.org
 Content-Type: application/json
 

@@ -56,7 +56,7 @@ in := dispers.InputDA{
 **Step 3** : Make the request & Get the result
 
 ```http
-POST dispers/dataaggregator/aggregate HTTP/1.1
+POST query/dataaggregator/aggregate HTTP/1.1
 Host: cozy.example.org
 Content-Type: application/json
 

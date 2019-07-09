@@ -28,7 +28,7 @@ func RetrieveSubscribeDoc(hash string) ([]SubscribeDoc, error) {
 
 ## How-to add an instance to Conductor's Database
 
-TODO Subscribe Process ...
+[See the process here](subscribe.md)
 
 ## Conductor's Database
 

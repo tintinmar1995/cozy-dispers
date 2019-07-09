@@ -53,7 +53,7 @@ in := dispers.InputTF{
 ```
 
 ```http
-POST /targetfinder/addresses HTTP/1.1
+POST query/targetfinder/addresses HTTP/1.1
 Host: cozy.example.org
 Content-Type: application/json
 
