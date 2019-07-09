@@ -42,6 +42,8 @@ func TestMain(m *testing.M) {
 	}
 	couchdb.InitGlobalDB()
 
+	testutils.NeedOtherDispersServer(dispersURL)
+
 	// Hosts is used for conductor_test
 	hosts = []url.URL{dispersURL}
 	network.Hosts = hosts
