@@ -9,7 +9,7 @@
 
 ## Computing queries
 
-![][https://github.com/tintinmar1995/cozy-stack/docs/pictures/cozy-dispers-extended-schema.png]
+![](pictures/cozy-dispers-extended-schema.png?raw=true)
 
 - `/conductor` - [Management of the request](conductor.md)
 - `/conceptindexor` - [Select requested users Pt.1](concept-indexor.md)
