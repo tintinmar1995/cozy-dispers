@@ -28,7 +28,7 @@
 - `/target` - [Request the selected users](target.md)
 - `/dataaggregator` - [Aggregate Data](data-aggregator.md)
 
-## Let's have a look on the query
+## Keep a look on the query
 
 Metadata provides a way to follow the query from end to end. Metadata are created by every actor of the request (CI, TF, T, DA, Stack, ...) and are given to the conductor. Thanks to a method, the conductor can easily saved the metadata in its database.
 
