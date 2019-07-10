@@ -19,22 +19,21 @@
 
 ## Keep a look on the query
 
-Metadata provides a way to follow the query from end to end. Metadata are created by every actor of the request (CI, TF, T, DA, Stack, ...) and are given to the conductor. Thanks to a method, the conductor can easily saved the metadata in its database.
+ExecutionMetadata provides a way to follow the query from end to end. ExecutionMetadata are created by the Conductor at several special step of processes and are saved in the Conductor's database.
 
-- Host / Actor
-- Name / Description
-- Begining / ending time and duration
+- Host
+- Begining / ending time
 
 Metadata has got one function and 2 methods :
 
-- `NewMetadata` to instanciate a new metadata
-- `.Close()` to close the metadata
-- `.Push()` to save it in Conductor's database
+- `NewExecutionMetadata` to instanciate a new ExecutionMetadata
+- `.SetTask(...)` to add a step
+- `.EndExecution(...)` to close the metadata and update it in database
 
-Metadata are saved in a dedicated database with the doctype io.cozy.metadata. This database contains one document for each query. Metadata can be retrieved with this request :
+Metadata are saved in a dedicated database with the doctype io.cozy.execution.metadata. This database contains one document for each query. ExecutionMetadata can be retrieved with this request :
 
 ```http
-GET /conductor/query HTTP/1.1
+GET dispers/conductor/query HTTP/1.1
 Host: cozy.example.org
 Content-Type: application/json
 ```
