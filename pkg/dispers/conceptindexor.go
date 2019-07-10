@@ -146,7 +146,7 @@ func CreateConcept(in *dispers.Concept) error {
 	if err != nil {
 		return err
 	}
-	in.Hash = string(doc.Hash)
+	in.Hash = doc.Hash
 
 	return err
 }
@@ -155,7 +155,7 @@ func CreateConcept(in *dispers.Concept) error {
 func GetConcept(in *dispers.Concept) error {
 
 	hash, err := getHash(in.Concept)
-	in.Hash = string(hash)
+	in.Hash = hash
 	return err
 }
 
