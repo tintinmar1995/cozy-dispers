@@ -3,11 +3,9 @@ package dispers
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
 
 	"github.com/cozy/cozy-stack/pkg/dispers"
 	"github.com/cozy/cozy-stack/pkg/dispers/dispers"
-	"github.com/cozy/cozy-stack/pkg/metadata"
 	"github.com/cozy/echo"
 )
 
@@ -29,20 +27,15 @@ func createConcept(c echo.Context) error {
 
 	// Create array of hashes
 	hashes := make([]string, len(in.EncryptedConcepts))
-	var sliceOfMeta []metadata.Metadata
 	for index, element := range in.EncryptedConcepts {
-		meta := metadata.NewMetadata("Hash concept", strings.Join([]string{in.EncryptedConcepts, in.Concepts}, ""), []string{"CI", "Concept"})
 		out, err := enclave.CreateConcept(element)
 		if err != nil {
 			return err
 		}
-		meta.Close(out, err)
 		hashes[index] = out
-		sliceOfMeta = append(sliceOfMeta, meta)
 	}
 	return c.JSON(http.StatusOK, dispers.OutputCI{
-		Hashes:            hashes,
-		metadata.Metadata: sliceOfMeta,
+		Hashes: hashes,
 	})
 }
 
@@ -78,9 +71,8 @@ func selectAddresses(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, dispers.OutputTF{
 		ListOfAddresses: finallist,
-    })
+	})
 }
-  
 
 // Routes sets the routing for the dispers service
 func Routes(router *echo.Group) {
