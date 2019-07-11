@@ -29,7 +29,7 @@ func TestCreateSubscribeDoc(t *testing.T) {
 
 	err := CreateConceptInConductorDB(&inputCI)
 	assert.NoError(t, err)
-	ci := network.NewExternalActor("conceptindexor")
+	ci := network.NewExternalActor(network.RoleCI)
 	ci.MakeRequest("GET", "concept/julien/false", "application/json", nil)
 	var outputCI query.OutputCI
 	err = json.Unmarshal(ci.Out, &outputCI)
@@ -61,7 +61,7 @@ func TestSubscribe(t *testing.T) {
 
 	err := CreateConceptInConductorDB(&inputCI)
 	assert.NoError(t, err)
-	ci := network.NewExternalActor("conceptindexor")
+	ci := network.NewExternalActor(network.RoleCI)
 	err = ci.MakeRequest("GET", "concept/aime les fraises/false", "application/json", nil)
 	assert.NoError(t, err)
 	var outputCI query.OutputCI

@@ -19,6 +19,13 @@ var Hosts = []url.URL{
 	},
 }
 
+const (
+	RoleCI = "conceptindexor"
+	RoleTF = "targetfinder"
+	RoleT  = "target"
+	RoleDA = "dataaggregator"
+)
+
 func chooseHost() url.URL {
 	return Hosts[rand.Intn(len(Hosts))]
 }

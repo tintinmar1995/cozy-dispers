@@ -49,7 +49,7 @@ func CreateConceptInConductorDB(in *query.InputCI) error {
 	// Pass to CI
 	ci := network.ExternalActor{
 		URL:  hosts[0],
-		Role: "conceptindexor",
+		Role: network.RoleCI,
 	}
 	marshalInputCI, err := json.Marshal(*in)
 	if err != nil {
@@ -111,7 +111,7 @@ func CreateConceptInConductorDB(in *query.InputCI) error {
 func Subscribe(in *subscribe.InputConductor) error {
 
 	// Get Concepts' hash
-	ci := network.NewExternalActor("conceptindexor")
+	ci := network.NewExternalActor(network.RoleCI)
 	err := ci.MakeRequest("GET", "concept/"+strings.Join(in.Concepts, "-")+"/"+strconv.FormatBool(in.IsEncrypted), "application/json", nil)
 	if err != nil {
 		return err
@@ -138,7 +138,7 @@ func Subscribe(in *subscribe.InputConductor) error {
 		doc := docs[0]
 
 		// Ask Target Finder to Decrypt
-		tf := network.NewExternalActor("targetfinder")
+		tf := network.NewExternalActor(network.RoleTF)
 		tf.SubscribeMode()
 
 		marshalledInputDecrypt, err := json.Marshal(subscribe.InputDecrypt{
@@ -156,7 +156,7 @@ func Subscribe(in *subscribe.InputConductor) error {
 		}
 
 		// Ask Target to add instance
-		t := network.NewExternalActor("target")
+		t := network.NewExternalActor(network.RoleT)
 		t.SubscribeMode()
 		err = t.MakeRequest("POST", "insert", "application/json", tf.Out)
 		if err != nil {
@@ -164,7 +164,7 @@ func Subscribe(in *subscribe.InputConductor) error {
 		}
 
 		// Ask Target Finder to Encrypt
-		tf = network.NewExternalActor("targetfinder")
+		tf = network.NewExternalActor(network.RoleTF)
 		tf.SubscribeMode()
 		err = tf.MakeRequest("POST", "decrypt", "application/json", t.Out)
 		if err != nil {
