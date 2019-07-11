@@ -47,6 +47,6 @@ func TestMain(m *testing.M) {
 	// Hosts is used for conductor_test
 	hosts = []url.URL{dispersURL}
 	network.Hosts = hosts
-
+	res := m.Run()
 	os.Exit(res)
 }

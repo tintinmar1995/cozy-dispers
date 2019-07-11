@@ -26,6 +26,7 @@ var (
 	prefixerC = prefixer.ConductorPrefixer
 )
 
+/*
 // GetTrainingState can be called by the querier to have some information about
 // the process. GetTrainingState retrieves information from the Conductor's database
 // It retreives both the query.QueryDoc and the Metadata
@@ -43,6 +44,7 @@ func GetTrainingState(id string) ([]query.MetadataDoc, query.QueryDoc, error) {
 
 	return metas, *fetched, nil
 }
+*/
 
 // Conductor collects every actors playing a part to the query
 type Conductor struct {
@@ -117,7 +119,6 @@ func (c *Conductor) decryptConcept() error {
 	}
 
 	c.Conceptindexors.MakeRequest("GET", job, "", nil)
-	c.Conceptindexors.OutMeta.Push(c.Query.QueryID)
 
 	var outputCI query.OutputCI
 	json.Unmarshal(c.Conceptindexors.Out, &outputCI)
@@ -129,20 +130,15 @@ func (c *Conductor) decryptConcept() error {
 func (c *Conductor) fetchListsOfInstancesFromDB() error {
 
 	encListsOfA := make(map[string][]byte)
-	listsOfA := make(map[string][]string)
 
 	for _, concept := range c.Query.Concepts {
 
-		s, err := subscribe.RetrieveSubscribeDoc(concept.Hash)
+		s, err := RetrieveSubscribeDoc(concept.Hash)
 		if err != nil {
 			return err
 		}
 
-		if c.Query.IsEncrypted {
-			encListsOfA[c.Query.PseudoConcepts[string(concept.EncryptedConcept)]] = s[0].EncryptedInstances
-		} else {
-			listsOfA[c.Query.PseudoConcepts[concept.Concept]] = s[0].Instances
-		}
+		encListsOfA[c.Query.PseudoConcepts[string(concept.EncryptedConcept)]] = s[0].EncryptedInstances
 
 	}
 
@@ -177,7 +173,6 @@ func (c *Conductor) selectTargets() error {
 	}
 
 	err = c.Targetfinders.MakeRequest("POST", "addresses", "application/json", marshalledInputTF)
-	c.Targetfinders.OutMeta.Push(c.Query.QueryID)
 	if err != nil {
 		return err
 	}
@@ -203,7 +198,6 @@ func (c *Conductor) makeLocalQuery() error {
 	marshalledInputT, _ := json.Marshal(inputT)
 
 	err := c.Targets.MakeRequest("POST", "gettokens", "application/json", marshalledInputT)
-	c.Targets.OutMeta.Push(c.Query.QueryID)
 	if err != nil {
 		return err
 	}
@@ -234,7 +228,6 @@ func (c *Conductor) aggregate() error {
 		for indexDA, da := range c.DataAggregators[indexLayer] {
 
 			err := c.Targetfinders.MakeRequest("POST", "aggregation", "application/json", marshalledInputDA)
-			c.Targetfinders.OutMeta.Push(c.Query.QueryID)
 			if err != nil {
 				return err
 			}

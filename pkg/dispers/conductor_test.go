@@ -154,7 +154,7 @@ func TestErrorUnDefinedNumberActor(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestdecryptConcept(t *testing.T) {
+func TestDecryptConcept(t *testing.T) {
 
 	// Create an instance of Conductor
 	conductor, _ := NewConductor(in)

@@ -78,7 +78,7 @@ func deleteConcepts(c echo.Context) error {
 
 	for _, strConcept := range strConcepts {
 		tmpConcept := query.Concept{IsEncrypted: isEncrypted, Concept: strConcept}
-		err := enclave.DeleteConcept(&tmpConcept)
+		err := enclave.DeleteConcept(tmpConcept)
 		if err != nil {
 			return err
 		}
