@@ -118,18 +118,23 @@ func (c *Conductor) decryptConcept() error {
 		job = job + "/false"
 	}
 
-	c.Conceptindexors.MakeRequest("GET", job, "", nil)
+	err := c.Conceptindexors.MakeRequest("GET", job, "", nil)
+	if err != nil {
+		return err
+	}
 
 	var outputCI query.OutputCI
 	json.Unmarshal(c.Conceptindexors.Out, &outputCI)
 	c.Query.CheckPoints[0] = true
 	c.Query.Concepts = outputCI.Hashes
+
 	return couchdb.UpdateDoc(prefixer.ConductorPrefixer, &c.Query)
 }
 
 func (c *Conductor) fetchListsOfInstancesFromDB() error {
 
 	encListsOfA := make(map[string][]byte)
+	listsOfA := make(map[string][]string)
 
 	for _, concept := range c.Query.Concepts {
 
@@ -138,18 +143,30 @@ func (c *Conductor) fetchListsOfInstancesFromDB() error {
 			return err
 		}
 
-		encListsOfA[c.Query.PseudoConcepts[string(concept.EncryptedConcept)]] = s[0].EncryptedInstances
+		if len(s) == 0 {
+			return errors.New("Cannot find SubscribeDoc associated to hash : " + string(concept.Hash))
+		}
 
-	}
+		if c.Query.IsEncrypted {
+			encListsOfA[c.Query.PseudoConcepts[string(concept.EncryptedConcept)]] = s[0].EncryptedInstances
+			res, _ := json.Marshal(encListsOfA)
+			c.Query.EncryptedListsOfAddresses = res
 
-	if c.Query.IsEncrypted {
-		// TODO : encrypt ListsOfAddresses
-		res, _ := json.Marshal(encListsOfA)
-		c.Query.EncryptedListsOfAddresses = res
-	} else {
-		res, _ := json.Marshal(encListsOfA)
-		var listsOfA map[string][]string
-		json.Unmarshal(res, &listsOfA)
+		} else {
+			// Pretty ugly way to convert EncryptedInstance to []string.
+			// This part will be removed when clearing Inputs and Outputs
+			var insts []query.Instance
+			err = json.Unmarshal(s[0].EncryptedInstances, &insts)
+			if err != nil {
+				return err
+			}
+			instsStr := make([]string, len(insts))
+			for index, ins := range insts {
+				marshalledIns, _ := json.Marshal(ins)
+				instsStr[index] = string(marshalledIns)
+			}
+			listsOfA[c.Query.PseudoConcepts[concept.Concept]] = instsStr
+		}
 		c.Query.ListsOfAddresses = listsOfA
 	}
 

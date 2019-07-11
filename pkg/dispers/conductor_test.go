@@ -1,9 +1,7 @@
 package enclave
 
 import (
-	"bytes"
 	"encoding/json"
-	"net/http"
 	"testing"
 
 	"github.com/cozy/cozy-stack/pkg/dispers/network"
@@ -156,10 +154,8 @@ func TestErrorUnDefinedNumberActor(t *testing.T) {
 
 func TestDecryptConcept(t *testing.T) {
 
-	// Create an instance of Conductor
-	conductor, _ := NewConductor(in)
 	// Create a list of fake concepts
-	conductor.Query.Concepts = []query.Concept{
+	in.Concepts = []query.Concept{
 		query.Concept{
 			IsEncrypted: false,
 			Concept:     "julien"},
@@ -169,37 +165,59 @@ func TestDecryptConcept(t *testing.T) {
 		query.Concept{
 			Concept: "paul"},
 	}
+	CreateConceptInConductorDB(&query.InputCI{Concepts: in.Concepts})
 
-	// Create the three concepts
-	inputCI := query.InputCI{Concepts: conductor.Query.Concepts}
+	// Re-Create the three concepts
+	inputCI := query.InputCI{Concepts: in.Concepts}
 	marshaledInputCI, _ := json.Marshal(inputCI)
 	ci := network.NewExternalActor("conceptindexor")
-	ci.MakeRequest("POST", "concepts", "application/json", marshaledInputCI)
+	err := ci.MakeRequest("POST", "concepts", "application/json", marshaledInputCI)
+	assert.Error(t, err)
 
 	// Get the three concepts' hashes from Concept Indexor
-	ci.MakeRequest("GET", "concept/julien-francois-paul/false", "application/json", nil)
+	err = ci.MakeRequest("GET", "concept/julien-francois-paul/false", "application/json", nil)
+	assert.NoError(t, err)
 	var outputCI query.OutputCI
 	json.Unmarshal(ci.Out, &outputCI)
 
 	// Get the three concepts' hashes from conductor
+	conductor, _ := NewConductor(in)
 	conductor.decryptConcept()
 	assert.Equal(t, outputCI.Hashes, conductor.Query.Concepts)
 
-	client := &http.Client{}
-	dispersURL.Path = "dispers/conceptindexor/concept/julien-paul-francois/true"
-	req, err := http.NewRequest("DELETE", dispersURL.String(), nil)
-	assert.NoError(t, err)
-	_, err = client.Do(req)
+	// Delete the created concepts
+	err = ci.MakeRequest("DELETE", "concept/julien-paul-francois/true", "application/json", nil)
 	assert.NoError(t, err)
 
 }
 
+func TestFetchListFromDB(t *testing.T) {
+
+	in.Concepts = []query.Concept{
+		query.Concept{
+			IsEncrypted: false,
+			Concept:     "aime les fraises"},
+	}
+	in.PseudoConcepts = make(map[string]string)
+	in.PseudoConcepts["aime les fraises"] = "test1"
+
+	// Create the four concepts
+	CreateConceptInConductorDB(&query.InputCI{Concepts: in.Concepts})
+	conductor, _ := NewConductor(in)
+	err := conductor.decryptConcept()
+	assert.NoError(t, err)
+	err = conductor.fetchListsOfInstancesFromDB()
+	assert.NoError(t, err)
+
+	// Delete the created concepts
+	ci := network.NewExternalActor("conceptindexor")
+	err = ci.MakeRequest("DELETE", "concept/aime les fraises/true", "application/json", nil)
+	assert.NoError(t, err)
+}
+
 func TestGetListsOfInstances(t *testing.T) {
 
-	// Create an instance of Conductor
-	conductor, _ := NewConductor(in)
-	// Create a list of fake concepts
-	conductor.Query.Concepts = []query.Concept{
+	in.Concepts = []query.Concept{
 		query.Concept{
 			IsEncrypted: false,
 			Concept:     "aime les fraises"},
@@ -213,8 +231,6 @@ func TestGetListsOfInstances(t *testing.T) {
 			IsEncrypted: false,
 			Concept:     "est designer chez cozy"},
 	}
-
-	// Pseudo-anonymize concepts
 	in.PseudoConcepts = make(map[string]string)
 	in.PseudoConcepts["aime les fraises"] = "test1"
 	in.PseudoConcepts["aime les framboises"] = "test2"
@@ -222,36 +238,43 @@ func TestGetListsOfInstances(t *testing.T) {
 	in.PseudoConcepts["est designer chez cozy"] = "test4"
 
 	// Create the four concepts
-	inputCI := query.InputCI{Concepts: conductor.Query.Concepts}
-	marshalledInputCI, _ := json.Marshal(inputCI)
-	dispersURL.Path = "dispers/conceptindexor/concept"
-	_, err := http.Post(dispersURL.String(), "application/json", bytes.NewReader(marshalledInputCI))
+	CreateConceptInConductorDB(&query.InputCI{Concepts: in.Concepts})
+	// Make few instances subscribe to Cozy-DISPERS
+	_ = Subscribe(&subscribe.InputConductor{
+		Concepts:          []string{"aime les fraises"},
+		IsEncrypted:       false,
+		EncryptedInstance: []byte("{\"domain\":\"caroline.mycozy.cloud\"}"),
+	})
+	_ = Subscribe(&subscribe.InputConductor{
+		Concepts:          []string{"aime les fraises", "joue de la guitare", "aime les framboises"},
+		IsEncrypted:       false,
+		EncryptedInstance: []byte("{\"domain\":\"mathieu.mycozy.cloud\"}"),
+	})
+	_ = Subscribe(&subscribe.InputConductor{
+		Concepts:          []string{"aime les fraises", "aime les framboises"},
+		IsEncrypted:       false,
+		EncryptedInstance: []byte("{\"domain\":\"zoe.mycozy.cloud\"}"),
+	})
+	_ = Subscribe(&subscribe.InputConductor{
+		Concepts:          []string{"aime les fraises", "aime les framboises", "est designer chez cozy"},
+		IsEncrypted:       false,
+		EncryptedInstance: []byte("{\"domain\":\"thomas.mycozy.cloud\"}"),
+	})
+
+	conductor, _ := NewConductor(in)
+	err := conductor.decryptConcept()
+	assert.NoError(t, err)
+	err = conductor.fetchListsOfInstancesFromDB()
+	assert.NoError(t, err)
+	err = conductor.selectTargets()
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"{\"domain\":\"caroline.mycozy.cloud\",\"date\":\"0001-01-01T00:00:00Z\",\"token\":{}}", "{\"domain\":\"mathieu.mycozy.cloud\",\"date\":\"0001-01-01T00:00:00Z\",\"token\":{}}", "{\"domain\":\"zoe.mycozy.cloud\",\"date\":\"0001-01-01T00:00:00Z\",\"token\":{}}", "{\"domain\":\"thomas.mycozy.cloud\",\"date\":\"0001-01-01T00:00:00Z\",\"token\":{}}", "{\"domain\":\"paul.mycozy.cloud\",\"date\":\"0001-01-01T00:00:00Z\",\"token\":{}}", "{\"domain\":\"francois.mycozy.cloud\",\"date\":\"0001-01-01T00:00:00Z\",\"token\":{}}"}, conductor.Query.Targets)
+
+	// Delete the created concepts
+	ci := network.NewExternalActor("conceptindexor")
+	err = ci.MakeRequest("DELETE", "concept/aime les fraises-aime les framboises-joue de la guitare-est designer chez cozy/false", "application/json", nil)
 	assert.NoError(t, err)
 
-	/*
-		// Make few instances subscribe to Cozy-DISPERS
-		inSubs := query.InputSubscribeMode{
-			Concepts:    conductor.Query.Concepts,
-			IsEncrypted: false,
-			Instance:    "{\"Domain\":\"joel.mycozy.cloud\",\"SubscriptionDate\": \"time.Now()\"}",
-		}
-		err = Subscribe(&inSubs)
-		assert.NoError(t, err)
-		inSubs = query.InputSubscribeMode{
-			Concepts:    conductor.Query.Concepts[:1],
-			IsEncrypted: false,
-			Instance:    "{\"Domain\":\"paul.mycozy.cloud\",\"SubscriptionDate\": \"time.Now()\"}",
-		}
-		err = Subscribe(&inSubs)
-		assert.NoError(t, err)
-		inSubs = query.InputSubscribeMode{
-			Concepts:    conductor.Query.Concepts[2:],
-			IsEncrypted: false,
-			Instance:    "{\"Domain\":\"francois.mycozy.cloud\",\"SubscriptionDate\": \"time.Now()\"}",
-		}
-		err = Subscribe(&inSubs)
-		assert.NoError(t, err)
-	*/
 }
 
 func TestGetTargets(t *testing.T) {

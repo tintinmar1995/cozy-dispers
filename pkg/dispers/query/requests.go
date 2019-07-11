@@ -180,7 +180,7 @@ func (o *OperationTree) Compute(listsOfAddresses map[string][]string) ([]string,
 		// Retrieve list of addresses from listsOfAddresses
 		val, ok := listsOfAddresses[o.Value]
 		if !ok {
-			return []string{}, errors.New("Unknown concept")
+			return []string{}, errors.New("Unknown concept : \"" + o.Value + "\"")
 		}
 		return val, nil
 
@@ -263,10 +263,10 @@ func (o *OperationTree) UnmarshalJSON(data []byte) error {
 // InputTF contains a map that associate every concept to a list of Addresses
 // and a operation to compute to retrive the final list
 type InputTF struct {
-	IsEncrypted               bool                `json:"isencrypted,omitempty"`
+	IsEncrypted               bool                `json:"isencrypted"`
 	EncryptedListsOfAddresses []byte              `json:"enc_instances,omitempty"`
 	EncryptedTargetProfile    []byte              `json:"enc_operation,omitempty"`
-	ListsOfAddresses          map[string][]string `json:"instances,omitempty"`
+	ListsOfAddresses          map[string][]string `json:"instances"`
 	TargetProfile             OperationTree       `json:"target_profile,omitempty"`
 }
 
