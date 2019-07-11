@@ -48,6 +48,11 @@ var conceptIndexorIndexes = []*mango.Index{
 	mango.IndexOnFields("io.cozy.hashconcept", "concept-index", []string{"concept"}),
 }
 
+// ConductorIndexes is the index list required by an instance to run properly.
+var conductorIndexes = []*mango.Index{
+	mango.IndexOnFields("io.cozy.instances", "hash", []string{"hash"}),
+}
+
 // secretIndexes is the index list required on the secret databases to run
 // properly
 var secretIndexes = []*mango.Index{
@@ -89,7 +94,13 @@ func InitGlobalDB() error {
 	if err := DefineIndexes(prefixer.ConceptIndexorPrefixer, conceptIndexorIndexes); err != nil {
 		return err
 	}
+	if err := DefineIndexes(prefixer.ConductorPrefixer, conductorIndexes); err != nil {
+		return err
+	}
 	if err := DefineIndexes(prefixer.TestConceptIndexorPrefixer, conceptIndexorIndexes); err != nil {
+		return err
+	}
+	if err := DefineIndexes(prefixer.TestConductorPrefixer, conductorIndexes); err != nil {
 		return err
 	}
 	return DefineViews(GlobalDB, globalViews)
