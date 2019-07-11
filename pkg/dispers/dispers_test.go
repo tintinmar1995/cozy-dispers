@@ -29,7 +29,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	if err := couchdb.InitGlobalDB(); err != nil {
+	if err := couchdb.InitGlobalTestDB(); err != nil {
 		fmt.Println("Cant init GlobalDB")
 		os.Exit(1)
 	}

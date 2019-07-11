@@ -111,6 +111,29 @@ func selectAddresses(c echo.Context) error {
 	})
 }
 
+/*
+*
+*
+Target'S ROUTES : those functions are used on route ./dispers/target/
+*
+*
+*/
+func query(c echo.Context) error {
+
+	var inputT dispers.InputT
+
+	if err := json.NewDecoder(c.Request().Body).Decode(&inputT); err != nil {
+		return err
+	}
+
+	data, err := enclave.QueryTarget(inputT)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, dispers.OutputT{Data: data})
+
+}
+
 // Routes sets the routing for the dispers service
 func Routes(router *echo.Group) {
 
@@ -120,4 +143,6 @@ func Routes(router *echo.Group) {
 	router.DELETE("/conceptindexor/concept/:concepts/:encrypted", deleteConcepts)
 
 	router.POST("/targetfinder/addresses", selectAddresses)
+
+	router.POST("/target/query", query)
 }
