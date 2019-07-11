@@ -1,4 +1,4 @@
-package dispers
+package query
 
 import (
 	"encoding/json"
@@ -19,14 +19,14 @@ Concept Indexors' Input & Output
 */
 
 type Concept struct {
+	IsEncrypted      bool   `json:"encrypted,omitempty"`
 	Concept          string `json:"concept,omitempty"`
 	EncryptedConcept []byte `json:"enc_concept,omitempty"`
-	Hash             string `json:"hash,omitempty"`
+	Hash             []byte `json:"hash,omitempty"`
 }
 
 type InputCI struct {
-	Concepts    []Concept `json:"concepts,omitempty"`
-	IsEncrypted bool      `json:"encrypted,omitempty"`
+	Concepts []Concept `json:"concepts,omitempty"`
 }
 
 // OutputCI contains a bool and the result

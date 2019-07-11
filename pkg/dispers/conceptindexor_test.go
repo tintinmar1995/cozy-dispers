@@ -4,12 +4,12 @@ import (
 	"testing"
 
 	"github.com/cozy/cozy-stack/pkg/crypto"
-	"github.com/cozy/cozy-stack/pkg/dispers/dispers"
+	"github.com/cozy/cozy-stack/pkg/dispers/query"
 	"github.com/stretchr/testify/assert"
 )
 
-var conceptTestRandom = dispers.Concept{Concept: string(crypto.GenerateRandomBytes(50))}
-var conceptTest = dispers.Concept{Concept: "FrançoisEtPaul"}
+var conceptTestRandom = query.Concept{Concept: string(crypto.GenerateRandomBytes(50))}
+var conceptTest = query.Concept{Concept: "FrançoisEtPaul"}
 
 func TestConceptIndexor(t *testing.T) {
 

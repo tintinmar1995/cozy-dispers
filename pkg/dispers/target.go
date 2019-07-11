@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/cozy/cozy-stack/pkg/dispers/dispers"
+	"github.com/cozy/cozy-stack/pkg/dispers/query"
 )
 
-func buildQuery(instance dispers.Instance, localQuery dispers.LocalQuery) dispers.Query {
+func buildQuery(instance query.Instance, localQuery query.LocalQuery) query.Query {
 	// TODO : encrypt outputs
-	query := dispers.Query{
+	query := query.Query{
 		Domain:      instance.Domain,
 		LocalQuery:  localQuery,
 		TokenBearer: instance.Token.TokenBearer,
@@ -21,11 +21,11 @@ func buildQuery(instance dispers.Instance, localQuery dispers.LocalQuery) disper
 	return query
 }
 
-func decryptInputT(in *dispers.InputT) error {
+func decryptInputT(in *query.InputT) error {
 	return nil
 }
 
-func retrieveData(in *dispers.InputT, queries *[]dispers.Query) ([]map[string]interface{}, error) {
+func retrieveData(in *query.InputT, queries *[]query.Query) ([]map[string]interface{}, error) {
 
 	var data []map[string]interface{}
 	var rowsData []map[string]interface{}
@@ -62,9 +62,9 @@ func retrieveData(in *dispers.InputT, queries *[]dispers.Query) ([]map[string]in
 }
 
 // QueryTarget decrypts instance given by the conductor and build queries
-func QueryTarget(in dispers.InputT) ([]map[string]interface{}, error) {
+func QueryTarget(in query.InputT) ([]map[string]interface{}, error) {
 
-	queries := make([]dispers.Query, len(in.Targets))
+	queries := make([]query.Query, len(in.Targets))
 
 	if in.IsEncrypted {
 		if err := decryptInputT(&in); err != nil {
@@ -72,7 +72,7 @@ func QueryTarget(in dispers.InputT) ([]map[string]interface{}, error) {
 		}
 	}
 
-	var item2instance dispers.Instance
+	var item2instance query.Instance
 	for index, item := range in.Targets {
 		err := json.Unmarshal([]byte(item), &item2instance)
 		if err != nil {
