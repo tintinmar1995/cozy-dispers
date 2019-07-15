@@ -18,7 +18,7 @@ To get one concept's hash, you will need to make a GET request. You can hash sev
 At the end of the URL, you will have to choose if it is an encrypted request or not.
 
 ```http
-GET query/conceptindexor/concept/concept1-concept2-concept3/false HTTP/1.1
+GET query/conceptindexor/concept/concept1:concept2:concept3/false HTTP/1.1
 Host: cozy.example.org
 Content-Type: application/json
 ```
@@ -83,7 +83,7 @@ type OutputCI struct {
 The structure to delete a concept is quite like the get one.
 
 ```http
-DELETE query/conceptindexor/concept/concept1-concept3/false HTTP/1.1
+DELETE query/conceptindexor/concept/concept1:concept3/false HTTP/1.1
 Host: cozy.example.org
 Content-Type: application/json
 ```
