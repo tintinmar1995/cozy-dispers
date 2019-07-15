@@ -19,6 +19,7 @@ CONCEPT INDEXOR'S ROUTES : those functions are used on route ./dispers/conceptin
 *
 */
 
+// createConcept creates concepts in CI's database and returns the corresponding hashes.
 func createConcept(c echo.Context) error {
 
 	// Get concept from body
@@ -27,12 +28,11 @@ func createConcept(c echo.Context) error {
 		return err
 	}
 
-	for i, element := range in.Concepts {
+	for _, element := range in.Concepts {
 		err := enclave.CreateConcept(&element)
 		if err != nil {
 			return err
 		}
-		in.Concepts[i] = element
 	}
 	return c.JSON(http.StatusOK, dispers.OutputCI{
 		Hashes: in.Concepts,
@@ -41,9 +41,9 @@ func createConcept(c echo.Context) error {
 
 func getHash(c echo.Context) error {
 
-	strConcepts := strings.Split(c.Param("concepts"), "-")
+	strConcepts := strings.Split(c.Param("concepts"), ":")
 	isEncrypted := true
-	if c.Param("encrypted") == "false" {
+	if c.Param("is-encrypted") == "false" {
 		isEncrypted = false
 	}
 	if len(strConcepts) == 0 {
@@ -67,9 +67,9 @@ func getHash(c echo.Context) error {
 
 func deleteConcepts(c echo.Context) error {
 
-	strConcepts := strings.Split(c.Param("concepts"), "-")
+	strConcepts := strings.Split(c.Param("concepts"), ":")
 	isEncrypted := true
-	if c.Param("encrypted") == "false" {
+	if c.Param("is-encrypted") == "false" {
 		isEncrypted = false
 	}
 	if len(strConcepts) == 0 {
@@ -135,12 +135,13 @@ func query(c echo.Context) error {
 }
 
 // Routes sets the routing for the dispers service
+// ":concepts" has to be a list of concepts separated by ":"
 func Routes(router *echo.Group) {
 
 	// TODO : Create a route to retrieve public key
-	router.GET("/conceptindexor/concept/:concepts/:encrypted", getHash)
+	router.GET("/conceptindexor/concept/:concepts/:is-encrypted", getHash)
 	router.POST("/conceptindexor/concept", createConcept)
-	router.DELETE("/conceptindexor/concept/:concepts/:encrypted", deleteConcepts)
+	router.DELETE("/conceptindexor/concept/:concepts/:is-encrypted", deleteConcepts)
 
 	router.POST("/targetfinder/addresses", selectAddresses)
 
