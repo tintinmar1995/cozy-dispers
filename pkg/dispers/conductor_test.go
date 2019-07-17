@@ -137,7 +137,7 @@ func TestSubscribe(t *testing.T) {
 
 func TestDefineConductor(t *testing.T) {
 
-	_, err := NewConductor(in)
+	_, err := NewConductor(&in)
 	assert.NoError(t, err)
 }
 
@@ -148,7 +148,7 @@ func TestErrorUnDefinedNumberActor(t *testing.T) {
 		TargetProfile: targetProfile,
 	}
 
-	_, err := NewConductor(in2)
+	_, err := NewConductor(&in2)
 	assert.Error(t, err)
 }
 
@@ -181,7 +181,7 @@ func TestDecryptConcept(t *testing.T) {
 	json.Unmarshal(ci.Out, &outputCI)
 
 	// Get the three concepts' hashes from conductor
-	conductor, _ := NewConductor(in)
+	conductor, _ := NewConductor(&in)
 	conductor.decryptConcept()
 	assert.Equal(t, outputCI.Hashes, conductor.Query.Concepts)
 
@@ -203,7 +203,7 @@ func TestFetchListFromDB(t *testing.T) {
 
 	// Create the four concepts
 	CreateConceptInConductorDB(&query.InputCI{Concepts: in.Concepts})
-	conductor, _ := NewConductor(in)
+	conductor, _ := NewConductor(&in)
 	err := conductor.decryptConcept()
 	assert.NoError(t, err)
 	err = conductor.fetchListsOfInstancesFromDB()
@@ -261,7 +261,7 @@ func TestGetListsOfInstances(t *testing.T) {
 		EncryptedInstance: []byte("{\"domain\":\"thomas.mycozy.cloud\"}"),
 	})
 
-	conductor, _ := NewConductor(in)
+	conductor, _ := NewConductor(&in)
 	err := conductor.decryptConcept()
 	assert.NoError(t, err)
 	err = conductor.fetchListsOfInstancesFromDB()

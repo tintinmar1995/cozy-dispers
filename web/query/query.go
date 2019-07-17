@@ -6,8 +6,10 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/cozy/cozy-stack/pkg/couchdb"
 	"github.com/cozy/cozy-stack/pkg/dispers"
 	"github.com/cozy/cozy-stack/pkg/dispers/query"
+	"github.com/cozy/cozy-stack/pkg/prefixer"
 	"github.com/cozy/echo"
 )
 
@@ -126,22 +128,149 @@ func queryCozy(c echo.Context) error {
 		return err
 	}
 
-	data, err := enclave.QueryTarget(inputT)
+	/*
+		data, err := enclave.QueryTarget(inputT)
+		if err != nil {
+			return err
+		}
+	*/
+
+	// TODO: Launch worker
+
+	return c.JSON(http.StatusOK, echo.Map{"ok": true})
+}
+
+/*
+*
+*
+Data Aggegator's ROUTES : those functions are used on route ./dispers/dataaggregator
+*
+*
+*/
+func aggregate(c echo.Context) error {
+	var in query.InputDA
+
+	if err := json.NewDecoder(c.Request().Body).Decode(&in); err != nil {
+		return err
+	}
+
+	// TODO: Launch worker
+	/*
+		results, length, err := enclave.AggregateData(in)
+		if err != nil {
+			return err
+		}
+
+		return c.JSON(http.StatusOK, query.OutputDA{
+			Results: results,
+			Length:  length,
+		})
+	*/
+
+	return c.JSON(http.StatusOK, echo.Map{"ok": true})
+}
+
+/*
+*
+*
+Conducotr'S ROUTES : those functions are used on route ./dispers
+*
+*
+*/
+func getQuery(c echo.Context) error {
+
+	queryid := c.Param("queryid")
+
+	fetched := &query.QueryDoc{}
+	err := couchdb.GetDoc(prefixer.ConductorPrefixer, "io.cozy.ml", queryid, fetched)
 	if err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, query.OutputT{Data: data})
+
+	/*
+		metas, err := metadata.RetrieveMetadata(queryid)
+		if err != nil {
+			return nil, *fetched, err
+		}
+	*/
+
+	return c.JSON(http.StatusOK, echo.Map{
+		"Query":             fetched,
+		"ExecutionMetadata": nil,
+	})
+}
+
+func createQuery(c echo.Context) error {
+
+	var in *query.OutputQ
+
+	if err := json.NewDecoder(c.Request().Body).Decode(in); err != nil {
+		return err
+	}
+
+	conductor, err := enclave.NewConductor(in)
+	if err != nil {
+		return err
+	}
+
+	err = conductor.Lead()
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, echo.Map{"ok": true})
+}
+
+func updateQuery(c echo.Context) error {
+
+	queryid := c.Param("queryid")
+
+	conductor, err := enclave.NewConductorFetchingQueryDoc(queryid)
+	if err != nil {
+		return err
+	}
+
+	err = conductor.Lead()
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, echo.Map{"ok": true})
+}
+
+func deleteQuery(c echo.Context) error {
+
+	// TODO: Stop workers (contact T/DA for DELETE /jobs/triggers/:trigger-id)
+	// TODO: Retrieve Query Doc
+	// TODO: Mark doc as aborted
+
+	return c.NoContent(http.StatusNoContent)
+}
+
+// Prevent Conductor from waiting indefinitelly results of QueryCozy / DA
+func handleQueryError(c echo.Context) error {
+
+	return c.JSON(http.StatusOK, echo.Map{"ok": true})
 }
 
 // Routes sets the routing for the dispers service
 func Routes(router *echo.Group) {
 
 	// TODO : Create a route to retrieve public key
-	router.GET("/conceptindexor/concept/:concepts/:encrypted", getHash)
+	router.GET("/conceptindexor/concept/:concepts/:is-encrypted", getHash)
 	router.POST("/conceptindexor/concept", createConcept)
-	router.DELETE("/conceptindexor/concept/:concepts/:encrypted", deleteConcepts)
+	router.DELETE("/conceptindexor/concept/:concepts/:is-encrypted", deleteConcepts)
 
 	router.POST("/targetfinder/addresses", selectAddresses)
 
 	router.POST("/target/query", queryCozy)
+
+	router.POST("/dataaggregator/aggregation", aggregate)
+
+	router.GET("/query/:queryid", getQuery)
+	router.POST("/query", createQuery)
+	router.POST("/query/report-error", handleQueryError)
+	router.POST("/query/:queryid", updateQuery)
+	router.POST("/query/:queryid", deleteQuery)
+
 }

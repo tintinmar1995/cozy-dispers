@@ -26,45 +26,27 @@ var (
 	prefixerC = prefixer.ConductorPrefixer
 )
 
-/*
-// GetTrainingState can be called by the querier to have some information about
-// the process. GetTrainingState retrieves information from the Conductor's database
-// It retreives both the query.QueryDoc and the Metadata
-func GetTrainingState(id string) ([]query.MetadataDoc, query.QueryDoc, error) {
-	fetched := &query.QueryDoc{}
-	err := couchdb.GetDoc(prefixer.ConductorPrefixer, "io.cozy.ml", id, fetched)
-	if err != nil {
-		return nil, *fetched, err
-	}
-
-	metas, err := query.RetrieveMetadata(id)
-	if err != nil {
-		return nil, *fetched, err
-	}
-
-	return metas, *fetched, nil
-}
-*/
-
 // Conductor collects every actors playing a part to the query
 type Conductor struct {
 	Query           query.QueryDoc
 	Conceptindexors network.ExternalActor
 	Targetfinders   network.ExternalActor
 	Targets         network.ExternalActor
-	DataAggregators [][]network.ExternalActor
+	DataAggregators map[string]network.ExternalActor
 }
 
 // NewConductor returns a Conductor object to lead the request
-func NewConductor(in query.OutputQ) (*Conductor, error) {
+func NewConductor(in *query.OutputQ) (*Conductor, error) {
 
 	if in.NumberActors == nil {
 		return &Conductor{}, errors.New("Number of network.ExternalActors should be defined")
 	}
 
-	da := make([][]network.ExternalActor, len(in.SizeAggrLayers))
+	da := make(map[string]network.ExternalActor, len(in.SizeAggrLayers))
 	for i, v := range in.SizeAggrLayers {
-		da[i] = network.NewSliceOfExternalActors("dataaggregator", v)
+		for j, actor := range network.NewSliceOfExternalActors("dataaggregator", v) {
+			da["layer"+strconv.Itoa(i)+"_"+"da"+strconv.Itoa(j)] = actor
+		}
 	}
 
 	// Creating the query.QueryDoc that will be saved in the Conductor's database
@@ -72,6 +54,7 @@ func NewConductor(in query.OutputQ) (*Conductor, error) {
 		CheckPoints:                 make([]bool, 6),
 		Concepts:                    in.Concepts,
 		DomainQuerier:               in.DomainQuerier,
+		ExpectingPatch:              false,
 		IsEncrypted:                 in.IsEncrypted,
 		Jobs:                        in.Jobs,
 		LocalQuery:                  in.LocalQuery,
@@ -90,6 +73,33 @@ func NewConductor(in query.OutputQ) (*Conductor, error) {
 
 	retour := &Conductor{
 		Query:           queryDoc,
+		Conceptindexors: network.NewExternalActor("conceptindexor"),
+		Targetfinders:   network.NewExternalActor("targetfinder"),
+		Targets:         network.NewExternalActor("target"),
+		DataAggregators: da,
+	}
+
+	return retour, nil
+}
+
+// NewConductorFetchingQueryDoc returns a Conductor object to lead the request
+func NewConductorFetchingQueryDoc(queryid string) (*Conductor, error) {
+
+	queryDoc := &query.QueryDoc{}
+	err := couchdb.GetDoc(prefixer.ConductorPrefixer, "io.cozy.query", queryid, queryDoc)
+	if err != nil {
+		return &Conductor{}, err
+	}
+
+	da := make(map[string]network.ExternalActor, len(queryDoc.SizeAggrLayers))
+	for i, v := range queryDoc.SizeAggrLayers {
+		for j, actor := range network.NewSliceOfExternalActors("dataaggregator", v) {
+			da["layer"+strconv.Itoa(i)+"_"+"da"+strconv.Itoa(j)] = actor
+		}
+	}
+
+	retour := &Conductor{
+		Query:           *queryDoc,
 		Conceptindexors: network.NewExternalActor("conceptindexor"),
 		Targetfinders:   network.NewExternalActor("targetfinder"),
 		Targets:         network.NewExternalActor("target"),
@@ -227,7 +237,7 @@ func (c *Conductor) makeLocalQuery() error {
 
 func (c *Conductor) aggregate() error {
 
-	// Distributed data in c.Query.SizeAggrLayers[0] parts
+	// TODO: Distribute data in c.Query.SizeAggrLayers[0] parts
 
 	// for each aggregation layer
 	var inputDA query.InputDA
@@ -242,7 +252,10 @@ func (c *Conductor) aggregate() error {
 		outputDA[indexLayer] = make([]query.OutputDA, sizeLayer)
 		marshalledInputDA, _ := json.Marshal(inputDA)
 
-		for indexDA, da := range c.DataAggregators[indexLayer] {
+		var da network.ExternalActor
+		for indexDA := 0; indexDA < sizeLayer; indexDA++ {
+
+			da = c.DataAggregators["layer"+strconv.Itoa(indexLayer)+"_"+"da"+strconv.Itoa(indexDA)]
 
 			err := c.Targetfinders.MakeRequest("POST", "aggregation", "application/json", marshalledInputDA)
 			if err != nil {
@@ -287,8 +300,7 @@ func (c *Conductor) Lead() error {
 		}
 	}
 
-	// TODO: Deal with Async Method
-	if c.Query.CheckPoints[4] != true {
+	if c.readyToResume() {
 		if err := c.aggregate(); err != nil {
 			return err
 		}
@@ -296,6 +308,12 @@ func (c *Conductor) Lead() error {
 
 	// TODO: Notify the querier
 	return couchdb.UpdateDoc(prefixer.ConductorPrefixer, &c.Query)
+}
+
+func (c *Conductor) readyToResume() bool {
+
+	// TODO : Check if no patch is expected
+	return c.Query.CheckPoints[4]
 }
 
 // RetrieveSubscribeDoc is used to get a Subscribe doc from the Conductor's database.

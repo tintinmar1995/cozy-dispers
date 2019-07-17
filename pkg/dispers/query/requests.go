@@ -58,6 +58,9 @@ type QueryDoc struct {
 	EncryptedLocalQuery         []byte                   `json:"enc_localquery,omitempty"`
 	EncryptedTargetProfile      []byte                   `json:"enc_operation,omitempty"`
 	EncryptedTargets            []byte                   `json:"enc_addresses,omitempty"`
+	ExpectingPatch              bool                     `json:"expecting_patch"`
+	ExpectedPatch               string                   `json:"patch,omitempty"`
+	ExpectedPatchCountdown      int8                     `json:"patch_countdown,omitempty"`
 }
 
 // ID returns the Doc ID
@@ -89,6 +92,13 @@ func (t *QueryDoc) SetID(id string) {
 // SetRev set the version
 func (t *QueryDoc) SetRev(rev string) {
 	t.QueryRev = rev
+}
+
+type InputPatchQuery struct {
+	IsEncrypted bool     `json:"encrypted"`
+	Role        string   `json:"role"`
+	OutDA       OutputDA `json:"output_da,omitempty"`
+	OutT        OutputT  `json:"output_T,omitempty"`
 }
 
 /*
