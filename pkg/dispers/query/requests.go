@@ -15,52 +15,57 @@ Conductor's Input & Output
 */
 
 type OutputQ struct {
-	DomainQuerier               string                `json:"domain,omitempty"`
-	Concepts                    []Concept             `json:"concepts,omitempty"`
-	PseudoConcepts              map[string]string     `json:"pseudo_concepts,omitempty"`
-	IsEncrypted                 bool                  `json:"encrypted"`
-	Jobs                        []AggregationFunction `json:"job,omitempty"`
-	LocalQuery                  LocalQuery            `json:"localquery,omitempty"`
-	TargetProfile               OperationTree         `json:"operation,omitempty"`
-	NumberActors                map[string]int        `json:"nb_actors,omitempty"`
-	SizeAggrLayers              []int                 `json:"size_aggr_layers,omitempty"`
-	EncryptedLocalQuery         []byte                `json:"enc_localquery,omitempty"`
-	EncryptedAggregateFunctions [][]byte              `json:"enc_job,omitempty"`
-	EncryptedConcepts           [][]byte              `json:"enc_concepts,omitempty"`
-	EncryptedTargetProfile      []byte                `json:"enc_operation,omitempty"`
+	DomainQuerier          string            `json:"domain,omitempty"`
+	Concepts               []Concept         `json:"concepts,omitempty"`
+	PseudoConcepts         map[string]string `json:"pseudo_concepts,omitempty"`
+	IsEncrypted            bool              `json:"encrypted"`
+	LocalQuery             LocalQuery        `json:"localquery,omitempty"`
+	TargetProfile          OperationTree     `json:"operation,omitempty"`
+	NumberActors           map[string]int    `json:"nb_actors,omitempty"`
+	LayersDA               []LayerDA         `json:"layers_da,omitempty"`
+	EncryptedLocalQuery    []byte            `json:"enc_localquery,omitempty"`
+	EncryptedConcepts      [][]byte          `json:"enc_concepts,omitempty"`
+	EncryptedTargetProfile []byte            `json:"enc_operation,omitempty"`
+}
+
+type StateDA int
+
+const (
+	Waiting StateDA = iota
+	Running
+	Finished
+)
+
+type LayerDA struct {
+	AggregationFunctions        AggregationFunction      `json:"layer_job,omitempty"`
+	Data                        []map[string]interface{} `json:"layer_data,omitempty"`
+	Size                        int                      `json:"layer_size"`
+	State                       []StateDA                `json:"layer_states"`
+	EncryptedAggregateFunctions []byte                   `json:"layer_enc_job,omitempty"`
 }
 
 // QueryDoc saves every information about the query. QueryDoc are saved in the
 // Conductor's database. Thanks to that, CheckPoints can be made, and a request
 // can be followed
 type QueryDoc struct {
-	QueryID                     string                   `json:"_id,omitempty"`
-	QueryRev                    string                   `json:"_rev,omitempty"`
-	IsEncrypted                 bool                     `json:"encrypted,omitempty"`
-	CheckPoints                 []bool                   `json:"checkpoints,omitempty"`
-	Concepts                    []Concept                `json:"concepts,omitempty"`
-	Data                        []map[string]interface{} `json:"data,omitempty"`
-	DomainQuerier               string                   `json:"domain,omitempty"`
-	Jobs                        []AggregationFunction    `json:"job,omitempty"`
-	ListsOfAddresses            map[string][]string      `json:"instances,omitempty"`
-	LocalQuery                  LocalQuery               `json:"localquery,omitempty"`
-	NumberActors                map[string]int           `json:"nb_actors,omitempty"`
-	OutputsDA                   [][]OutputDA             `json:"outputsda,omitempty"`
-	PseudoConcepts              map[string]string        `json:"pseudo_concepts,omitempty"`
-	SizeAggrLayers              []int                    `json:"size_aggr_layers,omitempty"`
-	TargetProfile               OperationTree            `json:"operation,omitempty"`
-	Targets                     []string                 `json:"Addresses,omitempty"`
-	EncryptedAggregateFunctions [][]byte                 `json:"enc_job,omitempty"`
-	EncryptedConcepts           [][]byte                 `json:"enc_concepts,omitempty"`
-	EncryptedData               []byte                   `json:"enc_data,omitempty"`
-	EncryptedJob                []byte                   `json:"enc_type,omitempty"`
-	EncryptedListsOfAddresses   []byte                   `json:"enc_instances,omitempty"`
-	EncryptedLocalQuery         []byte                   `json:"enc_localquery,omitempty"`
-	EncryptedTargetProfile      []byte                   `json:"enc_operation,omitempty"`
-	EncryptedTargets            []byte                   `json:"enc_addresses,omitempty"`
-	ExpectingPatch              bool                     `json:"expecting_patch"`
-	ExpectedPatch               string                   `json:"patch,omitempty"`
-	ExpectedPatchCountdown      int8                     `json:"patch_countdown,omitempty"`
+	QueryID                   string              `json:"_id,omitempty"`
+	QueryRev                  string              `json:"_rev,omitempty"`
+	IsEncrypted               bool                `json:"encrypted,omitempty"`
+	CheckPoints               []bool              `json:"checkpoints,omitempty"`
+	Concepts                  []Concept           `json:"concepts,omitempty"`
+	DomainQuerier             string              `json:"domain,omitempty"`
+	ListsOfAddresses          map[string][]string `json:"instances,omitempty"`
+	LocalQuery                LocalQuery          `json:"localquery,omitempty"`
+	Layers                    []LayerDA           `json:"layers,omitempty"`
+	NumberActors              map[string]int      `json:"nb_actors,omitempty"`
+	PseudoConcepts            map[string]string   `json:"pseudo_concepts,omitempty"`
+	TargetProfile             OperationTree       `json:"operation,omitempty"`
+	Targets                   []string            `json:"Addresses,omitempty"`
+	EncryptedConcepts         [][]byte            `json:"enc_concepts,omitempty"`
+	EncryptedListsOfAddresses []byte              `json:"enc_instances,omitempty"`
+	EncryptedLocalQuery       []byte              `json:"enc_localquery,omitempty"`
+	EncryptedTargetProfile    []byte              `json:"enc_operation,omitempty"`
+	EncryptedTargets          []byte              `json:"enc_addresses,omitempty"`
 }
 
 // ID returns the Doc ID
@@ -326,7 +331,7 @@ type Query struct {
 
 // OutputT is what Target returns to the conductor
 type OutputT struct {
-	Data []map[string]interface{} `json:"data,omitempty"` // type Query
+	Data []map[string]interface{} `json:"data,omitempty"`
 }
 
 // LocalQuery decribes which data the stack has to retrieve

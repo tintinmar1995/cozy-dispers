@@ -3,6 +3,7 @@ package enclave
 import (
 	"encoding/json"
 	"errors"
+	"math/rand"
 	"net/url"
 	"strconv"
 	"strings"
@@ -32,7 +33,7 @@ type Conductor struct {
 	Conceptindexors network.ExternalActor
 	Targetfinders   network.ExternalActor
 	Targets         network.ExternalActor
-	DataAggregators map[string]network.ExternalActor
+	DataAggregators [][]network.ExternalActor
 }
 
 // NewConductor returns a Conductor object to lead the request
@@ -42,30 +43,25 @@ func NewConductor(in *query.OutputQ) (*Conductor, error) {
 		return &Conductor{}, errors.New("Number of network.ExternalActors should be defined")
 	}
 
-	da := make(map[string]network.ExternalActor, len(in.SizeAggrLayers))
-	for i, v := range in.SizeAggrLayers {
-		for j, actor := range network.NewSliceOfExternalActors("dataaggregator", v) {
-			da["layer"+strconv.Itoa(i)+"_"+"da"+strconv.Itoa(j)] = actor
-		}
+	da := make([][]network.ExternalActor, len(in.LayersDA))
+	for i, layer := range in.LayersDA {
+		da[i] = network.NewSliceOfExternalActors("dataaggregator", layer.Size)
 	}
 
 	// Creating the query.QueryDoc that will be saved in the Conductor's database
 	queryDoc := query.QueryDoc{
-		CheckPoints:                 make([]bool, 6),
-		Concepts:                    in.Concepts,
-		DomainQuerier:               in.DomainQuerier,
-		ExpectingPatch:              false,
-		IsEncrypted:                 in.IsEncrypted,
-		Jobs:                        in.Jobs,
-		LocalQuery:                  in.LocalQuery,
-		NumberActors:                in.NumberActors,
-		PseudoConcepts:              in.PseudoConcepts,
-		SizeAggrLayers:              in.SizeAggrLayers,
-		TargetProfile:               in.TargetProfile,
-		EncryptedAggregateFunctions: in.EncryptedAggregateFunctions,
-		EncryptedConcepts:           in.EncryptedConcepts,
-		EncryptedLocalQuery:         in.EncryptedLocalQuery,
-		EncryptedTargetProfile:      in.EncryptedTargetProfile,
+		CheckPoints:            make([]bool, 6),
+		Concepts:               in.Concepts,
+		DomainQuerier:          in.DomainQuerier,
+		IsEncrypted:            in.IsEncrypted,
+		Layers:                 in.LayersDA,
+		LocalQuery:             in.LocalQuery,
+		NumberActors:           in.NumberActors,
+		PseudoConcepts:         in.PseudoConcepts,
+		TargetProfile:          in.TargetProfile,
+		EncryptedConcepts:      in.EncryptedConcepts,
+		EncryptedLocalQuery:    in.EncryptedLocalQuery,
+		EncryptedTargetProfile: in.EncryptedTargetProfile,
 	}
 	if err := couchdb.CreateDoc(prefixer.ConductorPrefixer, &queryDoc); err != nil {
 		return &Conductor{}, err
@@ -91,11 +87,9 @@ func NewConductorFetchingQueryDoc(queryid string) (*Conductor, error) {
 		return &Conductor{}, err
 	}
 
-	da := make(map[string]network.ExternalActor, len(queryDoc.SizeAggrLayers))
-	for i, v := range queryDoc.SizeAggrLayers {
-		for j, actor := range network.NewSliceOfExternalActors("dataaggregator", v) {
-			da["layer"+strconv.Itoa(i)+"_"+"da"+strconv.Itoa(j)] = actor
-		}
+	da := make([][]network.ExternalActor, len(queryDoc.Layers))
+	for i, layer := range queryDoc.Layers {
+		da[i] = network.NewSliceOfExternalActors("dataaggregator", layer.Size)
 	}
 
 	retour := &Conductor{
@@ -222,55 +216,73 @@ func (c *Conductor) makeLocalQuery() error {
 		EncryptedTargets:    c.Query.EncryptedTargets,
 	}
 
-	marshalledInputT, _ := json.Marshal(inputT)
+	marshalledInputT, err := json.Marshal(inputT)
+	if err != nil {
+		return err
+	}
 
-	err := c.Targets.MakeRequest("POST", "gettokens", "application/json", marshalledInputT)
+	err = c.Targets.MakeRequest("POST", "query", "application/json", marshalledInputT)
 	if err != nil {
 		return err
 	}
 	var outputT query.OutputT
-	json.Unmarshal(c.Targets.Out, &outputT)
-	c.Query.Data = outputT.Data
+	err = json.Unmarshal(c.Targets.Out, &outputT)
+	if err != nil {
+		return err
+	}
+	c.Query.Layers[0].Data = outputT.Data
 	c.Query.CheckPoints[3] = true
 	return couchdb.UpdateDoc(prefixer.ConductorPrefixer, &c.Query)
 }
 
-func (c *Conductor) aggregate() error {
+func (c *Conductor) aggregateLayer(indexLayer int, layer query.LayerDA) error {
 
-	// TODO: Distribute data in c.Query.SizeAggrLayers[0] parts
+	var da network.ExternalActor
 
-	// for each aggregation layer
-	var inputDA query.InputDA
-	outputDA := make([][]query.OutputDA, len(c.Query.SizeAggrLayers))
-	for indexLayer, sizeLayer := range c.Query.SizeAggrLayers {
+	// Shuffle Data
+	rand.Shuffle(len(layer.Data), func(i, j int) {
+		layer.Data[i], layer.Data[j] = layer.Data[j], layer.Data[i]
+	})
 
-		inputDA = query.InputDA{
-			Job:          c.Query.Jobs[indexLayer],
-			IsEncrypted:  c.Query.IsEncrypted,
-			EncryptedJob: c.Query.EncryptedAggregateFunctions[indexLayer],
-		}
-		outputDA[indexLayer] = make([]query.OutputDA, sizeLayer)
-		marshalledInputDA, _ := json.Marshal(inputDA)
-
-		var da network.ExternalActor
-		for indexDA := 0; indexDA < sizeLayer; indexDA++ {
-
-			da = c.DataAggregators["layer"+strconv.Itoa(indexLayer)+"_"+"da"+strconv.Itoa(indexDA)]
-
-			err := c.Targetfinders.MakeRequest("POST", "aggregation", "application/json", marshalledInputDA)
-			if err != nil {
-				return err
-			}
-
-			var out query.OutputDA
-			json.Unmarshal(da.Out, &out)
-			outputDA[indexLayer][indexDA] = out
-		}
+	// Separate data in sizeLayer folds
+	seps := make([]int, layer.Size+1)
+	seps[0] = 0
+	if len(layer.Data)%layer.Size != 0 {
+		seps[len(seps)-1] = len(layer.Data) - 1
+	}
+	for indexSep := 1; indexSep < len(seps)-1; indexSep++ {
+		seps[indexSep] = (len(layer.Data) / layer.Size) * indexSep
 	}
 
-	c.Query.CheckPoints[5] = true
-	c.Query.OutputsDA = outputDA
-	return couchdb.UpdateDoc(prefixer.ConductorPrefixer, &c.Query)
+	// Create InputDA for the layer
+	inputDA := query.InputDA{
+		Job:          layer.AggregationFunctions,
+		EncryptedJob: layer.EncryptedAggregateFunctions,
+	}
+
+	// for each node on the layer
+	for indexDA := 0; indexDA < layer.Size; indexDA++ {
+		da = c.DataAggregators[indexLayer][indexDA]
+
+		inputDA.Data = layer.Data[seps[indexDA]:seps[indexDA+1]]
+
+		// marshal inputDA and make request for async process
+		marshalledInputDA, _ := json.Marshal(inputDA)
+		err := da.MakeRequest("POST", "aggregation", "application/json", marshalledInputDA)
+		if err != nil {
+			return err
+		}
+		var out query.OutputDA
+		err = json.Unmarshal(da.Out, &out)
+		if err != nil {
+			return err
+		}
+
+		// async task is now running
+		layer.State[indexDA] = query.Running
+	}
+
+	return nil
 }
 
 // Lead is the most general method. This is the only one used in CMD and Web's files. It will use the 5 previous methods to work
@@ -300,20 +312,26 @@ func (c *Conductor) Lead() error {
 		}
 	}
 
-	if c.readyToResume() {
-		if err := c.aggregate(); err != nil {
-			return err
+	for indexLayer, layer := range c.Query.Layers {
+		if c.readyToResume(indexLayer - 1) {
+			if err := c.aggregateLayer(indexLayer, layer); err != nil {
+				return err
+			}
 		}
 	}
 
-	// TODO: Notify the querier
 	return couchdb.UpdateDoc(prefixer.ConductorPrefixer, &c.Query)
 }
 
-func (c *Conductor) readyToResume() bool {
+func (c *Conductor) readyToResume(indexLayer int) bool {
 
-	// TODO : Check if no patch is expected
-	return c.Query.CheckPoints[4]
+	isPreviousLayerFinished := true
+	if indexLayer >= 0 {
+		for _, stateDA := range c.Query.Layers[indexLayer].State {
+			isPreviousLayerFinished = isPreviousLayerFinished && (stateDA == query.Finished)
+		}
+	}
+	return c.Query.CheckPoints[4] || isPreviousLayerFinished
 }
 
 // RetrieveSubscribeDoc is used to get a Subscribe doc from the Conductor's database.
@@ -324,11 +342,11 @@ func RetrieveSubscribeDoc(hash []byte) ([]subscribe.SubscribeDoc, error) {
 	req := &couchdb.FindRequest{Selector: mango.Equal("hash", hash)}
 	err := couchdb.FindDocs(prefixerC, "io.cozy.instances", req, &out)
 	if err != nil {
-		return out, err
+		return nil, err
 	}
 
 	if len(out) > 1 {
-		return out, errors.New("There is more than 1 subscribe doc in database for this concept")
+		return nil, errors.New("There is more than 1 subscribe doc in database for this concept")
 	}
 
 	return out, nil
