@@ -131,7 +131,28 @@ func query(c echo.Context) error {
 		return err
 	}
 	return c.JSON(http.StatusOK, dispers.OutputT{Data: data})
+}
 
+/*
+*
+*
+Data Aggegator's ROUTES : those functions are used on route ./dispers/dataaggregator
+*
+*
+*/
+func aggregate(c echo.Context) error {
+	var in dispers.InputDA
+
+	if err := json.NewDecoder(c.Request().Body).Decode(&in); err != nil {
+		return err
+	}
+
+	results, _, err := enclave.AggregateData(in)
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, results)
 }
 
 // Routes sets the routing for the dispers service
@@ -146,4 +167,6 @@ func Routes(router *echo.Group) {
 	router.POST("/targetfinder/addresses", selectAddresses)
 
 	router.POST("/target/query", query)
+
+	router.POST("/dataaggregator/aggregation", aggregate)
 }

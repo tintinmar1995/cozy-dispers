@@ -244,3 +244,27 @@ type OutputT struct {
 type LocalQuery struct {
 	FindRequest map[string]interface{} `json:"findrequest,omitempty"`
 }
+
+/*
+*
+Data Aggregators' Input & Output
+*
+*/
+
+// AggregationFunction is transmitted
+type AggregationFunction struct {
+	Function string                 `json:"func,omitempty"`
+	Args     map[string]interface{} `json:"args,omitempty"`
+}
+
+type InputDA struct {
+	Job           AggregationFunction      `json:"type,omitempty"`
+	Data          []map[string]interface{} `json:"data,omitempty"`
+	IsEncrypted   bool                     `json:"isencrypted,omitempty"`
+	EncryptedJob  []byte                   `json:"enc_type,omitempty"`
+	EncryptedData []byte                   `json:"enc_data,omitempty"`
+}
+
+type OutputDA struct {
+	Results []string `json:"results,omitempty"`
+}
