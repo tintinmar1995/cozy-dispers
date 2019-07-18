@@ -103,7 +103,6 @@ type InputPatchQuery struct {
 	IsEncrypted bool     `json:"encrypted"`
 	Role        string   `json:"role"`
 	OutDA       OutputDA `json:"output_da,omitempty"`
-	OutT        OutputT  `json:"output_T,omitempty"`
 }
 
 /*

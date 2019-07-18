@@ -349,8 +349,6 @@ func (c *Conductor) Lead() error {
 		if err := c.makeLocalQuery(); err != nil {
 			return err
 		}
-		// Stop the process and wait for T's answer to resume
-		return nil
 	}
 
 	if c.Query.CheckPoints[4] == true || c.Query.CheckPoints[5] != true {

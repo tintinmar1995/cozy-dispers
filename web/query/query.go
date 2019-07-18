@@ -238,9 +238,6 @@ func updateQuery(c echo.Context) error {
 
 	if in.Role == network.RoleDA {
 		conductor.Query.Layers[in.OutDA.AggregationID[0]+1].Data = append(conductor.Query.Layers[in.OutDA.AggregationID[0]+1].Data, in.OutDA.Results...)
-	} else if in.Role == network.RoleT {
-		conductor.Query.Layers[in.OutDA.AggregationID[0]].Data = append(conductor.Query.Layers[in.OutDA.AggregationID[0]].Data, in.OutT.Data...)
-		conductor.Query.CheckPoints[4] = true
 	}
 	couchdb.UpdateDoc(prefixer.ConductorPrefixer, &conductor.Query)
 

@@ -280,9 +280,6 @@ func TestGetListsOfInstances(t *testing.T) {
 
 }
 
-func TestGetTargets(t *testing.T) {
-}
-
 func TestQuery(t *testing.T) {
 }
 
