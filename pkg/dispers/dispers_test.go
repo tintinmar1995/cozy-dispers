@@ -22,6 +22,7 @@ func TestMain(m *testing.M) {
 	}
 
 	prefixerCI = prefixer.TestConceptIndexorPrefixer
+	prefixerDA = prefixer.TestDataAggregatorPrefixer
 
 	err = couchdb.ResetDB(prefixerCI, "io.cozy.hashconcept")
 	if err != nil {
