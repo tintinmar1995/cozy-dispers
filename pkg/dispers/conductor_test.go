@@ -2,6 +2,9 @@ package enclave
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/cozy/cozy-stack/pkg/dispers/network"
@@ -284,4 +287,51 @@ func TestQuery(t *testing.T) {
 }
 
 func TestAggregate(t *testing.T) {
+
+	var data []map[string]interface{}
+	absPath, _ := filepath.Abs(strings.Join([]string{"../../assets/test/dummy_dataset.json"}, ""))
+	buf, _ := ioutil.ReadFile(absPath)
+	s := string(buf)
+	json.Unmarshal([]byte(s), &data)
+
+	// The first layer is going to sum each subset
+	args1 := make(map[string]interface{})
+	args1["keys"] = []string{"sepal_length", "sepal_width"}
+
+	// The second layer is going to sum each results applying a weight
+	// The weight has been passed as a new variable
+	args2 := make(map[string]interface{})
+	args2["keys"] = []string{"sepal_length", "sepal_width"}
+	args2["weight"] = "length"
+	layers := []query.LayerDA{
+		query.LayerDA{
+			AggregationFunctions: query.AggregationFunction{
+				Function: "sum",
+				Args:     args1,
+			},
+			Data:  data,
+			Size:  4,
+			State: []query.StateDA{query.Waiting, query.Waiting, query.Waiting, query.Waiting},
+		},
+		query.LayerDA{
+			AggregationFunctions: query.AggregationFunction{
+				Function: "sum",
+				Args:     args2,
+			},
+			Data:  data,
+			Size:  4,
+			State: []query.StateDA{query.Waiting, query.Waiting, query.Waiting, query.Waiting},
+		},
+	}
+
+	conductor, _ := NewConductor(&in)
+	conductor.Query.Layers = layers
+	for indexLayer, layer := range conductor.Query.Layers {
+		if conductor.shouldBeComputed(indexLayer) {
+			if err := conductor.aggregateLayer(indexLayer, layer); err != nil {
+				assert.Error(t, err)
+			}
+		}
+	}
+
 }

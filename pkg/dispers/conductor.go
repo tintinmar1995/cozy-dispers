@@ -27,7 +27,7 @@ var (
 	prefixerC = prefixer.ConductorPrefixer
 )
 
-// Conductor collects every actors playing a part to the query
+// Conductor collects every actors playing a part in the query
 type Conductor struct {
 	Query           query.QueryDoc
 	Conceptindexors network.ExternalActor
@@ -63,7 +63,7 @@ func NewConductor(in *query.OutputQ) (*Conductor, error) {
 		EncryptedLocalQuery:    in.EncryptedLocalQuery,
 		EncryptedTargetProfile: in.EncryptedTargetProfile,
 	}
-	if err := couchdb.CreateDoc(prefixer.ConductorPrefixer, &queryDoc); err != nil {
+	if err := couchdb.CreateDoc(prefixerC, &queryDoc); err != nil {
 		return &Conductor{}, err
 	}
 
@@ -82,7 +82,7 @@ func NewConductor(in *query.OutputQ) (*Conductor, error) {
 func NewConductorFetchingQueryDoc(queryid string) (*Conductor, error) {
 
 	queryDoc := &query.QueryDoc{}
-	err := couchdb.GetDoc(prefixer.ConductorPrefixer, "io.cozy.query", queryid, queryDoc)
+	err := couchdb.GetDoc(prefixerC, "io.cozy.query", queryid, queryDoc)
 	if err != nil {
 		return &Conductor{}, err
 	}
@@ -132,7 +132,7 @@ func (c *Conductor) decryptConcept() error {
 	c.Query.CheckPoints[0] = true
 	c.Query.Concepts = outputCI.Hashes
 
-	return couchdb.UpdateDoc(prefixer.ConductorPrefixer, &c.Query)
+	return couchdb.UpdateDoc(prefixerC, &c.Query)
 }
 
 func (c *Conductor) fetchListsOfInstancesFromDB() error {
@@ -175,7 +175,7 @@ func (c *Conductor) fetchListsOfInstancesFromDB() error {
 	}
 
 	c.Query.CheckPoints[1] = true
-	return couchdb.UpdateDoc(prefixer.ConductorPrefixer, &c.Query)
+	return couchdb.UpdateDoc(prefixerC, &c.Query)
 }
 
 func (c *Conductor) selectTargets() error {
@@ -203,7 +203,7 @@ func (c *Conductor) selectTargets() error {
 	c.Query.EncryptedTargets = outputTF.EncryptedListOfAddresses
 	c.Query.Targets = outputTF.ListOfAddresses
 	c.Query.CheckPoints[2] = true
-	return couchdb.UpdateDoc(prefixer.ConductorPrefixer, &c.Query)
+	return couchdb.UpdateDoc(prefixerC, &c.Query)
 }
 
 func (c *Conductor) makeLocalQuery() error {
@@ -232,7 +232,46 @@ func (c *Conductor) makeLocalQuery() error {
 	}
 	c.Query.Layers[0].Data = outputT.Data
 	c.Query.CheckPoints[3] = true
-	return couchdb.UpdateDoc(prefixer.ConductorPrefixer, &c.Query)
+	return couchdb.UpdateDoc(prefixerC, &c.Query)
+}
+
+func (c *Conductor) shouldBeComputed(indexLayer int) bool {
+
+	// shouldBeComputed returns false if indexLayer finished
+	isLayerFinished := true
+	for _, stateDA := range c.Query.Layers[indexLayer].State {
+		if stateDA != query.Finished {
+			isLayerFinished = false
+		}
+	}
+	if isLayerFinished {
+		return false
+	}
+
+	if indexLayer == 0 {
+		return true
+	}
+
+	// shouldBeComputed returns false if indexLayer-1 is not finished
+	isPreviousLayerFinished := true
+	for _, stateDA := range c.Query.Layers[indexLayer-1].State {
+		if stateDA != query.Finished {
+			isPreviousLayerFinished = false
+		}
+	}
+	if !isPreviousLayerFinished {
+		return false
+	}
+
+	// if !isLayerFinished && isPreviousLayerFinished
+	// shouldBeComputed returns true if indexLayer-1 finished and indexLayer waiting
+	isLayerWaiting := true
+	for _, stateDA := range c.Query.Layers[indexLayer-1].State {
+		if stateDA != query.Waiting {
+			isLayerWaiting = false
+		}
+	}
+	return isLayerWaiting
 }
 
 func (c *Conductor) aggregateLayer(indexLayer int, layer query.LayerDA) error {
@@ -326,43 +365,7 @@ func (c *Conductor) Lead() error {
 		}
 	}
 
-	return couchdb.UpdateDoc(prefixer.ConductorPrefixer, &c.Query)
-}
-
-// shouldBeComputed returns true if indexLayer-1 finished and indexLayer not done
-func (c *Conductor) shouldBeComputed(indexLayer int) bool {
-
-	// shouldBeComputed returns false if indexLayer finished
-	isLayerFinished := true
-	for _, stateDA := range c.Query.Layers[indexLayer].State {
-		if stateDA != query.Finished {
-			isLayerFinished = false
-		}
-	}
-	if isLayerFinished {
-		return false
-	}
-
-	// shouldBeComputed returns false if indexLayer-1 is not finished
-	isPreviousLayerFinished := true
-	for _, stateDA := range c.Query.Layers[indexLayer-1].State {
-		if stateDA != query.Finished {
-			isPreviousLayerFinished = false
-		}
-	}
-	if !isPreviousLayerFinished {
-		return false
-	}
-
-	// if !isLayerFinished && isPreviousLayerFinished
-	// shouldBeComputed returns true if indexLayer-1 finished and indexLayer waiting
-	isLayerWaiting := true
-	for _, stateDA := range c.Query.Layers[indexLayer-1].State {
-		if stateDA != query.Waiting {
-			isLayerWaiting = false
-		}
-	}
-	return isLayerWaiting
+	return couchdb.UpdateDoc(prefixerC, &c.Query)
 }
 
 // RetrieveSubscribeDoc is used to get a Subscribe doc from the Conductor's database.
@@ -427,7 +430,6 @@ func CreateConceptInConductorDB(in *query.InputCI) error {
 	}
 
 	for _, concept := range out.Hashes {
-		// TODO: Check if Concept is unexistant
 		s, err := RetrieveSubscribeDoc(concept.Hash)
 		if err != nil {
 			return nil
@@ -448,6 +450,7 @@ func CreateConceptInConductorDB(in *query.InputCI) error {
 	return nil
 }
 
+// Subscribe leads the subscription process
 func Subscribe(in *subscribe.InputConductor) error {
 
 	// Get Concepts' hash
