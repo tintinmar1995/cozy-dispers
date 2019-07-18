@@ -31,9 +31,9 @@ type OutputQ struct {
 type StateDA int
 
 const (
-	Waiting StateDA = iota
+	Finished StateDA = iota
+	Waiting
 	Running
-	Finished
 )
 
 type LayerDA struct {
@@ -317,6 +317,7 @@ type InputT struct {
 	Targets             []string   `json:"Addresses,omitempty"`
 	EncryptedLocalQuery []byte     `json:"enc_localquery,omitempty"`
 	EncryptedTargets    []byte     `json:"enc_addresses,omitempty"`
+	QueryID             string     `json:"queryid,omitempty"`
 }
 
 // Query is all the information needed by the conductor's and stack to make a query
@@ -331,7 +332,8 @@ type Query struct {
 
 // OutputT is what Target returns to the conductor
 type OutputT struct {
-	Data []map[string]interface{} `json:"data,omitempty"`
+	Data    []map[string]interface{} `json:"data,omitempty"`
+	QueryID string                   `json:"queryid,omitempty"`
 }
 
 // LocalQuery decribes which data the stack has to retrieve
@@ -357,9 +359,12 @@ type InputDA struct {
 	IsEncrypted   bool                     `json:"isencrypted,omitempty"`
 	EncryptedJob  []byte                   `json:"enc_type,omitempty"`
 	EncryptedData []byte                   `json:"enc_data,omitempty"`
+	QueryID       string                   `json:"queryid,omitempty"`
 }
 
 type OutputDA struct {
-	Results []float64 `json:"results,omitempty"`
-	Length  int       `json:"length,omitempty"`
+	Results       []map[string]interface{} `json:"results,omitempty"`
+	Length        int                      `json:"length,omitempty"`
+	QueryID       string                   `json:"queryid,omitempty"`
+	AggregationID [2]int                   `json:"aggregationid,omitempty"`
 }

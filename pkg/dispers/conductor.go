@@ -310,12 +310,18 @@ func (c *Conductor) Lead() error {
 		if err := c.makeLocalQuery(); err != nil {
 			return err
 		}
+		// Stop the process and wait for T's answer to resume
+		return nil
 	}
 
-	for indexLayer, layer := range c.Query.Layers {
-		if c.readyToResume(indexLayer - 1) {
-			if err := c.aggregateLayer(indexLayer, layer); err != nil {
-				return err
+	if c.Query.CheckPoints[4] == true || c.Query.CheckPoints[5] != true {
+		for indexLayer, layer := range c.Query.Layers {
+			if c.shouldBeComputed(indexLayer) {
+				if err := c.aggregateLayer(indexLayer, layer); err != nil {
+					return err
+				}
+				// Stop the process and wait for DA's answer to resume
+				return nil
 			}
 		}
 	}
@@ -323,15 +329,40 @@ func (c *Conductor) Lead() error {
 	return couchdb.UpdateDoc(prefixer.ConductorPrefixer, &c.Query)
 }
 
-func (c *Conductor) readyToResume(indexLayer int) bool {
+// shouldBeComputed returns true if indexLayer-1 finished and indexLayer not done
+func (c *Conductor) shouldBeComputed(indexLayer int) bool {
 
-	isPreviousLayerFinished := true
-	if indexLayer >= 0 {
-		for _, stateDA := range c.Query.Layers[indexLayer].State {
-			isPreviousLayerFinished = isPreviousLayerFinished && (stateDA == query.Finished)
+	// shouldBeComputed returns false if indexLayer finished
+	isLayerFinished := true
+	for _, stateDA := range c.Query.Layers[indexLayer].State {
+		if stateDA != query.Finished {
+			isLayerFinished = false
 		}
 	}
-	return c.Query.CheckPoints[4] || isPreviousLayerFinished
+	if isLayerFinished {
+		return false
+	}
+
+	// shouldBeComputed returns false if indexLayer-1 is not finished
+	isPreviousLayerFinished := true
+	for _, stateDA := range c.Query.Layers[indexLayer-1].State {
+		if stateDA != query.Finished {
+			isPreviousLayerFinished = false
+		}
+	}
+	if !isPreviousLayerFinished {
+		return false
+	}
+
+	// if !isLayerFinished && isPreviousLayerFinished
+	// shouldBeComputed returns true if indexLayer-1 finished and indexLayer waiting
+	isLayerWaiting := true
+	for _, stateDA := range c.Query.Layers[indexLayer-1].State {
+		if stateDA != query.Waiting {
+			isLayerWaiting = false
+		}
+	}
+	return isLayerWaiting
 }
 
 // RetrieveSubscribeDoc is used to get a Subscribe doc from the Conductor's database.

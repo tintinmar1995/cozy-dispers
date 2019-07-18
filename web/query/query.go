@@ -8,6 +8,7 @@ import (
 
 	"github.com/cozy/cozy-stack/pkg/couchdb"
 	"github.com/cozy/cozy-stack/pkg/dispers"
+	"github.com/cozy/cozy-stack/pkg/dispers/network"
 	"github.com/cozy/cozy-stack/pkg/dispers/query"
 	"github.com/cozy/cozy-stack/pkg/prefixer"
 	"github.com/cozy/echo"
@@ -229,6 +230,19 @@ func updateQuery(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+
+	var in query.InputPatchQuery
+	if err := json.NewDecoder(c.Request().Body).Decode(&in); err != nil {
+		return err
+	}
+
+	if in.Role == network.RoleDA {
+		conductor.Query.Layers[in.OutDA.AggregationID[0]+1].Data = append(conductor.Query.Layers[in.OutDA.AggregationID[0]+1].Data, in.OutDA.Results...)
+	} else if in.Role == network.RoleT {
+		conductor.Query.Layers[in.OutDA.AggregationID[0]].Data = append(conductor.Query.Layers[in.OutDA.AggregationID[0]].Data, in.OutT.Data...)
+		conductor.Query.CheckPoints[4] = true
+	}
+	couchdb.UpdateDoc(prefixer.ConductorPrefixer, &conductor.Query)
 
 	err = conductor.Lead()
 	if err != nil {
