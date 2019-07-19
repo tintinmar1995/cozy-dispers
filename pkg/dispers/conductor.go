@@ -24,7 +24,7 @@ var (
 			Host:   "localhost:8008",
 		},
 	}
-	prefixerC = prefixer.ConductorPrefixer
+	PrefixerC = prefixer.ConductorPrefixer
 )
 
 // Conductor collects every actors playing a part in the query
@@ -63,7 +63,7 @@ func NewConductor(in *query.OutputQ) (*Conductor, error) {
 		EncryptedLocalQuery:    in.EncryptedLocalQuery,
 		EncryptedTargetProfile: in.EncryptedTargetProfile,
 	}
-	if err := couchdb.CreateDoc(prefixerC, &queryDoc); err != nil {
+	if err := couchdb.CreateDoc(PrefixerC, &queryDoc); err != nil {
 		return &Conductor{}, err
 	}
 
@@ -82,7 +82,7 @@ func NewConductor(in *query.OutputQ) (*Conductor, error) {
 func NewConductorFetchingQueryDoc(queryid string) (*Conductor, error) {
 
 	queryDoc := &query.QueryDoc{}
-	err := couchdb.GetDoc(prefixerC, "io.cozy.query", queryid, queryDoc)
+	err := couchdb.GetDoc(PrefixerC, "io.cozy.query", queryid, queryDoc)
 	if err != nil {
 		return &Conductor{}, err
 	}
@@ -132,7 +132,7 @@ func (c *Conductor) decryptConcept() error {
 	c.Query.CheckPoints[0] = true
 	c.Query.Concepts = outputCI.Hashes
 
-	return couchdb.UpdateDoc(prefixerC, &c.Query)
+	return couchdb.UpdateDoc(PrefixerC, &c.Query)
 }
 
 func (c *Conductor) fetchListsOfInstancesFromDB() error {
@@ -175,7 +175,7 @@ func (c *Conductor) fetchListsOfInstancesFromDB() error {
 	}
 
 	c.Query.CheckPoints[1] = true
-	return couchdb.UpdateDoc(prefixerC, &c.Query)
+	return couchdb.UpdateDoc(PrefixerC, &c.Query)
 }
 
 func (c *Conductor) selectTargets() error {
@@ -203,7 +203,7 @@ func (c *Conductor) selectTargets() error {
 	c.Query.EncryptedTargets = outputTF.EncryptedListOfAddresses
 	c.Query.Targets = outputTF.ListOfAddresses
 	c.Query.CheckPoints[2] = true
-	return couchdb.UpdateDoc(prefixerC, &c.Query)
+	return couchdb.UpdateDoc(PrefixerC, &c.Query)
 }
 
 func (c *Conductor) makeLocalQuery() error {
@@ -232,7 +232,7 @@ func (c *Conductor) makeLocalQuery() error {
 	}
 	c.Query.Layers[0].Data = outputT.Data
 	c.Query.CheckPoints[3] = true
-	return couchdb.UpdateDoc(prefixerC, &c.Query)
+	return couchdb.UpdateDoc(PrefixerC, &c.Query)
 }
 
 func (c *Conductor) shouldBeComputed(indexLayer int) bool {
@@ -363,7 +363,7 @@ func (c *Conductor) Lead() error {
 		}
 	}
 
-	return couchdb.UpdateDoc(prefixerC, &c.Query)
+	return couchdb.UpdateDoc(PrefixerC, &c.Query)
 }
 
 // RetrieveSubscribeDoc is used to get a Subscribe doc from the Conductor's database.
@@ -372,7 +372,7 @@ func RetrieveSubscribeDoc(hash []byte) ([]subscribe.SubscribeDoc, error) {
 
 	var out []subscribe.SubscribeDoc
 	req := &couchdb.FindRequest{Selector: mango.Equal("hash", hash)}
-	err := couchdb.FindDocs(prefixerC, "io.cozy.instances", req, &out)
+	err := couchdb.FindDocs(PrefixerC, "io.cozy.instances", req, &out)
 	if err != nil {
 		return nil, err
 	}
@@ -437,7 +437,7 @@ func CreateConceptInConductorDB(in *query.InputCI) error {
 			sub := subscribe.SubscribeDoc{
 				Hash: concept.Hash,
 			}
-			if err := couchdb.CreateDoc(prefixerC, &sub); err != nil {
+			if err := couchdb.CreateDoc(PrefixerC, &sub); err != nil {
 				return err
 			}
 		} else {
@@ -517,7 +517,7 @@ func Subscribe(in *subscribe.InputConductor) error {
 		}
 
 		doc.EncryptedInstances = outEnc.EncryptedInstances
-		couchdb.UpdateDoc(prefixerC, &doc)
+		couchdb.UpdateDoc(PrefixerC, &doc)
 	}
 
 	return nil

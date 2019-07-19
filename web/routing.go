@@ -8,7 +8,9 @@ import (
 
 	build "github.com/cozy/cozy-stack/pkg/config"
 	"github.com/cozy/cozy-stack/pkg/config/config"
+	"github.com/cozy/cozy-stack/pkg/dispers"
 	"github.com/cozy/cozy-stack/pkg/metrics"
+	"github.com/cozy/cozy-stack/pkg/prefixer"
 	"github.com/cozy/cozy-stack/web/errors"
 	"github.com/cozy/cozy-stack/web/middlewares"
 	"github.com/cozy/cozy-stack/web/query"
@@ -88,6 +90,11 @@ func SetupRoutes(router *echo.Echo) (*echo.Echo, error) {
 
 	if err := SetupAssets(router, config.GetConfig().Assets); err != nil {
 		return nil, err
+	}
+
+	if config.GetConfig().DevMode {
+		enclave.PrefixerC = prefixer.TestConductorPrefixer
+		enclave.PrefixerCI = prefixer.TestConceptIndexorPrefixer
 	}
 
 	router.Use(timersMiddleware)

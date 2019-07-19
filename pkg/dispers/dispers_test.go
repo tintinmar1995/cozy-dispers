@@ -21,23 +21,23 @@ func TestMain(m *testing.M) {
 	// Check is CouchDB is running
 	testutils.NeedCouchdb()
 	// Run tests over TestDB
-	prefixerC = prefixer.TestConductorPrefixer
-	prefixerCI = prefixer.TestConceptIndexorPrefixer
+	PrefixerC = prefixer.TestConductorPrefixer
+	PrefixerCI = prefixer.TestConceptIndexorPrefixer
 
 	// Reinitiate DB
-	err := couchdb.ResetDB(prefixerCI, "io.cozy.hashconcept")
+	err := couchdb.ResetDB(PrefixerCI, "io.cozy.hashconcept")
 	if err != nil {
-		fmt.Printf("Cant reset db (%s, %s) %s\n", prefixerCI, "io.cozy.hashconcept", err.Error())
+		fmt.Printf("Cant reset db (%s, %s) %s\n", PrefixerCI, "io.cozy.hashconcept", err.Error())
 		os.Exit(1)
 	}
-	err = couchdb.ResetDB(prefixerC, "io.cozy.query")
+	err = couchdb.ResetDB(PrefixerC, "io.cozy.query")
 	if err != nil {
-		fmt.Printf("Cant reset db (%s, %s) %s\n", prefixerCI, "io.cozy.query", err.Error())
+		fmt.Printf("Cant reset db (%s, %s) %s\n", PrefixerC, "io.cozy.query", err.Error())
 		os.Exit(1)
 	}
-	err = couchdb.ResetDB(prefixerC, "io.cozy.instances")
+	err = couchdb.ResetDB(PrefixerC, "io.cozy.instances")
 	if err != nil {
-		fmt.Printf("Cant reset db (%s, %s) %s\n", prefixerCI, "io.cozy.instances", err.Error())
+		fmt.Printf("Cant reset db (%s, %s) %s\n", PrefixerC, "io.cozy.instances", err.Error())
 		os.Exit(1)
 	}
 	couchdb.InitGlobalDB()
