@@ -56,27 +56,28 @@ func CreateConceptInConductorDB(in *query.InputCI) error {
 		return err
 	}
 
-	if err := ci.MakeRequest("POST", "concept", "application/json", marshalInputCI); err != nil {
-		if strings.Contains(err.Error(), "Concept is already existing") {
-			path := ""
-			for index, concept := range in.Concepts {
-				if concept.IsEncrypted {
-					path = path + string(concept.EncryptedConcept)
-				} else {
-					path = path + concept.Concept
-				}
-				if index != (len(in.Concepts) - 1) {
-					path = path + ":"
-				}
-			}
-			path = path + "/" + strconv.FormatBool(in.Concepts[0].IsEncrypted)
-			err = ci.MakeRequest("GET", "concept/"+path, "application/json", marshalInputCI)
-			if err != nil {
-				return err
-			}
+	// try to create concept with route POST
+	// try to get hash with CI's route GET
+	// if error, returns the first error that occurred between POST et Get
+	errPost := ci.MakeRequest("POST", "concept", "application/json", marshalInputCI)
+	path := ""
+	for index, concept := range in.Concepts {
+		if concept.IsEncrypted {
+			path = path + string(concept.EncryptedConcept)
 		} else {
-			return err
+			path = path + concept.Concept
 		}
+		if index != (len(in.Concepts) - 1) {
+			path = path + ":"
+		}
+	}
+	path = path + "/" + strconv.FormatBool(in.Concepts[0].IsEncrypted)
+	err = ci.MakeRequest("GET", "concept/"+path, "application/json", marshalInputCI)
+	if err != nil {
+		if errPost != nil {
+			return errPost
+		}
+		return err
 	}
 
 	// Get CI's result

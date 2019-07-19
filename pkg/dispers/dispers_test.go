@@ -30,9 +30,9 @@ func TestMain(m *testing.M) {
 		fmt.Printf("Cant reset db (%s, %s) %s\n", prefixerCI, "io.cozy.hashconcept", err.Error())
 		os.Exit(1)
 	}
-	err = couchdb.ResetDB(prefixerC, "io.cozy.ml")
+	err = couchdb.ResetDB(prefixerC, "io.cozy.query")
 	if err != nil {
-		fmt.Printf("Cant reset db (%s, %s) %s\n", prefixerCI, "io.cozy.ml", err.Error())
+		fmt.Printf("Cant reset db (%s, %s) %s\n", prefixerCI, "io.cozy.query", err.Error())
 		os.Exit(1)
 	}
 	err = couchdb.ResetDB(prefixerC, "io.cozy.instances")

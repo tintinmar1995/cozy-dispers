@@ -7,7 +7,7 @@ import "github.com/cozy/cozy-stack/pkg/couchdb"
 type SubscribeDoc struct {
 	SubscribeID        string `json:"_id,omitempty"`
 	SubscribeRev       string `json:"_rev,omitempty"`
-	Hash               []byte `json:"hash,omitempty"`
+	Hash               []byte `json:"hash"`
 	EncryptedInstances []byte `json:"enc_instances"`
 }
 

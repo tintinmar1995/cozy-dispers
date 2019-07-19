@@ -71,42 +71,44 @@ func TestSubscribe(t *testing.T) {
 	var listOfInstance []string
 	docs, err := RetrieveSubscribeDoc(outputCI.Hashes[0].Hash)
 	assert.NoError(t, err)
-	json.Unmarshal(docs[0].EncryptedInstances, &listOfInstance)
-	sizeIni := len(listOfInstance)
+	assert.Equal(t, 1, len(docs))
+	if len(docs) == 1 {
+		json.Unmarshal(docs[0].EncryptedInstances, &listOfInstance)
+		sizeIni := len(listOfInstance)
 
-	// Make few instances subscribe to Cozy-DISPERS
-	inSubs := subscribe.InputConductor{
-		Concepts:          []string{"aime les fraises"},
-		IsEncrypted:       false,
-		EncryptedInstance: []byte("{\"domain\":\"joel.mycozy.cloud\"}"),
+		// Make few instances subscribe to Cozy-DISPERS
+		inSubs := subscribe.InputConductor{
+			Concepts:          []string{"aime les fraises"},
+			IsEncrypted:       false,
+			EncryptedInstance: []byte("{\"domain\":\"joel.mycozy.cloud\"}"),
+		}
+		err = Subscribe(&inSubs)
+		assert.NoError(t, err)
+		docs, _ = RetrieveSubscribeDoc(outputCI.Hashes[0].Hash)
+		json.Unmarshal(docs[0].EncryptedInstances, &listOfInstance)
+		size := len(listOfInstance)
+		assert.Equal(t, sizeIni+1, size)
+		inSubs = subscribe.InputConductor{
+			Concepts:          []string{"aime les fraises", "aime les framboises"},
+			IsEncrypted:       false,
+			EncryptedInstance: []byte("{\"domain\":\"paul.mycozy.cloud\"}"),
+		}
+		err = Subscribe(&inSubs)
+		assert.NoError(t, err)
+		docs, _ = RetrieveSubscribeDoc(outputCI.Hashes[0].Hash)
+		json.Unmarshal(docs[0].EncryptedInstances, &listOfInstance)
+		size = len(listOfInstance)
+		assert.Equal(t, sizeIni+2, size)
+		inSubs = subscribe.InputConductor{
+			Concepts:          []string{"aime les fraises", "aime les framboises", "est designer chez cozy"},
+			IsEncrypted:       false,
+			EncryptedInstance: []byte("{\"domain\":\"francois.mycozy.cloud\"}"),
+		}
+		err = Subscribe(&inSubs)
+		assert.NoError(t, err)
+		docs, _ = RetrieveSubscribeDoc(outputCI.Hashes[0].Hash)
+		json.Unmarshal(docs[0].EncryptedInstances, &listOfInstance)
+		size = len(listOfInstance)
+		assert.Equal(t, sizeIni+3, size)
 	}
-	err = Subscribe(&inSubs)
-	assert.NoError(t, err)
-	docs, _ = RetrieveSubscribeDoc(outputCI.Hashes[0].Hash)
-	json.Unmarshal(docs[0].EncryptedInstances, &listOfInstance)
-	size := len(listOfInstance)
-	assert.Equal(t, sizeIni+1, size)
-	inSubs = subscribe.InputConductor{
-		Concepts:          []string{"aime les fraises", "aime les framboises"},
-		IsEncrypted:       false,
-		EncryptedInstance: []byte("{\"domain\":\"paul.mycozy.cloud\"}"),
-	}
-	err = Subscribe(&inSubs)
-	assert.NoError(t, err)
-	docs, _ = RetrieveSubscribeDoc(outputCI.Hashes[0].Hash)
-	json.Unmarshal(docs[0].EncryptedInstances, &listOfInstance)
-	size = len(listOfInstance)
-	assert.Equal(t, sizeIni+2, size)
-	inSubs = subscribe.InputConductor{
-		Concepts:          []string{"aime les fraises", "aime les framboises", "est designer chez cozy"},
-		IsEncrypted:       false,
-		EncryptedInstance: []byte("{\"domain\":\"francois.mycozy.cloud\"}"),
-	}
-	err = Subscribe(&inSubs)
-	assert.NoError(t, err)
-	docs, _ = RetrieveSubscribeDoc(outputCI.Hashes[0].Hash)
-	json.Unmarshal(docs[0].EncryptedInstances, &listOfInstance)
-	size = len(listOfInstance)
-	assert.Equal(t, sizeIni+3, size)
-
 }
