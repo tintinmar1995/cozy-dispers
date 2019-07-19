@@ -39,7 +39,7 @@ for ((i=1 ; $NB_COZY - $i + 1 ; i++)) do
 		else
 			echo "Instance existant. Delete databases..."
 			# Deleting io.cozy.ml / io.cozy.iris
-			curl -X DELETE "http://127.0.0.1:5984/$DB_PREFIX%2Fio-cozy-ml"
+			curl -X DELETE "http://127.0.0.1:5984/$DB_PREFIX%2Fio-cozy-query"
 			curl -X DELETE "http://127.0.0.1:5984/$DB_PREFIX%2Fio-cozy-iris"
 		fi
 	else

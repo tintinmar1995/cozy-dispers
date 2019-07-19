@@ -21,7 +21,7 @@ for ((i=1 ; $NB_COZY - $i + 1 ; i++)) do
 	echo "Create databases..." # (%2F stands for /)
 	echo 'Importing iris...'
 	DB_PREFIX=$(cozy-stack instances show-db-prefix $INST)
-	curl -X PUT "http://127.0.0.1:5984/$DB_PREFIX%2Fio-cozy-ml"
+	curl -X PUT "http://127.0.0.1:5984/$DB_PREFIX%2Fio-cozy-query"
 	curl -X PUT "http://127.0.0.1:5984/$DB_PREFIX%2Fio-cozy-iris"
 	# We inject iris data
 	curl -X POST -H 'Content-Type: application/json' http://127.0.0.1:5984/$DB_PREFIX%2Fio-cozy-iris -d "$DOC"

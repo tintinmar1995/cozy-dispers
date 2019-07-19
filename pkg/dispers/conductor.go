@@ -430,7 +430,7 @@ func CreateConceptInConductorDB(in *query.InputCI) error {
 	for _, concept := range out.Hashes {
 		s, err := RetrieveSubscribeDoc(concept.Hash)
 		if err != nil {
-			return nil
+			return err
 		}
 
 		if len(s) < 1 {

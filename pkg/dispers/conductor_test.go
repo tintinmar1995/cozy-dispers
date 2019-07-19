@@ -56,6 +56,7 @@ func TestCreateSubscribeDoc(t *testing.T) {
 	assert.NoError(t, err)
 	ci := network.NewExternalActor(network.RoleCI)
 	ci.MakeRequest("GET", "concept/julien/false", "application/json", nil)
+	assert.NoError(t, err)
 	var outputCI query.OutputCI
 	err = json.Unmarshal(ci.Out, &outputCI)
 	assert.NoError(t, err)
@@ -63,9 +64,13 @@ func TestCreateSubscribeDoc(t *testing.T) {
 	_, err = RetrieveSubscribeDoc(outputCI.Hashes[0].Hash)
 	assert.NoError(t, err)
 
+	err = ci.MakeRequest("DELETE", "concept/julien:francois:paul/false", "application/json", nil)
+	assert.NoError(t, err)
 }
 
 func TestSubscribe(t *testing.T) {
+
+	ci := network.NewExternalActor(network.RoleCI)
 
 	inputCI := query.InputCI{
 		Concepts: []query.Concept{
@@ -86,7 +91,6 @@ func TestSubscribe(t *testing.T) {
 
 	err := CreateConceptInConductorDB(&inputCI)
 	assert.NoError(t, err)
-	ci := network.NewExternalActor(network.RoleCI)
 	err = ci.MakeRequest("GET", "concept/aime les fraises/false", "application/json", nil)
 	assert.NoError(t, err)
 	var outputCI query.OutputCI
@@ -136,6 +140,10 @@ func TestSubscribe(t *testing.T) {
 		size = len(listOfInstance)
 		assert.Equal(t, sizeIni+3, size)
 	}
+
+	err = ci.MakeRequest("DELETE", "concept/aime les fraises:aime les framboises:joue de la guitare:est designer chez cozy/false", "application/json", nil)
+	assert.NoError(t, err)
+
 }
 
 func TestDefineConductor(t *testing.T) {
