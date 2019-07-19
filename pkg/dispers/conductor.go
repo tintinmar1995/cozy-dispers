@@ -66,7 +66,7 @@ func CreateConceptInConductorDB(in *query.InputCI) error {
 					path = path + concept.Concept
 				}
 				if index != (len(in.Concepts) - 1) {
-					path = path + "-"
+					path = path + ":"
 				}
 			}
 			path = path + "/" + strconv.FormatBool(in.Concepts[0].IsEncrypted)
@@ -112,7 +112,7 @@ func Subscribe(in *subscribe.InputConductor) error {
 
 	// Get Concepts' hash
 	ci := network.NewExternalActor(network.RoleCI)
-	err := ci.MakeRequest("GET", "concept/"+strings.Join(in.Concepts, "-")+"/"+strconv.FormatBool(in.IsEncrypted), "application/json", nil)
+	err := ci.MakeRequest("GET", "concept/"+strings.Join(in.Concepts, ":")+"/"+strconv.FormatBool(in.IsEncrypted), "application/json", nil)
 	if err != nil {
 		return err
 	}
