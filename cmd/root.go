@@ -98,6 +98,10 @@ func init() {
 
 	flags.Int("admin-port", 6060, "administration server port")
 	checkNoErr(viper.BindPFlag("admin.port", flags.Lookup("admin-port")))
+
+	flags.Bool("dev-mode", false, "toggle the developpement mode")
+	checkNoErr(viper.BindPFlag("dev.mode", flags.Lookup("dev-mode")))
+
 }
 
 func checkNoErr(err error) {

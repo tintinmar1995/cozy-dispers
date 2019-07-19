@@ -17,7 +17,7 @@ const (
 	doctypeSalt = "io.cozy.hashconcept"
 )
 
-var prefixerCI = prefixer.ConceptIndexorPrefixer
+var PrefixerCI = prefixer.ConceptIndexorPrefixer
 
 // ConceptDoc is used to save a concept's salt into Concept Indexor's database
 // hash and salt are saved in byte to avoid string's to be interpreted
@@ -72,7 +72,7 @@ func saveConcept(concept string) (*ConceptDoc, error) {
 		Hash:    hash,
 		Salt:    salt,
 	}
-	return conceptDoc, couchdb.CreateDoc(prefixerCI, conceptDoc)
+	return conceptDoc, couchdb.CreateDoc(PrefixerCI, conceptDoc)
 }
 
 func getHash(concept string) ([]byte, error) {
@@ -81,7 +81,7 @@ func getHash(concept string) ([]byte, error) {
 	hash := []byte{}
 	var out []ConceptDoc
 	req := &couchdb.FindRequest{Selector: mango.Equal("concept", concept)}
-	err := couchdb.FindDocs(prefixerCI, doctypeSalt, req, &out)
+	err := couchdb.FindDocs(PrefixerCI, doctypeSalt, req, &out)
 	if err != nil {
 		return hash, err
 	}
@@ -114,7 +114,7 @@ func isConceptExisting(concept string) (bool, error) {
 	// Precise and run the mango query
 	var out []ConceptDoc
 	req := &couchdb.FindRequest{Selector: mango.Equal("concept", concept)}
-	err := couchdb.FindDocs(prefixerCI, doctypeSalt, req, &out)
+	err := couchdb.FindDocs(PrefixerCI, doctypeSalt, req, &out)
 	if err != nil {
 		return false, err
 	}
@@ -129,7 +129,7 @@ func isConceptExisting(concept string) (bool, error) {
 // CreateConcept checks if concept exists in db. If yes, return error. If no, create the salt, save the concept in db and return the hash.
 func CreateConcept(in *dispers.Concept) error {
 
-	if err := couchdb.EnsureDBExist(prefixerCI, doctypeSalt); err != nil {
+	if err := couchdb.EnsureDBExist(PrefixerCI, doctypeSalt); err != nil {
 		return err
 	}
 
@@ -172,7 +172,7 @@ func DeleteConcept(in *dispers.Concept) error {
 	// Precise and run the mango query
 	var out []ConceptDoc
 	req := &couchdb.FindRequest{Selector: mango.Equal("concept", in.Concept)}
-	err := couchdb.FindDocs(prefixerCI, doctypeSalt, req, &out)
+	err := couchdb.FindDocs(PrefixerCI, doctypeSalt, req, &out)
 	if err != nil {
 		return err
 	}
@@ -183,7 +183,7 @@ func DeleteConcept(in *dispers.Concept) error {
 
 	// Delete every doc that match concept
 	for _, element := range out {
-		err = couchdb.DeleteDoc(prefixerCI, &element)
+		err = couchdb.DeleteDoc(PrefixerCI, &element)
 		if err != nil {
 			return err
 		}
