@@ -37,7 +37,7 @@ func NeedCouchdb() {
 // NeedOtherDispersServer kill the process if there is no other Server Dispers running
 func NeedOtherDispersServer(dispersURL url.URL) {
 	dispersURL.Path = "version"
-	dis, err := checkup.HTTPChecker{URL: dispersURL.String() + "/version"}.Check()
+	dis, err := checkup.HTTPChecker{URL: dispersURL.String()}.Check()
 	if err != nil || dis.Status() != checkup.Healthy {
 		Fatal("This test need another server DISPERS on port 8118 to run.")
 	}
