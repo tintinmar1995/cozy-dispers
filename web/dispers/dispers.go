@@ -6,9 +6,14 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/cozy/cozy-stack/model/job"
 	"github.com/cozy/cozy-stack/pkg/dispers"
 	"github.com/cozy/cozy-stack/pkg/dispers/dispers"
+	"github.com/cozy/cozy-stack/pkg/prefixer"
 	"github.com/cozy/echo"
+
+	// import workers
+	_ "github.com/cozy/cozy-stack/worker/dispers"
 )
 
 /*
@@ -147,12 +152,22 @@ func aggregate(c echo.Context) error {
 		return err
 	}
 
-	results, _, err := enclave.AggregateData(in)
+	msg, err := job.NewMessage(in)
 	if err != nil {
 		return err
 	}
 
-	return c.JSON(http.StatusOK, results)
+	_, err = job.System().PushJob(prefixer.DataAggregatorPrefixer, &job.JobRequest{
+		WorkerType: "aggregation",
+		Message:    msg,
+	})
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, echo.Map{
+		"ok": true,
+	})
 }
 
 // Routes sets the routing for the dispers service

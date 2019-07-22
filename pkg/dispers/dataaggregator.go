@@ -56,18 +56,18 @@ func decryptInputs(in *dispers.InputDA) error {
 }
 
 // AggregateData leads an aggregation of data
-func AggregateData(in dispers.InputDA) (interface{}, int, error) {
+func AggregateData(in dispers.InputDA) (map[string]interface{}, error) {
 
-	var results interface{}
+	var results map[string]interface{}
 
 	if in.IsEncrypted {
 		if err := decryptInputs(&in); err != nil {
-			return results, 0, err
+			return results, err
 		}
 	}
 
 	results, err := applyAggregateFunction(in.Data, in.Job.Function, in.Job.Args)
-	return results, len(in.Data), err
+	return results, err
 }
 
 // GetStateOrGetResult returns at any time the state of the algorithm

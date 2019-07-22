@@ -1,6 +1,8 @@
 package aggregations
 
-import "errors"
+import (
+	"errors"
+)
 
 // Sum takes in input the data
 // a map speciafying some parameters :
@@ -13,7 +15,18 @@ func Sum(data []map[string]interface{}, args map[string]interface{}) (map[string
 
 	if args["keys"] != nil {
 		// We retrieve keys from args
-		keys = args["keys"].([]string)
+		switch args["keys"].(interface{}).(type) {
+		case []string:
+			keys = args["keys"].([]string)
+		case []interface{}:
+			keys = make([]string, len(args["keys"].([]interface{})))
+			for index, key := range args["keys"].([]interface{}) {
+				keys[index] = key.(string)
+			}
+		default:
+			return nil, errors.New("Cannot convert args[\"keys\"]")
+		}
+
 	} else {
 		// We collect the keys for one row, every variable will be summed
 		keys = make([]string, 0, len(data[0]))

@@ -67,7 +67,7 @@ func TestAggregateMean(t *testing.T) {
 			Args:     args,
 		},
 	}
-	means, _, err := AggregateData(in2)
+	means, err := AggregateData(in2)
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]interface{}(map[string]interface{}{"length": 4, "sepal_length": 21.667510031039438, "sepal_width": 12.886690892573245}), means)
 
