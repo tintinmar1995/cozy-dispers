@@ -115,7 +115,7 @@ func (c *Conductor) decryptConcept() error {
 			listOfConcepts = append(listOfConcepts, concept.Concept)
 		}
 	}
-	job = job + strings.Join(listOfConcepts, "-")
+	job = job + strings.Join(listOfConcepts, ":")
 	if c.Query.IsEncrypted {
 		job = job + "/true"
 	} else {
@@ -435,8 +435,11 @@ func CreateConceptInConductorDB(in *query.InputCI) error {
 		}
 
 		if len(s) < 1 {
+			listOfInsts := []query.Instance{}
+			marshaledListOfInsts, _ := json.Marshal(listOfInsts)
 			sub := subscribe.SubscribeDoc{
-				Hash: concept.Hash,
+				Hash:               concept.Hash,
+				EncryptedInstances: marshaledListOfInsts,
 			}
 			if err := couchdb.CreateDoc(PrefixerC, &sub); err != nil {
 				return err

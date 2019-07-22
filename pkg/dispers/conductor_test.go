@@ -174,7 +174,8 @@ func TestDecryptConcept(t *testing.T) {
 			IsEncrypted: false,
 			Concept:     "francois"},
 		query.Concept{
-			Concept: "paul"},
+			IsEncrypted: false,
+			Concept:     "paul"},
 	}
 	CreateConceptInConductorDB(&query.InputCI{Concepts: in.Concepts})
 
@@ -186,7 +187,7 @@ func TestDecryptConcept(t *testing.T) {
 	assert.Error(t, err)
 
 	// Get the three concepts' hashes from Concept Indexor
-	err = ci.MakeRequest("GET", "concept/julien-francois-paul/false", "application/json", nil)
+	err = ci.MakeRequest("GET", "concept/julien:francois:paul/false", "application/json", nil)
 	assert.NoError(t, err)
 	var outputCI query.OutputCI
 	json.Unmarshal(ci.Out, &outputCI)
@@ -197,7 +198,7 @@ func TestDecryptConcept(t *testing.T) {
 	assert.Equal(t, outputCI.Hashes, conductor.Query.Concepts)
 
 	// Delete the created concepts
-	err = ci.MakeRequest("DELETE", "concept/julien-paul-francois/true", "application/json", nil)
+	err = ci.MakeRequest("DELETE", "concept/julien:paul:francois/true", "application/json", nil)
 	assert.NoError(t, err)
 
 }
@@ -279,11 +280,11 @@ func TestGetListsOfInstances(t *testing.T) {
 	assert.NoError(t, err)
 	err = conductor.selectTargets()
 	assert.NoError(t, err)
-	assert.Equal(t, []string{"{\"domain\":\"caroline.mycozy.cloud\",\"date\":\"0001-01-01T00:00:00Z\",\"token\":{}}", "{\"domain\":\"mathieu.mycozy.cloud\",\"date\":\"0001-01-01T00:00:00Z\",\"token\":{}}", "{\"domain\":\"zoe.mycozy.cloud\",\"date\":\"0001-01-01T00:00:00Z\",\"token\":{}}", "{\"domain\":\"thomas.mycozy.cloud\",\"date\":\"0001-01-01T00:00:00Z\",\"token\":{}}", "{\"domain\":\"paul.mycozy.cloud\",\"date\":\"0001-01-01T00:00:00Z\",\"token\":{}}", "{\"domain\":\"francois.mycozy.cloud\",\"date\":\"0001-01-01T00:00:00Z\",\"token\":{}}"}, conductor.Query.Targets)
+	assert.Equal(t, []string{"{\"domain\":\"caroline.mycozy.cloud\",\"date\":\"0001-01-01T00:00:00Z\",\"token\":{}}", "{\"domain\":\"mathieu.mycozy.cloud\",\"date\":\"0001-01-01T00:00:00Z\",\"token\":{}}", "{\"domain\":\"zoe.mycozy.cloud\",\"date\":\"0001-01-01T00:00:00Z\",\"token\":{}}", "{\"domain\":\"thomas.mycozy.cloud\",\"date\":\"0001-01-01T00:00:00Z\",\"token\":{}}"}, conductor.Query.Targets)
 
 	// Delete the created concepts
 	ci := network.NewExternalActor("conceptindexor")
-	err = ci.MakeRequest("DELETE", "concept/aime les fraises-aime les framboises-joue de la guitare-est designer chez cozy/false", "application/json", nil)
+	err = ci.MakeRequest("DELETE", "concept/aime les fraises:aime les framboises:joue de la guitare:est designer chez cozy/false", "application/json", nil)
 	assert.NoError(t, err)
 
 }
@@ -328,6 +329,7 @@ func TestAggregate(t *testing.T) {
 			State: []query.StateDA{query.Waiting, query.Waiting, query.Waiting, query.Waiting},
 		},
 	}
+	in.LayersDA = layers
 
 	conductor, _ := NewConductor(&in)
 	conductor.Query.Layers = layers
