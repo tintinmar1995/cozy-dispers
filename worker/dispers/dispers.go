@@ -9,7 +9,7 @@ import (
 
 	"github.com/cozy/cozy-stack/model/job"
 	"github.com/cozy/cozy-stack/pkg/dispers"
-	"github.com/cozy/cozy-stack/pkg/dispers/dispers"
+	"github.com/cozy/cozy-stack/pkg/dispers/query"
 )
 
 func init() {
@@ -23,7 +23,7 @@ func init() {
 
 // WorkerDataAggregator is a worker that launch DataAggregator's treatment.
 func WorkerDataAggregator(ctx *job.WorkerContext) error {
-	in := &dispers.InputDA{}
+	in := &query.InputDA{}
 	if err := ctx.UnmarshalMessage(in); err != nil {
 		return err
 	}
@@ -32,11 +32,11 @@ func WorkerDataAggregator(ctx *job.WorkerContext) error {
 		return err
 	}
 
-	out := dispers.OutputDA{
+	out := query.OutputDA{
 		Results: res,
 	}
 	in.ConductorURL.Path = "dispers/query/" + in.QueryID
-	inputPatchQuery := dispers.InputPatchQuery{
+	inputPatchQuery := query.InputPatchQuery{
 		IsEncrypted: in.IsEncrypted,
 		Role:        "dataaggregator",
 		OutDA:       out,
