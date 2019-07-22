@@ -18,17 +18,8 @@ for ((i=1 ; $NB_COZY - $i + 1 ; i++)) do
 	DOC=$(sed 's/},/}/g' <<< $DOC)
 	BANK=$(./data/get_cel.sh $2 $i 5)
 
-	echo "Create databases..." # (%2F stands for /)
-	echo 'Importing iris...'
-	DB_PREFIX=$(cozy-stack instances show-db-prefix $INST)
-	curl -X PUT "http://127.0.0.1:5984/$DB_PREFIX%2Fio-cozy-query"
-	curl -X PUT "http://127.0.0.1:5984/$DB_PREFIX%2Fio-cozy-iris"
-	# We inject iris data
-	curl -X POST -H 'Content-Type: application/json' http://127.0.0.1:5984/$DB_PREFIX%2Fio-cozy-iris -d "$DOC"
-	# We inject standard Cozy data
-	echo 'Importing bank operations...'
+	echo 'Importing bank operations...' # (%2F stands for /)
 	echo "ACH import $BANK --url http://$INST"
 	TOKEN=$(./generate_token.sh $INST "io.cozy.bank.operations:POST")
 	ACH import $HOME$BANK --url http://$INST --token $TOKEN
 	done
-

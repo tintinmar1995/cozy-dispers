@@ -16,17 +16,17 @@ DATA='{"concepts":['
 for (( c=0; c<${#CONCEPTS[@]}; c++ ))
 do
     # Generate the JSON document and save it into array
-    DATA+='{"encrypted":false,"concept":"'${CONCEPTS[$c]}'"}'
+    DATA+='"'${CONCEPTS[$c]}'"'
     # Add a comma except if it's the last run
     if [ $c -ne $((${#CONCEPTS[@]}-1)) ]; then
     DATA+=","
     fi
 done
 
-DATA+='],"encrypted":false,"instance":{"host":"'$INST'","token":{"bearer" :"'$TOKEN'"}}}'
+DATA+='],"is_encrypted":false,"instance":{"host":"'$INST'","token":{"bearer" :"'$TOKEN'"}}}'
 
 curl --request POST \
-  --url http://localhost:8118/dispers/conductor/subscribe \
+  --url http://localhost:8118/subscribe/conductor/subscribe \
   --header 'content-type: application/json' \
   --data "$DATA"
 
