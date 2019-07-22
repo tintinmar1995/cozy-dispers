@@ -275,5 +275,7 @@ type InputDA struct {
 }
 
 type OutputDA struct {
-	Results map[string]interface{} `json:"results,omitempty"`
+	Results       map[string]interface{} `json:"results,omitempty"`
+	QueryID       string                 `json:"queryid,omitempty"`
+	AggregationID [2]int                 `json:"aggregationid,omitempty"`
 }
