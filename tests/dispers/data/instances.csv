@@ -1,0 +1,5 @@
+user0.test.cozy.tools:8080,Nom1,alice@cozy.cloud,io.cozy.iris/io.cozy.banks.operations,reallyLikeBeer/young/free,/Documents/CozyCloud/DataCozyBanks/tmp_ach_francois_0.json
+user1.test.cozy.tools:8080,Nom2,hey@cozy.cloud,io.cozy.iris/io.cozy.banks.operations,reallyLikeBeer,/Documents/CozyCloud/DataCozyBanks/tmp_ach_francois_1.json
+user2.test.cozy.tools:8080,Nom3,coucou@cozy.cloud,io.cozy.iris/io.cozy.banks.operations,reallyLikeBeer,/Documents/CozyCloud/DataCozyBanks/tmp_ach_francois_2.json
+user3.test.cozy.tools:8080,Nom4,salut@cozy.cloud,io.cozy.iris/io.cozy.banks.operations,reallyLikeBeer,/Documents/CozyCloud/DataCozyBanks/tmp_ach_francois_3.json
+user4.test.cozy.tools:8080,Nom5,fakenews@cozy.cloud,io.cozy.iris/io.cozy.banks.operations,reallyLikeBeer,/Documents/CozyCloud/DataCozyBanks/tmp_ach_francois_4.json

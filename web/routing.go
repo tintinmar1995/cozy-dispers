@@ -93,6 +93,7 @@ func SetupRoutes(router *echo.Echo) (*echo.Echo, error) {
 	}
 
 	if config.GetConfig().DevMode {
+		enclave.PrefixerC = prefixer.TestConductorPrefixer
 		enclave.PrefixerCI = prefixer.TestConceptIndexorPrefixer
 	}
 

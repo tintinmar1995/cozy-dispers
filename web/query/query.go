@@ -1,4 +1,4 @@
-package dispers
+package query
 
 import (
 	"encoding/json"
@@ -7,7 +7,10 @@ import (
 	"strings"
 
 	"github.com/cozy/cozy-stack/model/job"
+	"github.com/cozy/cozy-stack/pkg/couchdb"
 	"github.com/cozy/cozy-stack/pkg/dispers"
+	"github.com/cozy/cozy-stack/pkg/dispers/network"
+	"github.com/cozy/cozy-stack/pkg/dispers/query"
 	"github.com/cozy/cozy-stack/pkg/prefixer"
 	"github.com/cozy/echo"
 
@@ -122,7 +125,7 @@ Target'S ROUTES : those functions are used on route ./dispers/target/
 *
 *
 */
-func query(c echo.Context) error {
+func queryCozy(c echo.Context) error {
 
 	var inputT query.InputT
 
@@ -169,6 +172,99 @@ func aggregate(c echo.Context) error {
 	})
 }
 
+/*
+*
+*
+Conducotr'S ROUTES : those functions are used on route ./dispers
+*
+*
+*/
+func getQuery(c echo.Context) error {
+
+	queryid := c.Param("queryid")
+
+	fetched := &query.QueryDoc{}
+	err := couchdb.GetDoc(prefixer.ConductorPrefixer, "io.cozy.ml", queryid, fetched)
+	if err != nil {
+		return err
+	}
+
+	/*
+		metas, err := metadata.RetrieveMetadata(queryid)
+		if err != nil {
+			return nil, *fetched, err
+		}
+	*/
+
+	return c.JSON(http.StatusOK, echo.Map{
+		"Query":             fetched,
+		"ExecutionMetadata": nil,
+	})
+}
+
+func createQuery(c echo.Context) error {
+
+	var in *query.OutputQ
+
+	if err := json.NewDecoder(c.Request().Body).Decode(in); err != nil {
+		return err
+	}
+
+	conductor, err := enclave.NewConductor(in)
+	if err != nil {
+		return err
+	}
+
+	err = conductor.Lead()
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, echo.Map{"ok": true})
+}
+
+func updateQuery(c echo.Context) error {
+
+	queryid := c.Param("queryid")
+
+	conductor, err := enclave.NewConductorFetchingQueryDoc(queryid)
+	if err != nil {
+		return err
+	}
+
+	var in query.InputPatchQuery
+	if err := json.NewDecoder(c.Request().Body).Decode(&in); err != nil {
+		return err
+	}
+
+	if in.Role == network.RoleDA {
+		conductor.Query.Layers[in.OutDA.AggregationID[0]+1].Data = append(conductor.Query.Layers[in.OutDA.AggregationID[0]+1].Data, in.OutDA.Results)
+	}
+	couchdb.UpdateDoc(prefixer.ConductorPrefixer, &conductor.Query)
+
+	err = conductor.Lead()
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, echo.Map{"ok": true})
+}
+
+func deleteQuery(c echo.Context) error {
+
+	// TODO: Stop workers (contact T/DA for DELETE /jobs/triggers/:trigger-id)
+	// TODO: Retrieve Query Doc
+	// TODO: Mark doc as aborted
+
+	return c.NoContent(http.StatusNoContent)
+}
+
+// Prevent Conductor from waiting indefinitelly results of QueryCozy / DA
+func handleQueryError(c echo.Context) error {
+
+	return c.JSON(http.StatusOK, echo.Map{"ok": true})
+}
+
 // Routes sets the routing for the dispers service
 // ":concepts" has to be a list of concepts separated by ":"
 func Routes(router *echo.Group) {
@@ -180,7 +276,14 @@ func Routes(router *echo.Group) {
 
 	router.POST("/targetfinder/addresses", selectAddresses)
 
-	router.POST("/target/query", query)
+	router.POST("/target/query", queryCozy)
 
 	router.POST("/dataaggregator/aggregation", aggregate)
+
+	router.GET("/query/:queryid", getQuery)
+	router.POST("/query", createQuery)
+	router.POST("/query/report-error", handleQueryError)
+	router.POST("/query/:queryid", updateQuery)
+	router.POST("/query/:queryid", deleteQuery)
+
 }
