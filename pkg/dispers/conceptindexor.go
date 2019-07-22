@@ -7,7 +7,7 @@ import (
 	"github.com/cozy/cozy-stack/pkg/couchdb"
 	"github.com/cozy/cozy-stack/pkg/couchdb/mango"
 	"github.com/cozy/cozy-stack/pkg/crypto"
-	"github.com/cozy/cozy-stack/pkg/dispers/dispers"
+	"github.com/cozy/cozy-stack/pkg/dispers/query"
 	"github.com/cozy/cozy-stack/pkg/prefixer"
 )
 
@@ -127,7 +127,7 @@ func isConceptExisting(concept string) (bool, error) {
 }
 
 // CreateConcept checks if concept exists in db. If yes, return error. If no, create the salt, save the concept in db and return the hash.
-func CreateConcept(in *dispers.Concept) error {
+func CreateConcept(in *query.Concept) error {
 
 	if err := couchdb.EnsureDBExist(PrefixerCI, doctypeSalt); err != nil {
 		return err
@@ -152,7 +152,7 @@ func CreateConcept(in *dispers.Concept) error {
 }
 
 // GetConcept gets a concept from db. If no, return error.
-func GetConcept(in *dispers.Concept) error {
+func GetConcept(in *query.Concept) error {
 
 	hash, err := getHash(in.Concept)
 	in.Hash = hash
@@ -160,14 +160,14 @@ func GetConcept(in *dispers.Concept) error {
 }
 
 // DecryptConcept has to be used before CreateConcept or DeleteConcept
-func DecryptConcept(in *dispers.Concept) error {
+func DecryptConcept(in *query.Concept) error {
 	// TODO: Decrypte concept with private key
 	in.Concept = string(in.EncryptedConcept)
 	return nil
 }
 
 // DeleteConcept is used to delete a concept in ConceptIndexor Database.
-func DeleteConcept(in *dispers.Concept) error {
+func DeleteConcept(in *query.Concept) error {
 
 	// Precise and run the mango query
 	var out []ConceptDoc

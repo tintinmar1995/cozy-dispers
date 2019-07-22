@@ -4,18 +4,18 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/cozy/cozy-stack/pkg/dispers/dispers"
+	"github.com/cozy/cozy-stack/pkg/dispers/query"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMarshalUnmarshalNil(t *testing.T) {
 
-	targetProfile := dispers.OperationTree{}
+	targetProfile := query.OperationTree{}
 
 	encrypted, err := json.Marshal(targetProfile)
 	assert.NoError(t, err)
 
-	var decrypted dispers.OperationTree
+	var decrypted query.OperationTree
 	err = json.Unmarshal(encrypted, &decrypted)
 	assert.NoError(t, err)
 
@@ -23,17 +23,17 @@ func TestMarshalUnmarshalNil(t *testing.T) {
 
 func TestMarshalUnmarshalOperationTree(t *testing.T) {
 
-	targetProfile := dispers.OperationTree{
-		Type: dispers.UnionNode,
-		LeftNode: dispers.OperationTree{
-			Type:      dispers.IntersectionNode,
-			LeftNode:  dispers.OperationTree{Type: dispers.SingleNode, Value: "test1"},
-			RightNode: dispers.OperationTree{Type: dispers.SingleNode, Value: "test2"},
+	targetProfile := query.OperationTree{
+		Type: query.UnionNode,
+		LeftNode: query.OperationTree{
+			Type:      query.IntersectionNode,
+			LeftNode:  query.OperationTree{Type: query.SingleNode, Value: "test1"},
+			RightNode: query.OperationTree{Type: query.SingleNode, Value: "test2"},
 		},
-		RightNode: dispers.OperationTree{
-			Type:      dispers.IntersectionNode,
-			LeftNode:  dispers.OperationTree{Type: dispers.SingleNode, Value: "test3"},
-			RightNode: dispers.OperationTree{Type: dispers.SingleNode, Value: "test4"},
+		RightNode: query.OperationTree{
+			Type:      query.IntersectionNode,
+			LeftNode:  query.OperationTree{Type: query.SingleNode, Value: "test3"},
+			RightNode: query.OperationTree{Type: query.SingleNode, Value: "test4"},
 		},
 	}
 
@@ -41,7 +41,7 @@ func TestMarshalUnmarshalOperationTree(t *testing.T) {
 	assert.Equal(t, "{\"type\":1,\"left_node\":{\"type\":2,\"left_node\":{\"type\":0,\"value\":\"test1\"},\"right_node\":{\"type\":0,\"value\":\"test2\"}},\"right_node\":{\"type\":2,\"left_node\":{\"type\":0,\"value\":\"test3\"},\"right_node\":{\"type\":0,\"value\":\"test4\"}}}", string(encrypted))
 	assert.NoError(t, err)
 
-	var decrypted dispers.OperationTree
+	var decrypted query.OperationTree
 	err = json.Unmarshal(encrypted, &decrypted)
 	assert.NoError(t, err)
 	assert.Equal(t, targetProfile, decrypted)
@@ -56,21 +56,21 @@ func TestTargetFinder(t *testing.T) {
 	m["test3"] = []string{"paul", "claire", "françois"}
 	m["test4"] = []string{"paul", "benjamin", "florent"}
 
-	targetProfile := dispers.OperationTree{
-		Type: dispers.UnionNode,
-		LeftNode: dispers.OperationTree{
-			Type:      dispers.IntersectionNode,
-			LeftNode:  dispers.OperationTree{Type: dispers.SingleNode, Value: "test1"},
-			RightNode: dispers.OperationTree{Type: dispers.SingleNode, Value: "test2"},
+	targetProfile := query.OperationTree{
+		Type: query.UnionNode,
+		LeftNode: query.OperationTree{
+			Type:      query.IntersectionNode,
+			LeftNode:  query.OperationTree{Type: query.SingleNode, Value: "test1"},
+			RightNode: query.OperationTree{Type: query.SingleNode, Value: "test2"},
 		},
-		RightNode: dispers.OperationTree{
-			Type:      dispers.IntersectionNode,
-			LeftNode:  dispers.OperationTree{Type: dispers.SingleNode, Value: "test3"},
-			RightNode: dispers.OperationTree{Type: dispers.SingleNode, Value: "test4"},
+		RightNode: query.OperationTree{
+			Type:      query.IntersectionNode,
+			LeftNode:  query.OperationTree{Type: query.SingleNode, Value: "test3"},
+			RightNode: query.OperationTree{Type: query.SingleNode, Value: "test4"},
 		},
 	}
 
-	in := dispers.InputTF{
+	in := query.InputTF{
 		IsEncrypted:      false,
 		ListsOfAddresses: m,
 		TargetProfile:    targetProfile,
@@ -80,21 +80,21 @@ func TestTargetFinder(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, out, []string{"claire", "françois", "paul"})
 
-	targetProfile = dispers.OperationTree{
-		Type: dispers.IntersectionNode,
-		LeftNode: dispers.OperationTree{
-			Type:      dispers.UnionNode,
-			LeftNode:  dispers.OperationTree{Type: dispers.SingleNode, Value: "test1"},
-			RightNode: dispers.OperationTree{Type: dispers.SingleNode, Value: "test2"},
+	targetProfile = query.OperationTree{
+		Type: query.IntersectionNode,
+		LeftNode: query.OperationTree{
+			Type:      query.UnionNode,
+			LeftNode:  query.OperationTree{Type: query.SingleNode, Value: "test1"},
+			RightNode: query.OperationTree{Type: query.SingleNode, Value: "test2"},
 		},
-		RightNode: dispers.OperationTree{
-			Type:      dispers.UnionNode,
-			LeftNode:  dispers.OperationTree{Type: dispers.SingleNode, Value: "test3"},
-			RightNode: dispers.OperationTree{Type: dispers.SingleNode, Value: "test7"},
+		RightNode: query.OperationTree{
+			Type:      query.UnionNode,
+			LeftNode:  query.OperationTree{Type: query.SingleNode, Value: "test3"},
+			RightNode: query.OperationTree{Type: query.SingleNode, Value: "test7"},
 		},
 	}
 
-	in = dispers.InputTF{
+	in = query.InputTF{
 		IsEncrypted:      false,
 		ListsOfAddresses: m,
 		TargetProfile:    targetProfile,
@@ -104,17 +104,17 @@ func TestTargetFinder(t *testing.T) {
 	assert.Error(t, err)
 
 	// Union between Single and Intersection
-	targetProfile = dispers.OperationTree{
-		Type: dispers.IntersectionNode,
-		LeftNode: dispers.OperationTree{
-			Type:      dispers.UnionNode,
-			LeftNode:  dispers.OperationTree{Type: dispers.SingleNode, Value: "test1"},
-			RightNode: dispers.OperationTree{Type: dispers.SingleNode, Value: "test2"},
+	targetProfile = query.OperationTree{
+		Type: query.IntersectionNode,
+		LeftNode: query.OperationTree{
+			Type:      query.UnionNode,
+			LeftNode:  query.OperationTree{Type: query.SingleNode, Value: "test1"},
+			RightNode: query.OperationTree{Type: query.SingleNode, Value: "test2"},
 		},
-		RightNode: dispers.OperationTree{Type: dispers.SingleNode, Value: "test4"},
+		RightNode: query.OperationTree{Type: query.SingleNode, Value: "test4"},
 	}
 
-	in = dispers.InputTF{
+	in = query.InputTF{
 		IsEncrypted:      false,
 		ListsOfAddresses: m,
 		TargetProfile:    targetProfile,
@@ -125,15 +125,15 @@ func TestTargetFinder(t *testing.T) {
 	assert.Equal(t, out, []string{"paul"})
 
 	// No type precised
-	targetProfile = dispers.OperationTree{
-		LeftNode: dispers.OperationTree{
-			LeftNode:  dispers.OperationTree{Value: "test1"},
-			RightNode: dispers.OperationTree{Value: "test2"},
+	targetProfile = query.OperationTree{
+		LeftNode: query.OperationTree{
+			LeftNode:  query.OperationTree{Value: "test1"},
+			RightNode: query.OperationTree{Value: "test2"},
 		},
-		RightNode: dispers.OperationTree{Value: "test4"},
+		RightNode: query.OperationTree{Value: "test4"},
 	}
 
-	in = dispers.InputTF{
+	in = query.InputTF{
 		IsEncrypted:      false,
 		ListsOfAddresses: m,
 		TargetProfile:    targetProfile,

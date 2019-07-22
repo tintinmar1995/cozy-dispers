@@ -8,7 +8,6 @@ import (
 
 	"github.com/cozy/cozy-stack/model/job"
 	"github.com/cozy/cozy-stack/pkg/dispers"
-	"github.com/cozy/cozy-stack/pkg/dispers/dispers"
 	"github.com/cozy/cozy-stack/pkg/prefixer"
 	"github.com/cozy/echo"
 
@@ -28,7 +27,7 @@ CONCEPT INDEXOR'S ROUTES : those functions are used on route ./dispers/conceptin
 func createConcept(c echo.Context) error {
 
 	// Get concept from body
-	var in dispers.InputCI
+	var in query.InputCI
 	if err := json.NewDecoder(c.Request().Body).Decode(&in); err != nil {
 		return err
 	}
@@ -39,7 +38,7 @@ func createConcept(c echo.Context) error {
 			return err
 		}
 	}
-	return c.JSON(http.StatusOK, dispers.OutputCI{
+	return c.JSON(http.StatusOK, query.OutputCI{
 		Hashes: in.Concepts,
 	})
 }
@@ -55,9 +54,9 @@ func getHash(c echo.Context) error {
 		return errors.New("Failed to read concept")
 	}
 
-	out := make([]dispers.Concept, len(strConcepts))
+	out := make([]query.Concept, len(strConcepts))
 	for i, strConcept := range strConcepts {
-		tmpConcept := dispers.Concept{IsEncrypted: isEncrypted, Concept: strConcept}
+		tmpConcept := query.Concept{IsEncrypted: isEncrypted, Concept: strConcept}
 		err := enclave.GetConcept(&tmpConcept)
 		if err != nil {
 			return err
@@ -65,7 +64,7 @@ func getHash(c echo.Context) error {
 		out[i] = tmpConcept
 	}
 
-	return c.JSON(http.StatusOK, dispers.OutputCI{
+	return c.JSON(http.StatusOK, query.OutputCI{
 		Hashes: out,
 	})
 }
@@ -82,7 +81,7 @@ func deleteConcepts(c echo.Context) error {
 	}
 
 	for _, strConcept := range strConcepts {
-		tmpConcept := dispers.Concept{IsEncrypted: isEncrypted, Concept: strConcept}
+		tmpConcept := query.Concept{IsEncrypted: isEncrypted, Concept: strConcept}
 		err := enclave.DeleteConcept(&tmpConcept)
 		if err != nil {
 			return err
@@ -101,7 +100,7 @@ TARGET FINDER'S ROUTES : those functions are used on route ./dispers/targetfinde
 */
 func selectAddresses(c echo.Context) error {
 
-	var inputTF dispers.InputTF
+	var inputTF query.InputTF
 	if err := json.NewDecoder(c.Request().Body).Decode(&inputTF); err != nil {
 		return err
 	}
@@ -111,7 +110,7 @@ func selectAddresses(c echo.Context) error {
 		return err
 	}
 
-	return c.JSON(http.StatusOK, dispers.OutputTF{
+	return c.JSON(http.StatusOK, query.OutputTF{
 		ListOfAddresses: finallist,
 	})
 }
@@ -125,7 +124,7 @@ Target'S ROUTES : those functions are used on route ./dispers/target/
 */
 func query(c echo.Context) error {
 
-	var inputT dispers.InputT
+	var inputT query.InputT
 
 	if err := json.NewDecoder(c.Request().Body).Decode(&inputT); err != nil {
 		return err
@@ -135,7 +134,7 @@ func query(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, dispers.OutputT{Data: data})
+	return c.JSON(http.StatusOK, query.OutputT{Data: data})
 }
 
 /*
@@ -146,7 +145,7 @@ Data Aggegator's ROUTES : those functions are used on route ./dispers/dataaggreg
 *
 */
 func aggregate(c echo.Context) error {
-	var in dispers.InputDA
+	var in query.InputDA
 
 	if err := json.NewDecoder(c.Request().Body).Decode(&in); err != nil {
 		return err

@@ -5,7 +5,7 @@ import (
 
 	"github.com/cozy/cozy-stack/pkg/couchdb"
 	"github.com/cozy/cozy-stack/pkg/dispers/aggregations"
-	"github.com/cozy/cozy-stack/pkg/dispers/dispers"
+	"github.com/cozy/cozy-stack/pkg/dispers/query"
 	"github.com/cozy/cozy-stack/pkg/prefixer"
 )
 
@@ -15,9 +15,9 @@ var prefixerDA = prefixer.DataAggregatorPrefixer
 // It will be usefull if one API has to work several times or recover after
 // a crash.
 type DataAggrDoc struct {
-	DataAggrDocID  string          `json:"_id,omitempty"`
-	DataAggrDocRev string          `json:"_rev,omitempty"`
-	Input          dispers.InputDA `json:"input,omitempty"`
+	DataAggrDocID  string        `json:"_id,omitempty"`
+	DataAggrDocRev string        `json:"_rev,omitempty"`
+	Input          query.InputDA `json:"input,omitempty"`
 }
 
 // ID returns the DataAggrDocID
@@ -51,12 +51,12 @@ func applyAggregateFunction(data []map[string]interface{}, function string, args
 	}
 }
 
-func decryptInputs(in *dispers.InputDA) error {
+func decryptInputs(in *query.InputDA) error {
 	return nil
 }
 
 // AggregateData leads an aggregation of data
-func AggregateData(in dispers.InputDA) (map[string]interface{}, error) {
+func AggregateData(in query.InputDA) (map[string]interface{}, error) {
 
 	var results map[string]interface{}
 

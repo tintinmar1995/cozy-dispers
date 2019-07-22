@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cozy/cozy-stack/pkg/dispers/dispers"
+	"github.com/cozy/cozy-stack/pkg/dispers/query"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -60,9 +60,9 @@ func TestAggregateMean(t *testing.T) {
 	args := make(map[string]interface{})
 	args["keys"] = []string{"sepal_length", "sepal_width"}
 	args["weight"] = "length"
-	in2 := dispers.InputDA{
+	in2 := query.InputDA{
 		Data: res,
-		Job: dispers.AggregationFunction{
+		Job: query.AggregationFunction{
 			Function: "sum",
 			Args:     args,
 		},

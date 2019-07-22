@@ -11,11 +11,12 @@ import (
 	"github.com/cozy/cozy-stack/pkg/dispers"
 	"github.com/cozy/cozy-stack/pkg/metrics"
 	"github.com/cozy/cozy-stack/pkg/prefixer"
-	"github.com/cozy/cozy-stack/web/dispers"
 	"github.com/cozy/cozy-stack/web/errors"
 	"github.com/cozy/cozy-stack/web/middlewares"
+	"github.com/cozy/cozy-stack/web/query"
 	"github.com/cozy/cozy-stack/web/statik"
 	"github.com/cozy/cozy-stack/web/status"
+	"github.com/cozy/cozy-stack/web/subscribe"
 	"github.com/cozy/cozy-stack/web/version"
 	"github.com/cozy/echo"
 	"github.com/cozy/echo/middleware"
@@ -113,7 +114,8 @@ func SetupRoutes(router *echo.Echo) (*echo.Echo, error) {
 
 	// other non-authentified routes
 	{
-		dispers.Routes(router.Group("/dispers"))
+		query.Routes(router.Group("/dispers"))
+		subscribe.Routes(router.Group("/subscribe"))
 		status.Routes(router.Group("/status"))
 		version.Routes(router.Group("/version"))
 	}

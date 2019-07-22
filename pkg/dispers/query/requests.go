@@ -1,4 +1,4 @@
-package dispers
+package query
 
 import (
 	"encoding/json"
