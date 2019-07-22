@@ -3,6 +3,7 @@ package dispers
 import (
 	"encoding/json"
 	"errors"
+	"net/url"
 	"time"
 )
 
@@ -11,6 +12,12 @@ import (
 Queries' Input & Output
 *
 */
+
+type InputPatchQuery struct {
+	IsEncrypted bool     `json:"encrypted"`
+	Role        string   `json:"role"`
+	OutDA       OutputDA `json:"output_da,omitempty"`
+}
 
 /*
 *
@@ -258,13 +265,15 @@ type AggregationFunction struct {
 }
 
 type InputDA struct {
-	Job           AggregationFunction      `json:"type,omitempty"`
+	Job           AggregationFunction      `json:"job"`
+	QueryID       string                   `json:"queryid"`
+	ConductorURL  url.URL                  `json:"conductor_url"`
 	Data          []map[string]interface{} `json:"data,omitempty"`
-	IsEncrypted   bool                     `json:"isencrypted,omitempty"`
+	IsEncrypted   bool                     `json:"isencrypted"`
 	EncryptedJob  []byte                   `json:"enc_type,omitempty"`
 	EncryptedData []byte                   `json:"enc_data,omitempty"`
 }
 
 type OutputDA struct {
-	Results []string `json:"results,omitempty"`
+	Results map[string]interface{} `json:"results,omitempty"`
 }

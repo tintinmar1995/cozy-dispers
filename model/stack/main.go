@@ -2,11 +2,13 @@ package stack
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/cozy/checkup"
+	"github.com/cozy/cozy-stack/model/job"
 	build "github.com/cozy/cozy-stack/pkg/config"
 	"github.com/cozy/cozy-stack/pkg/config/config"
 	"github.com/cozy/cozy-stack/pkg/config/dynamic"
@@ -87,6 +89,25 @@ security features. Please do not use this binary as your production server.
 
 	// Init the main global connection to the swift server
 	if err = config.InitDefaultSwiftConnection(); err != nil {
+		return
+	}
+
+	workersList, err := job.GetWorkersList()
+	if err != nil {
+		return
+	}
+
+	var broker job.Broker
+	var schder job.Scheduler
+	jobsConfig := config.GetConfig().Jobs
+	if cli := jobsConfig.Client(); cli != nil {
+		errors.New("Redis disabled")
+	} else {
+		broker = job.NewMemBroker()
+		schder = job.NewMemScheduler()
+	}
+
+	if err = job.SystemStart(broker, schder, workersList); err != nil {
 		return
 	}
 
