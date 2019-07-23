@@ -32,6 +32,7 @@ PATH_CSV_FILE="./data/instances.csv"
 ## Scripts
 
 - **add_data_from_csv.sh** : compute ACH cmd to import data from io.cozy.banks.operation
+- **create_concepts_from_csv.sh** : add a list of concepts to Cozy-DISPERS
 - **create_instance.sh** : create an instance on the stack
 - **create_instances_from_csv.sh** : use create_instance.sh to create several instances reading instances.csv
 - **generate_token.sh** : generate a token for an instance
