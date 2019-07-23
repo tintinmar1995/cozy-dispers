@@ -356,6 +356,7 @@ type AggregationFunction struct {
 type InputDA struct {
 	Job           AggregationFunction      `json:"job"`
 	QueryID       string                   `json:"queryid"`
+	AggregationID [2]int                   `json:"aggregationid,omitempty"`
 	ConductorURL  url.URL                  `json:"conductor_url"`
 	Data          []map[string]interface{} `json:"data,omitempty"`
 	IsEncrypted   bool                     `json:"isencrypted"`

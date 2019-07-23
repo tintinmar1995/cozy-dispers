@@ -13,7 +13,7 @@ import (
 	"github.com/cozy/cozy-stack/tests/testutils"
 )
 
-var dispersURL = url.URL{Host: "localhost:8118", Scheme: "http"}
+var dispersURL = url.URL{Host: "localhost:8008", Scheme: "http"}
 
 func TestMain(m *testing.M) {
 	config.UseTestFile()

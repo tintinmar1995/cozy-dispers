@@ -33,7 +33,9 @@ func WorkerDataAggregator(ctx *job.WorkerContext) error {
 	}
 
 	out := query.OutputDA{
-		Results: res,
+		Results:       res,
+		QueryID:       in.QueryID,
+		AggregationID: in.AggregationID,
 	}
 	in.ConductorURL.Path = "dispers/query/" + in.QueryID
 	inputPatchQuery := query.InputPatchQuery{

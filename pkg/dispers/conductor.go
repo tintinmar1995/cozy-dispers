@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math/rand"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 
@@ -304,10 +305,20 @@ func (c *Conductor) aggregateLayer(indexLayer int, layer query.LayerDA) error {
 		da = c.DataAggregators[indexLayer][indexDA]
 
 		inputDA.Data = layer.Data[seps[indexDA]:seps[indexDA+1]]
+		inputDA.QueryID = c.Query.ID()
+		inputDA.AggregationID = [2]int{indexLayer, indexDA}
+		hostname, err := os.Hostname()
+		if err != nil {
+			return err
+		}
+		inputDA.ConductorURL = url.URL{
+			Scheme: "http",
+			Host:   hostname,
+		}
 
 		// marshal inputDA and make request for async process
 		marshalledInputDA, _ := json.Marshal(inputDA)
-		err := da.MakeRequest("POST", "aggregation", "application/json", marshalledInputDA)
+		err = da.MakeRequest("POST", "aggregation", "application/json", marshalledInputDA)
 		if err != nil {
 			return err
 		}
