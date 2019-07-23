@@ -16,6 +16,8 @@ type LocalQuery struct {
 }
 ```
 
+FindRequest follows the [CouchDB syntax](https://docs.couchdb.org/en/stable/api/database/find.html?highlight=selector) for queries.
+
 **Step 2 :** Pass the list of targets
 
 ```golang
