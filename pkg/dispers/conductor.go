@@ -311,6 +311,7 @@ func (c *Conductor) aggregateLayer(indexLayer int, layer query.LayerDA) error {
 		if err != nil {
 			return err
 		}
+
 		inputDA.ConductorURL = url.URL{
 			Scheme: "http",
 			Host:   hostname,
