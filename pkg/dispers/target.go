@@ -35,24 +35,33 @@ func retrieveData(in *query.InputT, queries *[]query.Query) ([]map[string]interf
 		url := &url.URL{
 			Scheme: "http",
 			Host:   query.Domain,
-			Path:   "data/_find/",
+			Path:   "data/" + query.LocalQuery.Doctype + "_find/",
 		}
 
 		marshalFindRequest, err := json.Marshal(query.LocalQuery.FindRequest)
 		if err != nil {
-			return nil, nil
+			return nil, err
 		}
-		resp, err := http.Post(url.String(), "application/json", bytes.NewReader(marshalFindRequest))
+
+		client := http.Client{}
+		request, err := http.NewRequest("POST", url.String(), bytes.NewReader(marshalFindRequest))
 		if err != nil {
-			return nil, nil
+			return nil, err
+		}
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Add("Authorization", query.TokenBearer)
+
+		resp, err := client.Do(request)
+		if err != nil {
+			return nil, err
 		}
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return nil, nil
+			return nil, err
 		}
 		err = json.Unmarshal(body, &rowsData)
 		if err != nil {
-			return nil, nil
+			return nil, err
 		}
 
 		data = append(data, rowsData...)

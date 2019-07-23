@@ -337,6 +337,7 @@ type OutputT struct {
 // LocalQuery decribes which data the stack has to retrieve
 type LocalQuery struct {
 	FindRequest map[string]interface{} `json:"findrequest,omitempty"`
+	Doctype     string                 `json:"doctype,omitempty"`
 }
 
 /*
