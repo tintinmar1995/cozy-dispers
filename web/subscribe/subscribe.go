@@ -3,7 +3,7 @@ package subscribe
 import (
 	"encoding/json"
 	"net/http"
-	"time"
+	"sort"
 
 	"github.com/cozy/cozy-stack/pkg/dispers"
 	"github.com/cozy/cozy-stack/pkg/dispers/query"
@@ -79,11 +79,17 @@ func insert(c echo.Context) error {
 		return err
 	}
 
-	instance.SubscriptionDate = time.Now()
+	// Search if instance is already present in list
+	thisInstanceInList := sort.Search(len(listOfInstances), func(index int) bool {
+		return instance.Domain == listOfInstances[index].Domain
+	})
 
-	// TODO : Check if instance can be appended
+	if thisInstanceInList == len(listOfInstances) {
+		listOfInstances = append(listOfInstances, instance)
+	} else {
+		listOfInstances[thisInstanceInList] = instance
+	}
 
-	listOfInstances = append(listOfInstances, instance)
 	encListOfInstances, err := json.Marshal(listOfInstances)
 	if err != nil {
 		return nil

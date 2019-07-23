@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
-	"time"
 
 	"github.com/cozy/cozy-stack/pkg/couchdb"
 )
@@ -299,9 +298,8 @@ type Token struct {
 // Instance describes the location of an instance and the token it had created
 // When Target received twice the same Instance, it needs to be able to consider the more recent item
 type Instance struct {
-	Domain           string    `json:"domain"`
-	SubscriptionDate time.Time `json:"date"`
-	Token            Token     `json:"token"`
+	Domain string `json:"domain"`
+	Token  Token  `json:"token"`
 }
 
 /*
