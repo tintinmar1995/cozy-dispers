@@ -1,5 +1,8 @@
 #!/bin/bash
 
+shopt -s expand_aliases
+source ~/.bash_aliases
+
 # check the parameters (nb Cozy (re)ini)
 if [ $# -ne 3 ]; then
     echo "Usage : "$0" nb_Cozy reini csv_file"
@@ -38,12 +41,11 @@ for ((i=1 ; $NB_COZY - $i + 1 ; i++)) do
 			./create_instance.sh $INST $NAME $MAIL
 		else
 			echo "Instance existant. Delete databases..."
-			# Deleting io.cozy.ml / io.cozy.iris
-			curl -X DELETE "http://127.0.0.1:5984/$DB_PREFIX%2Fio-cozy-query"
-			curl -X DELETE "http://127.0.0.1:5984/$DB_PREFIX%2Fio-cozy-iris"
+			# Deleting io.cozy.bank.operations
+			curl -X DELETE "http://127.0.0.1:5984/$DB_PREFIX%2Fio-cozy-bank-operations"
 		fi
 	else
-		echo "ERROR : Unknown parameter. 'true' or 'false' expected." 
+		echo "ERROR : Unknown parameter. 'true' or 'false' expected."
 		exit 1
 	fi
 

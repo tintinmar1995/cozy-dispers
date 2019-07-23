@@ -1,6 +1,9 @@
 package subscribe
 
-import "github.com/cozy/cozy-stack/pkg/couchdb"
+import (
+	"github.com/cozy/cozy-stack/pkg/couchdb"
+	"github.com/cozy/cozy-stack/pkg/dispers/query"
+)
 
 // SubscribeDoc is used to save in Conductor's database the list of instances that subscribed
 // to a concept. Each concept is associated with a list of instances.
@@ -43,9 +46,10 @@ func (t *SubscribeDoc) SetRev(rev string) {
 }
 
 type InputConductor struct {
-	IsEncrypted       bool     `json:"is_encrypted,omitempty"`
-	Concepts          []string `json:"concepts,omitempty"`
-	EncryptedInstance []byte   `json:"enc_instance,omitempty"`
+	IsEncrypted       bool           `json:"is_encrypted,omitempty"`
+	Concepts          []string       `json:"concepts,omitempty"`
+	Instance          query.Instance `json:"instance,omitempty"`
+	EncryptedInstance []byte         `json:"enc_instance,omitempty"`
 }
 
 type InputDecrypt struct {

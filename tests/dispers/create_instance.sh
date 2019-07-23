@@ -1,5 +1,8 @@
 #!/bin/bash
 
+shopt -s expand_aliases
+source ~/.bash_aliases
+
 # check the parameters
 if [ $# -lt 3 ]; then
     echo "Usage : $0 instance_name public_name mail"
@@ -13,5 +16,3 @@ MAIL=$3
 
 echo "Create instance $INST..."
 cozy-stack instances add $INST --passphrase cozy --apps drive,photos,settings,collect,contacts --email $MAIL --locale fr --public-name $2 --settings context:dev
-
-

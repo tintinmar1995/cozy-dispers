@@ -1,5 +1,8 @@
 #!/bin/bash
 
+shopt -s expand_aliases
+source ~/.bash_aliases
+
 DEFAULT_HOST="a.cozy.tools:8080"
 
 if [ $# -lt 1 ]; then

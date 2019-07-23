@@ -3,6 +3,7 @@ package subscribe
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/cozy/cozy-stack/pkg/dispers"
 	"github.com/cozy/cozy-stack/pkg/dispers/query"
@@ -78,10 +79,15 @@ func insert(c echo.Context) error {
 		return err
 	}
 
-	// TODO : Check if instance can be append
+	instance.SubscriptionDate = time.Now()
+
+	// TODO : Check if instance can be appended
 
 	listOfInstances = append(listOfInstances, instance)
 	encListOfInstances, err := json.Marshal(listOfInstances)
+	if err != nil {
+		return nil
+	}
 
 	return c.JSON(http.StatusOK, subscribe.InputEncrypt{
 		IsEncrypted:        in.IsEncrypted,
@@ -119,6 +125,14 @@ func subscribeToRequest(c echo.Context) error {
 	var in subscribe.InputConductor
 	if err := json.NewDecoder(c.Request().Body).Decode(&in); err != nil {
 		return err
+	}
+
+	if !in.IsEncrypted {
+		encInst, err := json.Marshal(in.Instance)
+		if err != nil {
+			return err
+		}
+		in.EncryptedInstance = encInst
 	}
 
 	if err := enclave.Subscribe(&in); err != nil {

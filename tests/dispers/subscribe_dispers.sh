@@ -26,7 +26,7 @@ done
 DATA+='],"is_encrypted":false,"instance":{"host":"'$INST'","token":{"bearer" :"'$TOKEN'"}}}'
 
 curl --request POST \
-  --url http://localhost:8118/subscribe/conductor/subscribe \
+  --url http://localhost:8008/subscribe/conductor/subscribe \
   --header 'content-type: application/json' \
   --data "$DATA"
 

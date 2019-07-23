@@ -1,5 +1,8 @@
 #!/bin/bash
 
+shopt -s expand_aliases
+source ~/.bash_aliases
+
 # check the parameters (nb Cozy (re)ini)
 if [ $# -ne 2 ]; then
     echo "Usage : "$0" csv_file"

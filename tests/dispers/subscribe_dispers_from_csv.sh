@@ -15,8 +15,8 @@ for ((i=1 ; $NB_COZY - $i + 1 ; i++)) do
 	echo "Generate token..."
 	TOKEN=$(./generate_token.sh $INST $DOCTYPES)
 	echo "Subscribe to Cozy-DISPERS..."
-	CONCEPTS=$(./data/get_cel.sh $2 $i 4)	
+	CONCEPTS=$(./data/get_cel.sh $2 $i 4)
 	CONCEPTS=$(sed 's/\// /g' <<< $CONCEPTS)
-	./dispers_subscribe.sh $INST $TOKEN $CONCEPTS
+	./subscribe_dispers.sh $INST $TOKEN $CONCEPTS
 	done
 exit 0
