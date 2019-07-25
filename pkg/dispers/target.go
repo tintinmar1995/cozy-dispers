@@ -3,6 +3,7 @@ package enclave
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -59,6 +60,7 @@ func retrieveData(in *query.InputT, queries *[]query.Query) ([]map[string]interf
 		if err != nil {
 			return nil, err
 		}
+
 		err = json.Unmarshal(body, &rowsData)
 		if err != nil {
 			return nil, err
@@ -77,8 +79,12 @@ func QueryTarget(in query.InputT) ([]map[string]interface{}, error) {
 
 	if in.IsEncrypted {
 		if err := decryptInputT(&in); err != nil {
-			return []map[string]interface{}{}, err
+			return nil, err
 		}
+	}
+
+	if len(in.Targets) == 0 {
+		return nil, errors.New("Targets is empty")
 	}
 
 	var item2instance query.Instance

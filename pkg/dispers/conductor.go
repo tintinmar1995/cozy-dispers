@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/cozy/cozy-stack/pkg/config/config"
 	"github.com/cozy/cozy-stack/pkg/couchdb"
 	"github.com/cozy/cozy-stack/pkg/couchdb/mango"
 	"github.com/cozy/cozy-stack/pkg/dispers/network"
@@ -51,7 +52,7 @@ func NewConductor(in *query.OutputQ) (*Conductor, error) {
 
 	// Creating the query.QueryDoc that will be saved in the Conductor's database
 	queryDoc := query.QueryDoc{
-		CheckPoints:            make([]bool, 6),
+		CheckPoints:            make(map[string]bool),
 		Concepts:               in.Concepts,
 		DomainQuerier:          in.DomainQuerier,
 		IsEncrypted:            in.IsEncrypted,
@@ -130,9 +131,8 @@ func (c *Conductor) decryptConcept() error {
 
 	var outputCI query.OutputCI
 	json.Unmarshal(c.Conceptindexors.Out, &outputCI)
-	c.Query.CheckPoints[0] = true
+	c.Query.CheckPoints["ci"] = true
 	c.Query.Concepts = outputCI.Hashes
-
 	return couchdb.UpdateDoc(PrefixerC, &c.Query)
 }
 
@@ -175,7 +175,7 @@ func (c *Conductor) fetchListsOfInstancesFromDB() error {
 		c.Query.ListsOfAddresses = listsOfA
 	}
 
-	c.Query.CheckPoints[1] = true
+	c.Query.CheckPoints["fetch"] = true
 	return couchdb.UpdateDoc(PrefixerC, &c.Query)
 }
 
@@ -203,7 +203,7 @@ func (c *Conductor) selectTargets() error {
 	json.Unmarshal(c.Targetfinders.Out, &outputTF)
 	c.Query.EncryptedTargets = outputTF.EncryptedListOfAddresses
 	c.Query.Targets = outputTF.ListOfAddresses
-	c.Query.CheckPoints[2] = true
+	c.Query.CheckPoints["tf"] = true
 	return couchdb.UpdateDoc(PrefixerC, &c.Query)
 }
 
@@ -231,8 +231,14 @@ func (c *Conductor) makeLocalQuery() error {
 	if err != nil {
 		return err
 	}
+	if len(c.Query.Layers) == 0 {
+		return errors.New("Query should have at least one aggregation array.")
+	}
+	if len(outputT.Data) == 0 {
+		return errors.New("No data to query on")
+	}
 	c.Query.Layers[0].Data = outputT.Data
-	c.Query.CheckPoints[3] = true
+	c.Query.CheckPoints["t"] = true
 	return couchdb.UpdateDoc(PrefixerC, &c.Query)
 }
 
@@ -275,7 +281,7 @@ func (c *Conductor) shouldBeComputed(indexLayer int) bool {
 	return isLayerWaiting
 }
 
-func (c *Conductor) aggregateLayer(indexLayer int, layer query.LayerDA) error {
+func (c *Conductor) aggregateLayer(indexLayer int, layer *query.LayerDA) error {
 
 	var da network.ExternalActor
 
@@ -312,9 +318,14 @@ func (c *Conductor) aggregateLayer(indexLayer int, layer query.LayerDA) error {
 			return err
 		}
 
+		// TODO : Find a prettier solution for this issue
+		if hostname == "martin-perso" {
+			hostname = "localhost"
+		}
+
 		inputDA.ConductorURL = url.URL{
 			Scheme: "http",
-			Host:   hostname,
+			Host:   hostname + ":" + strconv.Itoa(config.GetConfig().Port),
 		}
 
 		// marshal inputDA and make request for async process
@@ -330,7 +341,11 @@ func (c *Conductor) aggregateLayer(indexLayer int, layer query.LayerDA) error {
 		}
 
 		// async task is now running
-		layer.State[indexDA] = query.Running
+		layer.State[strconv.Itoa(indexDA)] = query.Running
+		err = couchdb.UpdateDoc(PrefixerC, &c.Query)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -339,34 +354,34 @@ func (c *Conductor) aggregateLayer(indexLayer int, layer query.LayerDA) error {
 // Lead is the most general method. This is the only one used in CMD and Web's files. It will use the 5 previous methods to work
 func (c *Conductor) Lead() error {
 
-	if c.Query.CheckPoints[0] != true {
+	if c.Query.CheckPoints["ci"] != true {
 		if err := c.decryptConcept(); err != nil {
 			return err
 		}
 	}
 
-	if c.Query.CheckPoints[1] != true {
+	if c.Query.CheckPoints["fetch"] != true {
 		if err := c.fetchListsOfInstancesFromDB(); err != nil {
 			return err
 		}
 	}
 
-	if c.Query.CheckPoints[2] != true {
+	if c.Query.CheckPoints["tf"] != true {
 		if err := c.selectTargets(); err != nil {
 			return err
 		}
 	}
 
-	if c.Query.CheckPoints[3] != true {
+	if c.Query.CheckPoints["t"] != true {
 		if err := c.makeLocalQuery(); err != nil {
 			return err
 		}
 	}
 
-	if c.Query.CheckPoints[4] == true || c.Query.CheckPoints[5] != true {
-		for indexLayer, layer := range c.Query.Layers {
+	if c.Query.CheckPoints["da"] != true {
+		for indexLayer := range c.Query.Layers {
 			if c.shouldBeComputed(indexLayer) {
-				if err := c.aggregateLayer(indexLayer, layer); err != nil {
+				if err := c.aggregateLayer(indexLayer, &(c.Query.Layers[indexLayer])); err != nil {
 					return err
 				}
 				// Stop the process and wait for DA's answer to resume

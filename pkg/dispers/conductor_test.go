@@ -316,7 +316,7 @@ func TestAggregate(t *testing.T) {
 			},
 			Data:  data,
 			Size:  4,
-			State: []query.StateDA{query.Waiting, query.Waiting, query.Waiting, query.Waiting},
+			State: map[string]query.StateDA{"0": query.Waiting, "1": query.Waiting, "2": query.Waiting, "3": query.Waiting},
 		},
 		query.LayerDA{
 			AggregationFunctions: query.AggregationFunction{
@@ -325,7 +325,7 @@ func TestAggregate(t *testing.T) {
 			},
 			Data:  data,
 			Size:  4,
-			State: []query.StateDA{query.Waiting, query.Waiting, query.Waiting, query.Waiting},
+			State: map[string]query.StateDA{"0": query.Waiting, "1": query.Waiting, "2": query.Waiting, "3": query.Waiting},
 		},
 	}
 	in.LayersDA = layers
@@ -334,7 +334,7 @@ func TestAggregate(t *testing.T) {
 	conductor.Query.Layers = layers
 	for indexLayer, layer := range conductor.Query.Layers {
 		if conductor.shouldBeComputed(indexLayer) {
-			if err := conductor.aggregateLayer(indexLayer, layer); err != nil {
+			if err := conductor.aggregateLayer(indexLayer, &layer); err != nil {
 				assert.Error(t, err)
 			}
 		}

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/cozy/cozy-stack/model/job"
@@ -184,7 +185,7 @@ func getQuery(c echo.Context) error {
 	queryid := c.Param("queryid")
 
 	fetched := &query.QueryDoc{}
-	err := couchdb.GetDoc(prefixer.ConductorPrefixer, "io.cozy.ml", queryid, fetched)
+	err := couchdb.GetDoc(prefixer.ConductorPrefixer, "io.cozy.query", queryid, fetched)
 	if err != nil {
 		return err
 	}
@@ -204,13 +205,13 @@ func getQuery(c echo.Context) error {
 
 func createQuery(c echo.Context) error {
 
-	var in *query.OutputQ
+	var in query.OutputQ
 
-	if err := json.NewDecoder(c.Request().Body).Decode(in); err != nil {
+	if err := json.NewDecoder(c.Request().Body).Decode(&in); err != nil {
 		return err
 	}
 
-	conductor, err := enclave.NewConductor(in)
+	conductor, err := enclave.NewConductor(&in)
 	if err != nil {
 		return err
 	}
@@ -220,7 +221,24 @@ func createQuery(c echo.Context) error {
 		return err
 	}
 
-	return c.JSON(http.StatusOK, echo.Map{"ok": true})
+	return c.JSON(http.StatusOK, echo.Map{"ok": true, "query_id": conductor.Query.ID()})
+}
+
+func resumeQuery(c echo.Context) error {
+
+	queryid := c.Param("queryid")
+
+	conductor, err := enclave.NewConductorFetchingQueryDoc(queryid)
+	if err != nil {
+		return err
+	}
+
+	err = conductor.Lead()
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, echo.Map{"ok": true, "query_id": conductor.Query.ID()})
 }
 
 func updateQuery(c echo.Context) error {
@@ -240,6 +258,10 @@ func updateQuery(c echo.Context) error {
 	if in.Role == network.RoleDA {
 		conductor.Query.Layers[in.OutDA.AggregationID[0]+1].Data = append(conductor.Query.Layers[in.OutDA.AggregationID[0]+1].Data, in.OutDA.Results)
 	}
+
+	layer := conductor.Query.Layers[in.OutDA.AggregationID[0]]
+	layer.State[strconv.Itoa(in.OutDA.AggregationID[1])] = query.Finished
+	conductor.Query.Layers[in.OutDA.AggregationID[0]] = layer
 	couchdb.UpdateDoc(prefixer.ConductorPrefixer, &conductor.Query)
 
 	err = conductor.Lead()
@@ -247,7 +269,7 @@ func updateQuery(c echo.Context) error {
 		return err
 	}
 
-	return c.JSON(http.StatusOK, echo.Map{"ok": true})
+	return c.JSON(http.StatusOK, echo.Map{"ok": true, "query_id": conductor.Query.ID()})
 }
 
 func deleteQuery(c echo.Context) error {
@@ -257,12 +279,6 @@ func deleteQuery(c echo.Context) error {
 	// TODO: Mark doc as aborted
 
 	return c.NoContent(http.StatusNoContent)
-}
-
-// Prevent Conductor from waiting indefinitelly results of QueryCozy / DA
-func handleQueryError(c echo.Context) error {
-
-	return c.JSON(http.StatusOK, echo.Map{"ok": true})
 }
 
 // Routes sets the routing for the dispers service
@@ -282,8 +298,8 @@ func Routes(router *echo.Group) {
 
 	router.GET("/query/:queryid", getQuery)
 	router.POST("/query", createQuery)
-	router.POST("/query/report-error", handleQueryError)
-	router.POST("/query/:queryid", updateQuery)
+	router.POST("/query/:queryid", resumeQuery)
+	router.PATCH("/query/:queryid", updateQuery)
 	router.POST("/query/:queryid", deleteQuery)
 
 }

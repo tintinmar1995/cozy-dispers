@@ -40,7 +40,7 @@ type LayerDA struct {
 	AggregationFunctions        AggregationFunction      `json:"layer_job,omitempty"`
 	Data                        []map[string]interface{} `json:"layer_data,omitempty"`
 	Size                        int                      `json:"layer_size"`
-	State                       []StateDA                `json:"layer_states"`
+	State                       map[string]StateDA       `json:"layer_states"`
 	EncryptedAggregateFunctions []byte                   `json:"layer_enc_job,omitempty"`
 }
 
@@ -51,16 +51,16 @@ type QueryDoc struct {
 	QueryID                   string              `json:"_id,omitempty"`
 	QueryRev                  string              `json:"_rev,omitempty"`
 	IsEncrypted               bool                `json:"encrypted,omitempty"`
-	CheckPoints               []bool              `json:"checkpoints,omitempty"`
+	CheckPoints               map[string]bool     `json:"checkpoints,omitempty"`
 	Concepts                  []Concept           `json:"concepts,omitempty"`
 	DomainQuerier             string              `json:"domain,omitempty"`
-	ListsOfAddresses          map[string][]string `json:"instances,omitempty"`
+	ListsOfAddresses          map[string][]string `json:"lists_of_instances,omitempty"`
 	LocalQuery                LocalQuery          `json:"localquery,omitempty"`
 	Layers                    []LayerDA           `json:"layers,omitempty"`
 	NumberActors              map[string]int      `json:"nb_actors,omitempty"`
 	PseudoConcepts            map[string]string   `json:"pseudo_concepts,omitempty"`
-	TargetProfile             OperationTree       `json:"operation,omitempty"`
-	Targets                   []string            `json:"Addresses,omitempty"`
+	TargetProfile             OperationTree       `json:"target_profile,omitempty"`
+	Targets                   []string            `json:"targets,omitempty"`
 	EncryptedConcepts         [][]byte            `json:"enc_concepts,omitempty"`
 	EncryptedListsOfAddresses []byte              `json:"enc_instances,omitempty"`
 	EncryptedLocalQuery       []byte              `json:"enc_localquery,omitempty"`
@@ -80,7 +80,7 @@ func (t *QueryDoc) Rev() string {
 
 // DocType returns the DocType
 func (t *QueryDoc) DocType() string {
-	return "io.cozy.ml"
+	return "io.cozy.query"
 }
 
 // Clone copy a brand new version of the doc
@@ -194,7 +194,11 @@ func (o *OperationTree) Compute(listsOfAddresses map[string][]string) ([]string,
 		// Retrieve list of addresses from listsOfAddresses
 		val, ok := listsOfAddresses[o.Value]
 		if !ok {
-			return []string{}, errors.New("Unknown concept : \"" + o.Value + "\"")
+			msg := "Unknown concept : " + o.Value + " expect one of : "
+			for k := range listsOfAddresses {
+				msg = msg + " " + k
+			}
+			return []string{}, errors.New(msg)
 		}
 		return val, nil
 

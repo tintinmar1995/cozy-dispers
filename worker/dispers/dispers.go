@@ -49,7 +49,7 @@ func WorkerDataAggregator(ctx *job.WorkerContext) error {
 	}
 
 	client := http.Client{}
-	request, err := http.NewRequest("POST", in.ConductorURL.String(), bytes.NewReader(marshaledInputPatchQuery))
+	request, err := http.NewRequest("PATCH", in.ConductorURL.String(), bytes.NewReader(marshaledInputPatchQuery))
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,8 @@
 package enclave
 
 import (
+	"errors"
+
 	"github.com/cozy/cozy-stack/pkg/dispers/query"
 )
 
@@ -17,10 +19,13 @@ func decryptInputsTF(in *query.InputTF) error {
 func SelectAddresses(in query.InputTF) ([]string, error) {
 
 	if err := decryptInputsTF(&in); err != nil {
-		return []string{}, err
+		return nil, err
 	}
 
 	finalList, err := in.TargetProfile.Compute(in.ListsOfAddresses)
+	if len(finalList) == 0 {
+		return nil, errors.New("Result of target profile is empty")
+	}
 	// TODO: Encrypt final list
 	return finalList, err
 
