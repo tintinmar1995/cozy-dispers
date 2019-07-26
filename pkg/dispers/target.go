@@ -1,13 +1,12 @@
 package enclave
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
-	"net/http"
+	"fmt"
 	"net/url"
 
+	"github.com/cozy/cozy-stack/pkg/dispers/network"
 	"github.com/cozy/cozy-stack/pkg/dispers/query"
 )
 
@@ -29,44 +28,29 @@ func decryptInputT(in *query.InputT) error {
 func retrieveData(in *query.InputT, queries *[]query.Query) ([]map[string]interface{}, error) {
 
 	var data []map[string]interface{}
-	var rowsData []map[string]interface{}
+	var rowsData map[string]interface{}
 
 	for _, query := range *queries {
 
-		url := &url.URL{
+		stack := network.NewExternalActor(network.RoleStack, network.ModeStack)
+		stack.DefineStack(url.URL{
 			Scheme: "http",
 			Host:   query.Domain,
 			Path:   "data/" + query.LocalQuery.Doctype + "_find/",
-		}
-
-		marshalFindRequest, err := json.Marshal(query.LocalQuery.FindRequest)
+		})
+		err := stack.MakeRequest("POST", query.TokenBearer, query.LocalQuery.FindRequest, nil)
 		if err != nil {
 			return nil, err
 		}
 
-		client := http.Client{}
-		request, err := http.NewRequest("POST", url.String(), bytes.NewReader(marshalFindRequest))
-		if err != nil {
-			return nil, err
-		}
-		request.Header.Set("Content-Type", "application/json")
-		request.Header.Add("Authorization", query.TokenBearer)
-
-		resp, err := client.Do(request)
-		if err != nil {
-			return nil, err
-		}
-		body, err := ioutil.ReadAll(resp.Body)
+		err = json.Unmarshal(stack.Out, &rowsData)
 		if err != nil {
 			return nil, err
 		}
 
-		err = json.Unmarshal(body, &rowsData)
-		if err != nil {
-			return nil, err
-		}
-
-		data = append(data, rowsData...)
+		//if(string(body).)
+		fmt.Println(rowsData)
+		data = append(data, rowsData["docs"].([]map[string]interface{})...)
 	}
 
 	return data, nil

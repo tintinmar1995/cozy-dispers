@@ -3,6 +3,7 @@ package enclave
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/rand"
 	"net/url"
 	"os"
@@ -29,29 +30,70 @@ var (
 	PrefixerC = prefixer.ConductorPrefixer
 )
 
-// Conductor collects every actors playing a part in the query
-type Conductor struct {
-	Query           query.QueryDoc
-	Conceptindexors network.ExternalActor
-	Targetfinders   network.ExternalActor
-	Targets         network.ExternalActor
-	DataAggregators [][]network.ExternalActor
+// QueryDoc saves every information about the query. QueryDoc are saved in the
+// Conductor's database. Thanks to that, CheckPoints can be made, and a request
+// can be followed
+type QueryDoc struct {
+	QueryID                   string              `json:"_id,omitempty"`
+	QueryRev                  string              `json:"_rev,omitempty"`
+	IsEncrypted               bool                `json:"encrypted,omitempty"`
+	CheckPoints               map[string]bool     `json:"checkpoints,omitempty"`
+	Concepts                  []query.Concept     `json:"concepts,omitempty"`
+	DomainQuerier             string              `json:"domain,omitempty"`
+	ListsOfAddresses          map[string][]string `json:"lists_of_instances,omitempty"`
+	LocalQuery                query.LocalQuery    `json:"localquery,omitempty"`
+	Layers                    []query.LayerDA     `json:"layers,omitempty"`
+	NumberActors              map[string]int      `json:"nb_actors,omitempty"`
+	PseudoConcepts            map[string]string   `json:"pseudo_concepts,omitempty"`
+	TargetProfile             query.OperationTree `json:"target_profile,omitempty"`
+	Targets                   []string            `json:"targets,omitempty"`
+	EncryptedConcepts         [][]byte            `json:"enc_concepts,omitempty"`
+	EncryptedListsOfAddresses []byte              `json:"enc_instances,omitempty"`
+	EncryptedLocalQuery       []byte              `json:"enc_localquery,omitempty"`
+	EncryptedTargetProfile    []byte              `json:"enc_operation,omitempty"`
+	EncryptedTargets          []byte              `json:"enc_addresses,omitempty"`
 }
 
-// NewConductor returns a Conductor object to lead the request
-func NewConductor(in *query.OutputQ) (*Conductor, error) {
+// ID returns the Doc ID
+func (t *QueryDoc) ID() string {
+	return t.QueryID
+}
+
+// Rev returns the doc's version
+func (t *QueryDoc) Rev() string {
+	return t.QueryRev
+}
+
+// DocType returns the DocType
+func (t *QueryDoc) DocType() string {
+	return "io.cozy.query"
+}
+
+// Clone copy a brand new version of the doc
+func (t *QueryDoc) Clone() couchdb.Doc {
+	cloned := *t
+	return &cloned
+}
+
+// SetID set the ID
+func (t *QueryDoc) SetID(id string) {
+	t.QueryID = id
+}
+
+// SetRev set the version
+func (t *QueryDoc) SetRev(rev string) {
+	t.QueryRev = rev
+}
+
+// NewQuery returns a Conductor object to lead the request
+func NewQuery(in *query.InputNewQuery) (*QueryDoc, error) {
 
 	if in.NumberActors == nil {
-		return &Conductor{}, errors.New("Number of network.ExternalActors should be defined")
+		return &QueryDoc{}, errors.New("Number of network.ExternalActors should be defined")
 	}
 
-	da := make([][]network.ExternalActor, len(in.LayersDA))
-	for i, layer := range in.LayersDA {
-		da[i] = network.NewSliceOfExternalActors("dataaggregator", layer.Size)
-	}
-
-	// Creating the query.QueryDoc that will be saved in the Conductor's database
-	queryDoc := query.QueryDoc{
+	// Creating the QueryDoc that will be saved in the Conductor's database
+	retour := &QueryDoc{
 		CheckPoints:            make(map[string]bool),
 		Concepts:               in.Concepts,
 		DomainQuerier:          in.DomainQuerier,
@@ -65,52 +107,31 @@ func NewConductor(in *query.OutputQ) (*Conductor, error) {
 		EncryptedLocalQuery:    in.EncryptedLocalQuery,
 		EncryptedTargetProfile: in.EncryptedTargetProfile,
 	}
-	if err := couchdb.CreateDoc(PrefixerC, &queryDoc); err != nil {
-		return &Conductor{}, err
-	}
-
-	retour := &Conductor{
-		Query:           queryDoc,
-		Conceptindexors: network.NewExternalActor("conceptindexor"),
-		Targetfinders:   network.NewExternalActor("targetfinder"),
-		Targets:         network.NewExternalActor("target"),
-		DataAggregators: da,
+	if err := couchdb.CreateDoc(PrefixerC, retour); err != nil {
+		return &QueryDoc{}, err
 	}
 
 	return retour, nil
 }
 
-// NewConductorFetchingQueryDoc returns a Conductor object to lead the request
-func NewConductorFetchingQueryDoc(queryid string) (*Conductor, error) {
+// NewQueryFetchingQueryDoc returns a Conductor object to lead the request
+func NewQueryFetchingQueryDoc(queryid string) (*QueryDoc, error) {
 
-	queryDoc := &query.QueryDoc{}
+	queryDoc := &QueryDoc{}
 	err := couchdb.GetDoc(PrefixerC, "io.cozy.query", queryid, queryDoc)
 	if err != nil {
-		return &Conductor{}, err
+		return &QueryDoc{}, err
 	}
 
-	da := make([][]network.ExternalActor, len(queryDoc.Layers))
-	for i, layer := range queryDoc.Layers {
-		da[i] = network.NewSliceOfExternalActors("dataaggregator", layer.Size)
-	}
-
-	retour := &Conductor{
-		Query:           *queryDoc,
-		Conceptindexors: network.NewExternalActor("conceptindexor"),
-		Targetfinders:   network.NewExternalActor("targetfinder"),
-		Targets:         network.NewExternalActor("target"),
-		DataAggregators: da,
-	}
-
-	return retour, nil
+	return queryDoc, nil
 }
 
 // decryptConcept returns a list of hashed concepts from a list of encrypted concepts
-func (c *Conductor) decryptConcept() error {
+func (q *QueryDoc) decryptConcept() error {
 
 	job := "concept/"
 	listOfConcepts := []string{}
-	for _, concept := range c.Query.Concepts {
+	for _, concept := range q.Concepts {
 		if concept.IsEncrypted {
 			listOfConcepts = append(listOfConcepts, string(concept.EncryptedConcept))
 		} else {
@@ -118,30 +139,32 @@ func (c *Conductor) decryptConcept() error {
 		}
 	}
 	job = job + strings.Join(listOfConcepts, ":")
-	if c.Query.IsEncrypted {
+	if q.IsEncrypted {
 		job = job + "/true"
 	} else {
 		job = job + "/false"
 	}
 
-	err := c.Conceptindexors.MakeRequest("GET", job, "", nil)
+	ci := network.NewExternalActor(network.RoleCI, network.ModeQuery)
+	ci.DefineDispersActor(job)
+	err := ci.MakeRequest("GET", "", nil, nil)
 	if err != nil {
 		return err
 	}
 
 	var outputCI query.OutputCI
-	json.Unmarshal(c.Conceptindexors.Out, &outputCI)
-	c.Query.CheckPoints["ci"] = true
-	c.Query.Concepts = outputCI.Hashes
-	return couchdb.UpdateDoc(PrefixerC, &c.Query)
+	json.Unmarshal(ci.Out, &outputCI)
+	q.CheckPoints["ci"] = true
+	q.Concepts = outputCI.Hashes
+	return couchdb.UpdateDoc(PrefixerC, q)
 }
 
-func (c *Conductor) fetchListsOfInstancesFromDB() error {
+func (q *QueryDoc) fetchListsOfInstancesFromDB() error {
 
 	encListsOfA := make(map[string][]byte)
 	listsOfA := make(map[string][]string)
 
-	for _, concept := range c.Query.Concepts {
+	for _, concept := range q.Concepts {
 
 		s, err := RetrieveSubscribeDoc(concept.Hash)
 		if err != nil {
@@ -152,10 +175,10 @@ func (c *Conductor) fetchListsOfInstancesFromDB() error {
 			return errors.New("Cannot find SubscribeDoc associated to hash : " + string(concept.Hash))
 		}
 
-		if c.Query.IsEncrypted {
-			encListsOfA[c.Query.PseudoConcepts[string(concept.EncryptedConcept)]] = s[0].EncryptedInstances
+		if q.IsEncrypted {
+			encListsOfA[q.PseudoConcepts[string(concept.EncryptedConcept)]] = s[0].EncryptedInstances
 			res, _ := json.Marshal(encListsOfA)
-			c.Query.EncryptedListsOfAddresses = res
+			q.EncryptedListsOfAddresses = res
 
 		} else {
 			// Pretty ugly way to convert EncryptedInstance to []string.
@@ -170,83 +193,78 @@ func (c *Conductor) fetchListsOfInstancesFromDB() error {
 				marshalledIns, _ := json.Marshal(ins)
 				instsStr[index] = string(marshalledIns)
 			}
-			listsOfA[c.Query.PseudoConcepts[concept.Concept]] = instsStr
+			listsOfA[q.PseudoConcepts[concept.Concept]] = instsStr
 		}
-		c.Query.ListsOfAddresses = listsOfA
+		q.ListsOfAddresses = listsOfA
 	}
 
-	c.Query.CheckPoints["fetch"] = true
-	return couchdb.UpdateDoc(PrefixerC, &c.Query)
+	q.CheckPoints["fetch"] = true
+	return couchdb.UpdateDoc(PrefixerC, q)
 }
 
-func (c *Conductor) selectTargets() error {
+func (q *QueryDoc) selectTargets() error {
 
 	inputTF := query.InputTF{
-		IsEncrypted:               c.Query.IsEncrypted,
-		ListsOfAddresses:          c.Query.ListsOfAddresses,
-		TargetProfile:             c.Query.TargetProfile,
-		EncryptedListsOfAddresses: c.Query.EncryptedListsOfAddresses,
-		EncryptedTargetProfile:    c.Query.EncryptedTargetProfile,
+		IsEncrypted:               q.IsEncrypted,
+		ListsOfAddresses:          q.ListsOfAddresses,
+		TargetProfile:             q.TargetProfile,
+		EncryptedListsOfAddresses: q.EncryptedListsOfAddresses,
+		EncryptedTargetProfile:    q.EncryptedTargetProfile,
 	}
 
-	marshalledInputTF, err := json.Marshal(inputTF)
-	if err != nil {
-		return err
-	}
-
-	err = c.Targetfinders.MakeRequest("POST", "addresses", "application/json", marshalledInputTF)
+	tf := network.NewExternalActor(network.RoleTF, network.ModeQuery)
+	tf.DefineDispersActor("addresses")
+	err := tf.MakeRequest("POST", "", inputTF, nil)
 	if err != nil {
 		return err
 	}
 
 	var outputTF query.OutputTF
-	json.Unmarshal(c.Targetfinders.Out, &outputTF)
-	c.Query.EncryptedTargets = outputTF.EncryptedListOfAddresses
-	c.Query.Targets = outputTF.ListOfAddresses
-	c.Query.CheckPoints["tf"] = true
-	return couchdb.UpdateDoc(PrefixerC, &c.Query)
+	json.Unmarshal(tf.Out, &outputTF)
+	q.EncryptedTargets = outputTF.EncryptedListOfAddresses
+	q.Targets = outputTF.ListOfAddresses
+	q.CheckPoints["tf"] = true
+	return couchdb.UpdateDoc(PrefixerC, q)
 }
 
-func (c *Conductor) makeLocalQuery() error {
+func (q *QueryDoc) makeLocalQuery() error {
 
 	inputT := query.InputT{
-		IsEncrypted:         c.Query.IsEncrypted,
-		LocalQuery:          c.Query.LocalQuery,
-		Targets:             c.Query.Targets,
-		EncryptedLocalQuery: c.Query.EncryptedLocalQuery,
-		EncryptedTargets:    c.Query.EncryptedTargets,
+		IsEncrypted:         q.IsEncrypted,
+		LocalQuery:          q.LocalQuery,
+		Targets:             q.Targets,
+		EncryptedLocalQuery: q.EncryptedLocalQuery,
+		EncryptedTargets:    q.EncryptedTargets,
 	}
 
-	marshalledInputT, err := json.Marshal(inputT)
-	if err != nil {
-		return err
-	}
+	t := network.NewExternalActor(network.RoleT, network.ModeQuery)
+	t.DefineDispersActor("query")
+	err := t.MakeRequest("POST", "", inputT, nil)
 
-	err = c.Targets.MakeRequest("POST", "query", "application/json", marshalledInputT)
-	if err != nil {
-		return err
-	}
 	var outputT query.OutputT
-	err = json.Unmarshal(c.Targets.Out, &outputT)
+	err = json.Unmarshal(t.Out, &outputT)
 	if err != nil {
 		return err
 	}
-	if len(c.Query.Layers) == 0 {
-		return errors.New("Query should have at least one aggregation array.")
+
+	fmt.Println("Conductor", t.Outstr)
+
+	if len(q.Layers) == 0 {
+		return errors.New("Query should have at least one aggregation array")
 	}
 	if len(outputT.Data) == 0 {
 		return errors.New("No data to query on")
 	}
-	c.Query.Layers[0].Data = outputT.Data
-	c.Query.CheckPoints["t"] = true
-	return couchdb.UpdateDoc(PrefixerC, &c.Query)
+	q.Layers[0].Data = outputT.Data
+	q.CheckPoints["t"] = true
+	return couchdb.UpdateDoc(PrefixerC, q)
 }
 
-func (c *Conductor) shouldBeComputed(indexLayer int) bool {
+func (q *QueryDoc) shouldBeComputed(indexLayer int) bool {
 
 	// shouldBeComputed returns false if indexLayer finished
 	isLayerFinished := true
-	for _, stateDA := range c.Query.Layers[indexLayer].State {
+	for _, stateDA := range q.Layers[indexLayer].State {
 		if stateDA != query.Finished {
 			isLayerFinished = false
 		}
@@ -261,7 +279,7 @@ func (c *Conductor) shouldBeComputed(indexLayer int) bool {
 
 	// shouldBeComputed returns false if indexLayer-1 is not finished
 	isPreviousLayerFinished := true
-	for _, stateDA := range c.Query.Layers[indexLayer-1].State {
+	for _, stateDA := range q.Layers[indexLayer-1].State {
 		if stateDA != query.Finished {
 			isPreviousLayerFinished = false
 		}
@@ -273,7 +291,7 @@ func (c *Conductor) shouldBeComputed(indexLayer int) bool {
 	// if !isLayerFinished && isPreviousLayerFinished
 	// shouldBeComputed returns true if indexLayer-1 finished and indexLayer waiting
 	isLayerWaiting := true
-	for _, stateDA := range c.Query.Layers[indexLayer-1].State {
+	for _, stateDA := range q.Layers[indexLayer-1].State {
 		if stateDA != query.Waiting {
 			isLayerWaiting = false
 		}
@@ -281,9 +299,7 @@ func (c *Conductor) shouldBeComputed(indexLayer int) bool {
 	return isLayerWaiting
 }
 
-func (c *Conductor) aggregateLayer(indexLayer int, layer *query.LayerDA) error {
-
-	var da network.ExternalActor
+func (q *QueryDoc) aggregateLayer(indexLayer int, layer *query.LayerDA) error {
 
 	// Shuffle Data
 	rand.Shuffle(len(layer.Data), func(i, j int) {
@@ -308,10 +324,9 @@ func (c *Conductor) aggregateLayer(indexLayer int, layer *query.LayerDA) error {
 
 	// for each node on the layer
 	for indexDA := 0; indexDA < layer.Size; indexDA++ {
-		da = c.DataAggregators[indexLayer][indexDA]
 
 		inputDA.Data = layer.Data[seps[indexDA]:seps[indexDA+1]]
-		inputDA.QueryID = c.Query.ID()
+		inputDA.QueryID = q.ID()
 		inputDA.AggregationID = [2]int{indexLayer, indexDA}
 		hostname, err := os.Hostname()
 		if err != nil {
@@ -328,12 +343,13 @@ func (c *Conductor) aggregateLayer(indexLayer int, layer *query.LayerDA) error {
 			Host:   hostname + ":" + strconv.Itoa(config.GetConfig().Port),
 		}
 
-		// marshal inputDA and make request for async process
-		marshalledInputDA, _ := json.Marshal(inputDA)
-		err = da.MakeRequest("POST", "aggregation", "application/json", marshalledInputDA)
+		da := network.NewExternalActor(network.RoleDA, network.ModeQuery)
+		da.DefineDispersActor("aggregation")
+		err = da.MakeRequest("POST", "", inputDA, nil)
 		if err != nil {
 			return err
 		}
+
 		var out query.OutputDA
 		err = json.Unmarshal(da.Out, &out)
 		if err != nil {
@@ -342,7 +358,7 @@ func (c *Conductor) aggregateLayer(indexLayer int, layer *query.LayerDA) error {
 
 		// async task is now running
 		layer.State[strconv.Itoa(indexDA)] = query.Running
-		err = couchdb.UpdateDoc(PrefixerC, &c.Query)
+		err = couchdb.UpdateDoc(PrefixerC, q)
 		if err != nil {
 			return err
 		}
@@ -352,36 +368,36 @@ func (c *Conductor) aggregateLayer(indexLayer int, layer *query.LayerDA) error {
 }
 
 // Lead is the most general method. This is the only one used in CMD and Web's files. It will use the 5 previous methods to work
-func (c *Conductor) Lead() error {
+func (q *QueryDoc) Lead() error {
 
-	if c.Query.CheckPoints["ci"] != true {
-		if err := c.decryptConcept(); err != nil {
+	if q.CheckPoints["ci"] != true {
+		if err := q.decryptConcept(); err != nil {
 			return err
 		}
 	}
 
-	if c.Query.CheckPoints["fetch"] != true {
-		if err := c.fetchListsOfInstancesFromDB(); err != nil {
+	if q.CheckPoints["fetch"] != true {
+		if err := q.fetchListsOfInstancesFromDB(); err != nil {
 			return err
 		}
 	}
 
-	if c.Query.CheckPoints["tf"] != true {
-		if err := c.selectTargets(); err != nil {
+	if q.CheckPoints["tf"] != true {
+		if err := q.selectTargets(); err != nil {
 			return err
 		}
 	}
 
-	if c.Query.CheckPoints["t"] != true {
-		if err := c.makeLocalQuery(); err != nil {
+	if q.CheckPoints["t"] != true {
+		if err := q.makeLocalQuery(); err != nil {
 			return err
 		}
 	}
 
-	if c.Query.CheckPoints["da"] != true {
-		for indexLayer := range c.Query.Layers {
-			if c.shouldBeComputed(indexLayer) {
-				if err := c.aggregateLayer(indexLayer, &(c.Query.Layers[indexLayer])); err != nil {
+	if q.CheckPoints["da"] != true {
+		for indexLayer := range q.Layers {
+			if q.shouldBeComputed(indexLayer) {
+				if err := q.aggregateLayer(indexLayer, &(q.Layers[indexLayer])); err != nil {
 					return err
 				}
 				// Stop the process and wait for DA's answer to resume
@@ -390,7 +406,7 @@ func (c *Conductor) Lead() error {
 		}
 	}
 
-	return couchdb.UpdateDoc(PrefixerC, &c.Query)
+	return couchdb.UpdateDoc(PrefixerC, q)
 }
 
 // RetrieveSubscribeDoc is used to get a Subscribe doc from the Conductor's database.
@@ -413,33 +429,17 @@ func RetrieveSubscribeDoc(hash []byte) ([]subscribe.SubscribeDoc, error) {
 
 // CreateConceptInConductorDB is used to add a concept to Cozy-DISPERS
 func CreateConceptInConductorDB(in *query.InputCI) error {
-	// Pass to CI
-	ci := network.ExternalActor{
-		URL:  hosts[0],
-		Role: network.RoleCI,
-	}
-	marshalInputCI, err := json.Marshal(*in)
-	if err != nil {
-		return err
-	}
 
 	// try to create concept with route POST
 	// try to get hash with CI's route GET
 	// if error, returns the first error that occurred between POST et Get
-	errPost := ci.MakeRequest("POST", "concept", "application/json", marshalInputCI)
-	path := ""
-	for index, concept := range in.Concepts {
-		if concept.IsEncrypted {
-			path = path + string(concept.EncryptedConcept)
-		} else {
-			path = path + concept.Concept
-		}
-		if index != (len(in.Concepts) - 1) {
-			path = path + ":"
-		}
-	}
-	path = path + "/" + strconv.FormatBool(in.Concepts[0].IsEncrypted)
-	err = ci.MakeRequest("GET", "concept/"+path, "application/json", marshalInputCI)
+	ci := network.NewExternalActor(network.RoleCI, network.ModeQuery)
+	ci.DefineDispersActor("concept")
+	errPost := ci.MakeRequest("POST", "", *in, nil)
+
+	path := query.ConceptsToString(in.Concepts) + "/" + strconv.FormatBool(in.Concepts[0].IsEncrypted)
+	ci.DefineDispersActor("concept/" + path)
+	err := ci.MakeRequest("GET", "", nil, nil)
 	if err != nil {
 		if errPost != nil {
 			return errPost
@@ -483,8 +483,9 @@ func CreateConceptInConductorDB(in *query.InputCI) error {
 func Subscribe(in *subscribe.InputConductor) error {
 
 	// Get Concepts' hash
-	ci := network.NewExternalActor(network.RoleCI)
-	err := ci.MakeRequest("GET", "concept/"+strings.Join(in.Concepts, ":")+"/"+strconv.FormatBool(in.IsEncrypted), "application/json", nil)
+	ci := network.NewExternalActor(network.RoleCI, network.ModeQuery)
+	ci.DefineDispersActor("concept/" + strings.Join(in.Concepts, ":") + "/" + strconv.FormatBool(in.IsEncrypted))
+	err := ci.MakeRequest("GET", "", nil, nil)
 	if err != nil {
 		return err
 	}
@@ -510,35 +511,29 @@ func Subscribe(in *subscribe.InputConductor) error {
 		doc := docs[0]
 
 		// Ask Target Finder to Decrypt
-		tf := network.NewExternalActor(network.RoleTF)
-		tf.SubscribeMode()
-
-		marshalledInputDecrypt, err := json.Marshal(subscribe.InputDecrypt{
+		tf := network.NewExternalActor(network.RoleTF, network.ModeSubscribe)
+		tf.DefineDispersActor("decrypt")
+		err = tf.MakeRequest("POST", "", subscribe.InputDecrypt{
 			IsEncrypted:        in.IsEncrypted,
 			EncryptedInstances: doc.EncryptedInstances,
 			EncryptedInstance:  in.EncryptedInstance,
-		})
-		if err != nil {
-			return err
-		}
-
-		err = tf.MakeRequest("POST", "decrypt", "application/json", marshalledInputDecrypt)
+		}, nil)
 		if err != nil {
 			return err
 		}
 
 		// Ask Target to add instance
-		t := network.NewExternalActor(network.RoleT)
-		t.SubscribeMode()
-		err = t.MakeRequest("POST", "insert", "application/json", tf.Out)
+		t := network.NewExternalActor(network.RoleT, network.ModeSubscribe)
+		t.DefineDispersActor("insert")
+		err = t.MakeRequest("POST", "", nil, tf.Out)
 		if err != nil {
 			return err
 		}
 
 		// Ask Target Finder to Encrypt
-		tf = network.NewExternalActor(network.RoleTF)
-		tf.SubscribeMode()
-		err = tf.MakeRequest("POST", "decrypt", "application/json", t.Out)
+		tf = network.NewExternalActor(network.RoleTF, network.ModeSubscribe)
+		tf.DefineDispersActor("encrypt")
+		err = tf.MakeRequest("POST", "", nil, t.Out)
 		if err != nil {
 			return err
 		}

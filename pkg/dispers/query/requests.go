@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
-
-	"github.com/cozy/cozy-stack/pkg/couchdb"
 )
 
 /*
@@ -14,7 +12,7 @@ Conductor's Input & Output
 *
 */
 
-type OutputQ struct {
+type InputNewQuery struct {
 	DomainQuerier          string            `json:"domain,omitempty"`
 	Concepts               []Concept         `json:"concepts,omitempty"`
 	PseudoConcepts         map[string]string `json:"pseudo_concepts,omitempty"`
@@ -44,61 +42,6 @@ type LayerDA struct {
 	EncryptedAggregateFunctions []byte                   `json:"layer_enc_job,omitempty"`
 }
 
-// QueryDoc saves every information about the query. QueryDoc are saved in the
-// Conductor's database. Thanks to that, CheckPoints can be made, and a request
-// can be followed
-type QueryDoc struct {
-	QueryID                   string              `json:"_id,omitempty"`
-	QueryRev                  string              `json:"_rev,omitempty"`
-	IsEncrypted               bool                `json:"encrypted,omitempty"`
-	CheckPoints               map[string]bool     `json:"checkpoints,omitempty"`
-	Concepts                  []Concept           `json:"concepts,omitempty"`
-	DomainQuerier             string              `json:"domain,omitempty"`
-	ListsOfAddresses          map[string][]string `json:"lists_of_instances,omitempty"`
-	LocalQuery                LocalQuery          `json:"localquery,omitempty"`
-	Layers                    []LayerDA           `json:"layers,omitempty"`
-	NumberActors              map[string]int      `json:"nb_actors,omitempty"`
-	PseudoConcepts            map[string]string   `json:"pseudo_concepts,omitempty"`
-	TargetProfile             OperationTree       `json:"target_profile,omitempty"`
-	Targets                   []string            `json:"targets,omitempty"`
-	EncryptedConcepts         [][]byte            `json:"enc_concepts,omitempty"`
-	EncryptedListsOfAddresses []byte              `json:"enc_instances,omitempty"`
-	EncryptedLocalQuery       []byte              `json:"enc_localquery,omitempty"`
-	EncryptedTargetProfile    []byte              `json:"enc_operation,omitempty"`
-	EncryptedTargets          []byte              `json:"enc_addresses,omitempty"`
-}
-
-// ID returns the Doc ID
-func (t *QueryDoc) ID() string {
-	return t.QueryID
-}
-
-// Rev returns the doc's version
-func (t *QueryDoc) Rev() string {
-	return t.QueryRev
-}
-
-// DocType returns the DocType
-func (t *QueryDoc) DocType() string {
-	return "io.cozy.query"
-}
-
-// Clone copy a brand new version of the doc
-func (t *QueryDoc) Clone() couchdb.Doc {
-	cloned := *t
-	return &cloned
-}
-
-// SetID set the ID
-func (t *QueryDoc) SetID(id string) {
-	t.QueryID = id
-}
-
-// SetRev set the version
-func (t *QueryDoc) SetRev(rev string) {
-	t.QueryRev = rev
-}
-
 type InputPatchQuery struct {
 	IsEncrypted bool     `json:"encrypted"`
 	Role        string   `json:"role"`
@@ -125,6 +68,22 @@ type InputCI struct {
 // OutputCI contains a bool and the result
 type OutputCI struct {
 	Hashes []Concept `json:"hashes,omitempty"`
+}
+
+func ConceptsToString(concepts []Concept) string {
+	str := ""
+	for index, concept := range concepts {
+		if concept.IsEncrypted {
+			str = str + string(concept.EncryptedConcept)
+		} else {
+			str = str + concept.Concept
+		}
+		if index != (len(concepts) - 1) {
+			str = str + ":"
+		}
+	}
+
+	return str
 }
 
 /*

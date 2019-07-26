@@ -28,7 +28,7 @@ var (
 		},
 	}
 
-	in = query.OutputQ{
+	in = query.InputNewQuery{
 		DomainQuerier: "usr0.test.cozy.tools:8008",
 		TargetProfile: targetProfile,
 		NumberActors:  map[string]int{"ci": 1, "tf": 1, "t": 1},
@@ -54,8 +54,9 @@ func TestCreateSubscribeDoc(t *testing.T) {
 
 	err := CreateConceptInConductorDB(&inputCI)
 	assert.NoError(t, err)
-	ci := network.NewExternalActor(network.RoleCI)
-	ci.MakeRequest("GET", "concept/julien/false", "application/json", nil)
+	ci := network.NewExternalActor(network.RoleCI, network.ModeQuery)
+	ci.DefineDispersActor("concept/julien/false")
+	ci.MakeRequest("GET", "", nil, nil)
 	assert.NoError(t, err)
 	var outputCI query.OutputCI
 	err = json.Unmarshal(ci.Out, &outputCI)
@@ -70,7 +71,7 @@ func TestCreateSubscribeDoc(t *testing.T) {
 
 func TestSubscribe(t *testing.T) {
 
-	ci := network.NewExternalActor(network.RoleCI)
+	ci := network.NewExternalActor(network.RoleCI, network.ModeQuery)
 
 	inputCI := query.InputCI{
 		Concepts: []query.Concept{
@@ -91,7 +92,8 @@ func TestSubscribe(t *testing.T) {
 
 	err := CreateConceptInConductorDB(&inputCI)
 	assert.NoError(t, err)
-	err = ci.MakeRequest("GET", "concept/aime les fraises/false", "application/json", nil)
+	ci.DefineDispersActor("concept/aime les fraises/false")
+	err = ci.MakeRequest("GET", "", nil, nil)
 	assert.NoError(t, err)
 	var outputCI query.OutputCI
 	err = json.Unmarshal(ci.Out, &outputCI)
@@ -141,25 +143,26 @@ func TestSubscribe(t *testing.T) {
 		assert.Equal(t, sizeIni+3, size)
 	}
 
-	err = ci.MakeRequest("DELETE", "concept/aime les fraises:aime les framboises:joue de la guitare:est designer chez cozy/false", "application/json", nil)
+	ci.DefineDispersActor("concept/aime les fraises:aime les framboises:joue de la guitare:est designer chez cozy/false")
+	err = ci.MakeRequest("DELETE", "", nil, nil)
 	assert.NoError(t, err)
 
 }
 
 func TestDefineConductor(t *testing.T) {
 
-	_, err := NewConductor(&in)
+	_, err := NewQuery(&in)
 	assert.NoError(t, err)
 }
 
 func TestErrorUnDefinedNumberActor(t *testing.T) {
 
-	in2 := query.OutputQ{
+	in2 := query.InputNewQuery{
 		DomainQuerier: "usr0.test.cozy.tools:8008",
 		TargetProfile: targetProfile,
 	}
 
-	_, err := NewConductor(&in2)
+	_, err := NewQuery(&in2)
 	assert.Error(t, err)
 }
 
@@ -181,24 +184,27 @@ func TestDecryptConcept(t *testing.T) {
 
 	// Re-Create the three concepts
 	inputCI := query.InputCI{Concepts: in.Concepts}
-	marshaledInputCI, _ := json.Marshal(inputCI)
-	ci := network.NewExternalActor("conceptindexor")
-	err := ci.MakeRequest("POST", "concepts", "application/json", marshaledInputCI)
+	ci := network.NewExternalActor(network.RoleCI, network.ModeQuery)
+	ci.DefineDispersActor("concept")
+	err := ci.MakeRequest("POST", "", inputCI, nil)
 	assert.Error(t, err)
 
 	// Get the three concepts' hashes from Concept Indexor
-	err = ci.MakeRequest("GET", "concept/julien:francois:paul/false", "application/json", nil)
+	ci.DefineDispersActor("concept/julien:francois:paul/false")
+	err = ci.MakeRequest("GET", "", nil, nil)
+
 	assert.NoError(t, err)
 	var outputCI query.OutputCI
 	json.Unmarshal(ci.Out, &outputCI)
 
-	// Get the three concepts' hashes from conductor
-	conductor, _ := NewConductor(&in)
-	conductor.decryptConcept()
-	assert.Equal(t, outputCI.Hashes, conductor.Query.Concepts)
+	// Get the three concepts' hashes from query
+	query, _ := NewQuery(&in)
+	query.decryptConcept()
+	assert.Equal(t, outputCI.Hashes, query.Concepts)
 
 	// Delete the created concepts
-	err = ci.MakeRequest("DELETE", "concept/julien:paul:francois/true", "application/json", nil)
+	ci.DefineDispersActor("concept/julien:francois:paul/false")
+	err = ci.MakeRequest("DELETE", "", nil, nil)
 	assert.NoError(t, err)
 
 }
@@ -215,15 +221,16 @@ func TestFetchListFromDB(t *testing.T) {
 
 	// Create the four concepts
 	CreateConceptInConductorDB(&query.InputCI{Concepts: in.Concepts})
-	conductor, _ := NewConductor(&in)
-	err := conductor.decryptConcept()
+	query, _ := NewQuery(&in)
+	err := query.decryptConcept()
 	assert.NoError(t, err)
-	err = conductor.fetchListsOfInstancesFromDB()
+	err = query.fetchListsOfInstancesFromDB()
 	assert.NoError(t, err)
 
 	// Delete the created concepts
-	ci := network.NewExternalActor("conceptindexor")
-	err = ci.MakeRequest("DELETE", "concept/aime les fraises/true", "application/json", nil)
+	ci := network.NewExternalActor(network.RoleCI, network.ModeQuery)
+	ci.DefineDispersActor("concept/aime les fraises/true")
+	err = ci.MakeRequest("DELETE", "", nil, nil)
 	assert.NoError(t, err)
 }
 
@@ -273,17 +280,18 @@ func TestGetListsOfInstances(t *testing.T) {
 		EncryptedInstance: []byte("{\"domain\":\"thomas.mycozy.cloud\"}"),
 	})
 
-	conductor, _ := NewConductor(&in)
-	err := conductor.decryptConcept()
+	query, _ := NewQuery(&in)
+	err := query.decryptConcept()
 	assert.NoError(t, err)
-	err = conductor.fetchListsOfInstancesFromDB()
+	err = query.fetchListsOfInstancesFromDB()
 	assert.NoError(t, err)
-	err = conductor.selectTargets()
+	err = query.selectTargets()
 	assert.NoError(t, err)
-	assert.Equal(t, 4, len(conductor.Query.Targets))
+	assert.Equal(t, 4, len(query.Targets))
 	// Delete the created concepts
-	ci := network.NewExternalActor("conceptindexor")
-	err = ci.MakeRequest("DELETE", "concept/aime les fraises:aime les framboises:joue de la guitare:est designer chez cozy/false", "application/json", nil)
+	ci := network.NewExternalActor(network.RoleCI, network.ModeQuery)
+	ci.DefineDispersActor("concept/aime les fraises:aime les framboises:joue de la guitare:est designer chez cozy/false")
+	err = ci.MakeRequest("DELETE", "", nil, nil)
 	assert.NoError(t, err)
 
 }
@@ -330,11 +338,11 @@ func TestAggregate(t *testing.T) {
 	}
 	in.LayersDA = layers
 
-	conductor, _ := NewConductor(&in)
-	conductor.Query.Layers = layers
-	for indexLayer, layer := range conductor.Query.Layers {
-		if conductor.shouldBeComputed(indexLayer) {
-			if err := conductor.aggregateLayer(indexLayer, &layer); err != nil {
+	query, _ := NewQuery(&in)
+	query.Layers = layers
+	for indexLayer, layer := range query.Layers {
+		if query.shouldBeComputed(indexLayer) {
+			if err := query.aggregateLayer(indexLayer, &layer); err != nil {
 				assert.Error(t, err)
 			}
 		}

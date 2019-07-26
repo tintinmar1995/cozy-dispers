@@ -20,10 +20,14 @@ var Hosts = []url.URL{
 }
 
 const (
-	RoleCI = "conceptindexor"
-	RoleTF = "targetfinder"
-	RoleT  = "target"
-	RoleDA = "dataaggregator"
+	RoleCI        = "conceptindexor"
+	RoleTF        = "targetfinder"
+	RoleT         = "target"
+	RoleDA        = "dataaggregator"
+	RoleStack     = "_find"
+	ModeSubscribe = "subscribe"
+	ModeQuery     = "dispers"
+	ModeStack     = "data"
 )
 
 func chooseHost() url.URL {
@@ -33,38 +37,52 @@ func chooseHost() url.URL {
 // ExternalActor structure gives a way to consider every Cozy-DISPERS server and
 // communicate with them. Each server can play the role of CI / TF / T / Conductor / DA
 type ExternalActor struct {
-	Method string
-	URL    url.URL
-	Role   string
-	Mode   string
-	Outstr string
-	Out    []byte
+	Method    string
+	URL       url.URL
+	Role      string
+	PathBegin string
+	Outstr    string
+	Out       []byte
 	//OutMeta dispers.Metadata
 }
 
-// SubscribeMode makes an HTTP request to another DISPERS Actor
-func (act *ExternalActor) SubscribeMode() {
-	act.Mode = "subscribe/"
+// NewExternalActor initiate a ExternalActor object
+func NewExternalActor(role string, mode string) ExternalActor {
+	return ExternalActor{
+		Role:      role,
+		PathBegin: mode,
+	}
+}
+
+func (act *ExternalActor) DefineDispersActor(job string) {
+	act.URL = chooseHost()
+	act.URL.Path = strings.Join([]string{act.PathBegin, act.Role, job}, "/")
+}
+
+func (act *ExternalActor) DefineStack(url url.URL) {
+	act.URL = url
 }
 
 // MakeRequest makes an HTTP request to another DISPERS Actor
-func (act *ExternalActor) MakeRequest(method string, job string, contentType string, body []byte) error {
+func (act *ExternalActor) MakeRequest(method string, token string, input interface{}, body []byte) error {
 
-	if len(act.Mode) < 1 {
-		act.Mode = "dispers/"
+	var err error
+	if input != nil {
+		body, err = json.Marshal(input)
+		if err != nil {
+			return err
+		}
 	}
-
-	act.Method = method
-	act.URL.Path = strings.Join([]string{act.Mode + act.Role, job}, "/")
 
 	client := http.Client{}
 	request, err := http.NewRequest(method, act.URL.String(), bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
-	if len(contentType) > 0 {
-		request.Header.Set("Content-Type", contentType) // This makes it work
+	if len(token) > 0 {
+		request.Header.Set("Authorization", token)
 	}
+	request.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(request)
 	if err != nil {
@@ -90,34 +108,33 @@ func (act *ExternalActor) handleError() error {
 		return errors.New("404 : Unknown route")
 	}
 
-	var receivedError map[string][]map[string]interface{}
+	if strings.Contains(act.Outstr, "errors") {
+
+		var receivedErrors map[string][]map[string]interface{}
+		err := json.Unmarshal(act.Out, &receivedErrors)
+		if err != nil {
+			return err
+		}
+
+		errorMsg := "cozy-dispers: " + act.Method + ">" + act.URL.String() + " error :"
+		for _, mapError := range receivedErrors["errors"] {
+			errorMsg = errorMsg + "\n"
+			errorMsg = errorMsg + mapError["status"].(string) + " "
+			errorMsg = errorMsg + mapError["detail"].(string)
+		}
+		return errors.New(errorMsg)
+
+	}
+
+	var receivedError map[string]interface{}
 	err := json.Unmarshal(act.Out, &receivedError)
 	if err != nil {
 		return err
 	}
 
 	errorMsg := "cozy-dispers: " + act.Method + ">" + act.URL.String() + " error :"
-	for _, mapError := range receivedError["errors"] {
-		errorMsg = errorMsg + "\n"
-		errorMsg = errorMsg + mapError["status"].(string) + " "
-		errorMsg = errorMsg + mapError["detail"].(string)
-	}
+	errorMsg = errorMsg + "\n"
+	errorMsg = errorMsg + receivedError["error"].(string)
 	return errors.New(errorMsg)
-}
 
-// NewExternalActor initiate a ExternalActor object
-func NewExternalActor(role string) ExternalActor {
-	return ExternalActor{
-		URL:  chooseHost(),
-		Role: role,
-	}
-}
-
-// NewSliceOfExternalActors initiate a slice of ExternalActor objects
-func NewSliceOfExternalActors(role string, size int) []ExternalActor {
-	out := make([]ExternalActor, size)
-	for i := range out {
-		out[i] = NewExternalActor(role)
-	}
-	return out
 }

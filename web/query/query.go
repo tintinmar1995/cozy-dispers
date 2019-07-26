@@ -184,8 +184,8 @@ func getQuery(c echo.Context) error {
 
 	queryid := c.Param("queryid")
 
-	fetched := &query.QueryDoc{}
-	err := couchdb.GetDoc(prefixer.ConductorPrefixer, "io.cozy.query", queryid, fetched)
+	fetched := &enclave.QueryDoc{}
+	err := couchdb.GetDoc(enclave.PrefixerC, "io.cozy.query", queryid, fetched)
 	if err != nil {
 		return err
 	}
@@ -205,47 +205,47 @@ func getQuery(c echo.Context) error {
 
 func createQuery(c echo.Context) error {
 
-	var in query.OutputQ
+	var in query.InputNewQuery
 
 	if err := json.NewDecoder(c.Request().Body).Decode(&in); err != nil {
 		return err
 	}
 
-	conductor, err := enclave.NewConductor(&in)
+	query, err := enclave.NewQuery(&in)
 	if err != nil {
 		return err
 	}
 
-	err = conductor.Lead()
+	err = query.Lead()
 	if err != nil {
 		return err
 	}
 
-	return c.JSON(http.StatusOK, echo.Map{"ok": true, "query_id": conductor.Query.ID()})
+	return c.JSON(http.StatusOK, echo.Map{"ok": true, "query_id": query.ID()})
 }
 
 func resumeQuery(c echo.Context) error {
 
 	queryid := c.Param("queryid")
 
-	conductor, err := enclave.NewConductorFetchingQueryDoc(queryid)
+	query, err := enclave.NewQueryFetchingQueryDoc(queryid)
 	if err != nil {
 		return err
 	}
 
-	err = conductor.Lead()
+	err = query.Lead()
 	if err != nil {
 		return err
 	}
 
-	return c.JSON(http.StatusOK, echo.Map{"ok": true, "query_id": conductor.Query.ID()})
+	return c.JSON(http.StatusOK, echo.Map{"ok": true, "query_id": query.ID()})
 }
 
 func updateQuery(c echo.Context) error {
 
 	queryid := c.Param("queryid")
 
-	conductor, err := enclave.NewConductorFetchingQueryDoc(queryid)
+	queryDoc, err := enclave.NewQueryFetchingQueryDoc(queryid)
 	if err != nil {
 		return err
 	}
@@ -256,20 +256,20 @@ func updateQuery(c echo.Context) error {
 	}
 
 	if in.Role == network.RoleDA {
-		conductor.Query.Layers[in.OutDA.AggregationID[0]+1].Data = append(conductor.Query.Layers[in.OutDA.AggregationID[0]+1].Data, in.OutDA.Results)
+		queryDoc.Layers[in.OutDA.AggregationID[0]+1].Data = append(queryDoc.Layers[in.OutDA.AggregationID[0]+1].Data, in.OutDA.Results)
 	}
 
-	layer := conductor.Query.Layers[in.OutDA.AggregationID[0]]
+	layer := queryDoc.Layers[in.OutDA.AggregationID[0]]
 	layer.State[strconv.Itoa(in.OutDA.AggregationID[1])] = query.Finished
-	conductor.Query.Layers[in.OutDA.AggregationID[0]] = layer
-	couchdb.UpdateDoc(prefixer.ConductorPrefixer, &conductor.Query)
+	queryDoc.Layers[in.OutDA.AggregationID[0]] = layer
+	couchdb.UpdateDoc(enclave.PrefixerC, queryDoc)
 
-	err = conductor.Lead()
+	err = queryDoc.Lead()
 	if err != nil {
 		return err
 	}
 
-	return c.JSON(http.StatusOK, echo.Map{"ok": true, "query_id": conductor.Query.ID()})
+	return c.JSON(http.StatusOK, echo.Map{"ok": true, "query_id": queryDoc.ID()})
 }
 
 func deleteQuery(c echo.Context) error {
