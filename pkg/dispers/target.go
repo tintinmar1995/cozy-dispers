@@ -3,7 +3,6 @@ package enclave
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/url"
 
 	"github.com/cozy/cozy-stack/pkg/dispers/network"
@@ -36,9 +35,10 @@ func retrieveData(in *query.InputT, queries *[]query.Query) ([]map[string]interf
 		stack.DefineStack(url.URL{
 			Scheme: "http",
 			Host:   query.Domain,
-			Path:   "data/" + query.LocalQuery.Doctype + "_find/",
+			Path:   "data/" + query.LocalQuery.Doctype + "/_find",
 		})
-		err := stack.MakeRequest("POST", query.TokenBearer, query.LocalQuery.FindRequest, nil)
+
+		err := stack.MakeRequest("POST", "Bearer "+query.TokenBearer, query.LocalQuery.FindRequest, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -48,9 +48,13 @@ func retrieveData(in *query.InputT, queries *[]query.Query) ([]map[string]interf
 			return nil, err
 		}
 
-		//if(string(body).)
-		fmt.Println(rowsData)
-		data = append(data, rowsData["docs"].([]map[string]interface{})...)
+		switch rowsData["docs"].(interface{}).(type) {
+		case string:
+			return nil, errors.New(rowsData["docs"].(string))
+		case []map[string]interface{}:
+			data = append(data, rowsData["docs"].([]map[string]interface{})...)
+		}
+
 	}
 
 	return data, nil

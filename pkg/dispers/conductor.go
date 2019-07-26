@@ -240,6 +240,9 @@ func (q *QueryDoc) makeLocalQuery() error {
 	t := network.NewExternalActor(network.RoleT, network.ModeQuery)
 	t.DefineDispersActor("query")
 	err := t.MakeRequest("POST", "", inputT, nil)
+	if err != nil {
+		return err
+	}
 
 	var outputT query.OutputT
 	err = json.Unmarshal(t.Out, &outputT)

@@ -2,8 +2,8 @@ package subscribe
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
-	"sort"
 
 	"github.com/cozy/cozy-stack/pkg/dispers"
 	"github.com/cozy/cozy-stack/pkg/dispers/query"
@@ -80,15 +80,20 @@ func insert(c echo.Context) error {
 	}
 
 	// Search if instance is already present in list
-	thisInstanceInList := sort.Search(len(listOfInstances), func(index int) bool {
-		return instance.Domain == listOfInstances[index].Domain
-	})
-
-	if thisInstanceInList == len(listOfInstances) {
-		listOfInstances = append(listOfInstances, instance)
-	} else {
-		listOfInstances[thisInstanceInList] = instance
+	absent := true
+	for index := 0; absent && index < len(listOfInstances); index++ {
+		if instance.Domain == listOfInstances[index].Domain {
+			instance.Version = listOfInstances[index].Version + 1
+			listOfInstances[index] = instance
+			absent = false
+		}
 	}
+	if absent {
+		instance.Version = 1
+		listOfInstances = append(listOfInstances, instance)
+	}
+
+	fmt.Println(listOfInstances)
 
 	encListOfInstances, err := json.Marshal(listOfInstances)
 	if err != nil {
