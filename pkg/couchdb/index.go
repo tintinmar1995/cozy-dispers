@@ -51,6 +51,7 @@ var conceptIndexorIndexes = []*mango.Index{
 // ConductorIndexes is the index list required by an instance to run properly.
 var conductorIndexes = []*mango.Index{
 	mango.IndexOnFields("io.cozy.instances", "hash", []string{"hash"}),
+	mango.IndexOnFields("io.cozy.async", "async", []string{"queryid", "layerid", "daid"}),
 }
 
 // secretIndexes is the index list required on the secret databases to run

@@ -3,7 +3,6 @@ package enclave
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"math/rand"
 	"net/url"
 	"os"
@@ -250,8 +249,6 @@ func (q *QueryDoc) makeLocalQuery() error {
 		return err
 	}
 
-	fmt.Println("Conductor", t.Outstr)
-
 	if len(q.Layers) == 0 {
 		return errors.New("Query should have at least one aggregation array")
 	}
@@ -263,60 +260,98 @@ func (q *QueryDoc) makeLocalQuery() error {
 	return couchdb.UpdateDoc(PrefixerC, q)
 }
 
-func (q *QueryDoc) shouldBeComputed(indexLayer int) bool {
+func (q *QueryDoc) ShouldBeComputed(indexLayer int) (bool, error) {
 
-	// shouldBeComputed returns false if indexLayer finished
-	isLayerFinished := true
-	for _, stateDA := range q.Layers[indexLayer].State {
-		if stateDA != query.Finished {
-			isLayerFinished = false
+	isItEndOfQuery := (indexLayer == len(q.Layers))
+
+	if !isItEndOfQuery {
+		// ShouldBeComputed returns false if indexLayer finished
+		// OneLayer is finished if every DA has sent their results
+		isLayerFinished := true
+		for indexDA := 0; isLayerFinished && indexDA < q.Layers[indexLayer].Size; indexDA++ {
+			// Fetch state of DA <IndexLayer,IndexDA>
+			stateDA, err := query.FetchAsyncState(q.QueryID, indexLayer, indexDA)
+			if err != nil {
+				return false, err
+			}
+			// If one DA is not finished, layer is not finished, we can quit
+			if stateDA != query.Finished {
+				isLayerFinished = false
+			}
+		}
+		if isLayerFinished {
+			return false, nil
+		}
+		// If this is the first Layer, Conductor should compute the layer
+		if indexLayer == 0 {
+			return true, nil
 		}
 	}
-	if isLayerFinished {
-		return false
-	}
 
-	if indexLayer == 0 {
-		return true
-	}
-
-	// shouldBeComputed returns false if indexLayer-1 is not finished
+	// ShouldBeComputed returns false if indexLayer-1 is not finished
+	// Conducotr should wait that indexLayer-1 is finished before computing indexLayer
 	isPreviousLayerFinished := true
-	for _, stateDA := range q.Layers[indexLayer-1].State {
+	for indexDA := 0; isPreviousLayerFinished && indexDA < q.Layers[indexLayer-1].Size; indexDA++ {
+		stateDA, err := query.FetchAsyncState(q.QueryID, indexLayer-1, indexDA)
+		if err != nil {
+			return false, err
+		}
+
 		if stateDA != query.Finished {
 			isPreviousLayerFinished = false
 		}
 	}
+
 	if !isPreviousLayerFinished {
-		return false
+		return false, nil
 	}
 
-	// if !isLayerFinished && isPreviousLayerFinished
-	// shouldBeComputed returns true if indexLayer-1 finished and indexLayer waiting
-	isLayerWaiting := true
-	for _, stateDA := range q.Layers[indexLayer-1].State {
-		if stateDA != query.Waiting {
-			isLayerWaiting = false
-		}
+	if isItEndOfQuery && isPreviousLayerFinished {
+		// Query is finished !
+		return false, nil
 	}
-	return isLayerWaiting
+
+	// The previous layer is finished, the layer is not finished... Conductor can compute indexLayer
+	return true, nil
 }
 
 func (q *QueryDoc) aggregateLayer(indexLayer int, layer *query.LayerDA) error {
 
+	var data []map[string]interface{}
+
+	if indexLayer != 0 {
+		// Fetch Data from Async db
+		for indexDA := 0; indexDA < q.Layers[indexLayer-1].Size; indexDA++ {
+			rowData, err := query.FetchAsyncData(q.ID(), indexLayer-1, indexDA)
+			if err != nil {
+				return err
+			}
+			data = append(data, rowData)
+		}
+		if len(data) == 0 {
+			return errors.New("No data fetched from previous layer")
+		}
+	} else {
+		data = layer.Data
+	}
+
 	// Shuffle Data
-	rand.Shuffle(len(layer.Data), func(i, j int) {
-		layer.Data[i], layer.Data[j] = layer.Data[j], layer.Data[i]
+	rand.Shuffle(len(data), func(i, j int) {
+		data[i], data[j] = data[j], data[i]
 	})
 
-	// Separate data in sizeLayer folds
 	seps := make([]int, layer.Size+1)
 	seps[0] = 0
-	if len(layer.Data)%layer.Size != 0 {
-		seps[len(seps)-1] = len(layer.Data) - 1
-	}
-	for indexSep := 1; indexSep < len(seps)-1; indexSep++ {
-		seps[indexSep] = (len(layer.Data) / layer.Size) * indexSep
+	if layer.Size > 1 {
+		// Separate data in sizeLayer folds
+		if len(data)%layer.Size != 0 {
+			seps[len(seps)-1] = len(data) - 1
+		}
+		for indexSep := 1; indexSep < len(seps)-1; indexSep++ {
+			seps[indexSep] = (len(data) / layer.Size) * indexSep
+		}
+	} else {
+		seps[1] = len(data)
 	}
 
 	// Create InputDA for the layer
@@ -328,7 +363,7 @@ func (q *QueryDoc) aggregateLayer(indexLayer int, layer *query.LayerDA) error {
 	// for each node on the layer
 	for indexDA := 0; indexDA < layer.Size; indexDA++ {
 
-		inputDA.Data = layer.Data[seps[indexDA]:seps[indexDA+1]]
+		inputDA.Data = data[seps[indexDA]:seps[indexDA+1]]
 		inputDA.QueryID = q.ID()
 		inputDA.AggregationID = [2]int{indexLayer, indexDA}
 		hostname, err := os.Hostname()
@@ -360,7 +395,6 @@ func (q *QueryDoc) aggregateLayer(indexLayer int, layer *query.LayerDA) error {
 		}
 
 		// async task is now running
-		layer.State[strconv.Itoa(indexDA)] = query.Running
 		err = couchdb.UpdateDoc(PrefixerC, q)
 		if err != nil {
 			return err
@@ -399,7 +433,11 @@ func (q *QueryDoc) Lead() error {
 
 	if q.CheckPoints["da"] != true {
 		for indexLayer := range q.Layers {
-			if q.shouldBeComputed(indexLayer) {
+			layerShouldBeComputed, err := q.ShouldBeComputed(indexLayer)
+			if err != nil {
+				return err
+			}
+			if layerShouldBeComputed {
 				if err := q.aggregateLayer(indexLayer, &(q.Layers[indexLayer])); err != nil {
 					return err
 				}
@@ -409,6 +447,7 @@ func (q *QueryDoc) Lead() error {
 		}
 	}
 
+	q.CheckPoints["da"] = true
 	return couchdb.UpdateDoc(PrefixerC, q)
 }
 

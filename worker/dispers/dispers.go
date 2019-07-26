@@ -3,6 +3,7 @@ package enclave
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"runtime"
@@ -27,6 +28,11 @@ func WorkerDataAggregator(ctx *job.WorkerContext) error {
 	if err := ctx.UnmarshalMessage(in); err != nil {
 		return err
 	}
+
+	if len(in.Data) == 0 {
+		return errors.New("Worker has to receive Data to compute the aggregation")
+	}
+
 	res, err := enclave.AggregateData(*in)
 	if err != nil {
 		return err
@@ -61,7 +67,6 @@ func WorkerDataAggregator(ctx *job.WorkerContext) error {
 	}
 
 	_, err = ioutil.ReadAll(resp.Body)
-
 	// TODO: Check conductor's answer
 
 	return err

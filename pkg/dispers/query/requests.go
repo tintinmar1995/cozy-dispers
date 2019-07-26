@@ -26,19 +26,10 @@ type InputNewQuery struct {
 	EncryptedTargetProfile []byte            `json:"enc_operation,omitempty"`
 }
 
-type StateDA int
-
-const (
-	Finished StateDA = iota
-	Waiting
-	Running
-)
-
 type LayerDA struct {
 	AggregationFunctions        AggregationFunction      `json:"layer_job,omitempty"`
 	Data                        []map[string]interface{} `json:"layer_data,omitempty"`
 	Size                        int                      `json:"layer_size"`
-	State                       map[string]StateDA       `json:"layer_states"`
 	EncryptedAggregateFunctions []byte                   `json:"layer_enc_job,omitempty"`
 }
 

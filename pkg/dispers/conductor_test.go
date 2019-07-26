@@ -322,27 +322,26 @@ func TestAggregate(t *testing.T) {
 				Function: "sum",
 				Args:     args1,
 			},
-			Data:  data,
-			Size:  4,
-			State: map[string]query.StateDA{"0": query.Waiting, "1": query.Waiting, "2": query.Waiting, "3": query.Waiting},
+			Data: data,
+			Size: 4,
 		},
 		query.LayerDA{
 			AggregationFunctions: query.AggregationFunction{
 				Function: "sum",
 				Args:     args2,
 			},
-			Data:  data,
-			Size:  4,
-			State: map[string]query.StateDA{"0": query.Waiting, "1": query.Waiting, "2": query.Waiting, "3": query.Waiting},
+			Data: data,
+			Size: 4,
 		},
 	}
 	in.LayersDA = layers
 
-	query, _ := NewQuery(&in)
-	query.Layers = layers
-	for indexLayer, layer := range query.Layers {
-		if query.shouldBeComputed(indexLayer) {
-			if err := query.aggregateLayer(indexLayer, &layer); err != nil {
+	queryDoc, _ := NewQuery(&in)
+	queryDoc.Layers = layers
+	for indexLayer, layer := range queryDoc.Layers {
+		layerShouldBeComputed, _ := queryDoc.ShouldBeComputed(indexLayer)
+		if layerShouldBeComputed {
+			if err := queryDoc.aggregateLayer(indexLayer, &layer); err != nil {
 				assert.Error(t, err)
 			}
 		}

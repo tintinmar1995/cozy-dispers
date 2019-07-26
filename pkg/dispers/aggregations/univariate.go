@@ -47,7 +47,12 @@ func Sum(data []map[string]interface{}, args map[string]interface{}) (map[string
 				return nil, errors.New("Unable to sum strings")
 			default:
 				if args["weight"] != nil {
-					sumKey = sumKey + row[key].(float64)/float64(row[args["weight"].(string)].(int))
+					switch row[args["weight"].(string)].(type) {
+					case int:
+						sumKey = sumKey + row[key].(float64)/float64(row[args["weight"].(string)].(int))
+					case float64:
+						sumKey = sumKey + row[key].(float64)/row[args["weight"].(string)].(float64)
+					}
 				} else {
 					sumKey = sumKey + row[key].(float64)
 				}

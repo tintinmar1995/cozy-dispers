@@ -4,13 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/cozy/cozy-stack/model/job"
 	"github.com/cozy/cozy-stack/pkg/couchdb"
 	"github.com/cozy/cozy-stack/pkg/dispers"
-	"github.com/cozy/cozy-stack/pkg/dispers/network"
 	"github.com/cozy/cozy-stack/pkg/dispers/query"
 	"github.com/cozy/cozy-stack/pkg/prefixer"
 	"github.com/cozy/echo"
@@ -245,28 +243,34 @@ func updateQuery(c echo.Context) error {
 
 	queryid := c.Param("queryid")
 
-	queryDoc, err := enclave.NewQueryFetchingQueryDoc(queryid)
-	if err != nil {
-		return err
-	}
-
 	var in query.InputPatchQuery
 	if err := json.NewDecoder(c.Request().Body).Decode(&in); err != nil {
 		return err
 	}
-
-	if in.Role == network.RoleDA {
-		queryDoc.Layers[in.OutDA.AggregationID[0]+1].Data = append(queryDoc.Layers[in.OutDA.AggregationID[0]+1].Data, in.OutDA.Results)
-	}
-
-	layer := queryDoc.Layers[in.OutDA.AggregationID[0]]
-	layer.State[strconv.Itoa(in.OutDA.AggregationID[1])] = query.Finished
-	queryDoc.Layers[in.OutDA.AggregationID[0]] = layer
-	couchdb.UpdateDoc(enclave.PrefixerC, queryDoc)
-
-	err = queryDoc.Lead()
+	doc, err := query.NewAsyncTask(queryid, in.OutDA.AggregationID[0], in.OutDA.AggregationID[1], query.AsyncAggregation)
 	if err != nil {
 		return err
+	}
+	doc.Data = in.OutDA.Results
+	err = couchdb.UpdateDoc(enclave.PrefixerC, &doc)
+	if err != nil {
+		return err
+	}
+
+	queryDoc, err := enclave.NewQueryFetchingQueryDoc(queryid)
+	if err != nil {
+		return err
+	}
+	canContinue, err := queryDoc.ShouldBeComputed(in.OutDA.AggregationID[0] + 1)
+	if err != nil {
+		return err
+	}
+	if canContinue {
+
+		err = queryDoc.Lead()
+		if err != nil {
+			return err
+		}
 	}
 
 	return c.JSON(http.StatusOK, echo.Map{"ok": true, "query_id": queryDoc.ID()})
