@@ -253,17 +253,12 @@ type OutputTF struct {
 	EncryptedListOfAddresses []byte   `json:"enc_addresses,omitempty"`
 }
 
-// Token is used to serialize the token
-type Token struct {
-	TokenBearer string `json:"bearer,omitempty"`
-}
-
 // Instance describes the location of an instance and the token it had created
 // When Target received twice the same Instance, it needs to be able to consider the more recent item
 type Instance struct {
-	Domain  string `json:"domain"`
-	Token   Token  `json:"token"`
-	Version int    `json:"version"`
+	Domain      string `json:"domain"`
+	TokenBearer string `json:"bearer,omitempty"`
+	Version     int    `json:"version"`
 }
 
 /*
@@ -282,8 +277,8 @@ type InputT struct {
 	QueryID             string     `json:"queryid,omitempty"`
 }
 
-// Query is all the information needed by the conductor's and stack to make a query
-type Query struct {
+// StackQuery is all the information needed by the conductor's and stack to make a query
+type StackQuery struct {
 	Domain              string     `json:"domain,omitempty"`
 	LocalQuery          LocalQuery `json:"localquery,omitempty"`
 	TokenBearer         string     `json:"bearer,omitempty"`
@@ -302,6 +297,7 @@ type OutputT struct {
 type LocalQuery struct {
 	FindRequest map[string]interface{} `json:"findrequest,omitempty"`
 	Doctype     string                 `json:"doctype,omitempty"`
+	Index       map[string]interface{} `json:"index,omitempty"`
 }
 
 /*

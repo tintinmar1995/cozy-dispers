@@ -2,7 +2,6 @@ package subscribe
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/cozy/cozy-stack/pkg/dispers"
@@ -92,8 +91,6 @@ func insert(c echo.Context) error {
 		instance.Version = 1
 		listOfInstances = append(listOfInstances, instance)
 	}
-
-	fmt.Println(listOfInstances)
 
 	encListOfInstances, err := json.Marshal(listOfInstances)
 	if err != nil {

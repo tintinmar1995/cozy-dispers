@@ -9,12 +9,12 @@ import (
 	"github.com/cozy/cozy-stack/pkg/dispers/query"
 )
 
-func buildQuery(instance query.Instance, localQuery query.LocalQuery) query.Query {
+func buildStackQuery(instance query.Instance, localQuery query.LocalQuery) query.StackQuery {
 	// TODO : encrypt outputs
-	query := query.Query{
+	query := query.StackQuery{
 		Domain:      instance.Domain,
 		LocalQuery:  localQuery,
-		TokenBearer: instance.Token.TokenBearer,
+		TokenBearer: instance.TokenBearer,
 	}
 
 	return query
@@ -24,21 +24,37 @@ func decryptInputT(in *query.InputT) error {
 	return nil
 }
 
-func retrieveData(in *query.InputT, queries *[]query.Query) ([]map[string]interface{}, error) {
+func retrieveData(in *query.InputT, queriesStack *[]query.StackQuery) ([]map[string]interface{}, error) {
 
 	var data []map[string]interface{}
 	var rowsData map[string]interface{}
 
-	for _, query := range *queries {
+	for _, queryStack := range *queriesStack {
 
 		stack := network.NewExternalActor(network.RoleStack, network.ModeStack)
 		stack.DefineStack(url.URL{
 			Scheme: "http",
-			Host:   query.Domain,
-			Path:   "data/" + query.LocalQuery.Doctype + "/_find",
+			Host:   queryStack.Domain,
+			Path:   "data/" + queryStack.LocalQuery.Doctype + "/_index",
 		})
 
-		err := stack.MakeRequest("POST", "Bearer "+query.TokenBearer, query.LocalQuery.FindRequest, nil)
+		if &queryStack.LocalQuery == nil {
+			return nil, errors.New("An index is required")
+		}
+
+		input := map[string]interface{}{
+			"index": queryStack.LocalQuery.Index,
+			"name":  "idxdelamortquitue",
+			"ddoc":  "_design/idxdelamortquitue",
+			"type":  "json",
+		}
+		err := stack.MakeRequest("POST", "Bearer "+queryStack.TokenBearer, input, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		stack.URL.Path = "data/" + queryStack.LocalQuery.Doctype + "/_find"
+		err = stack.MakeRequest("POST", "Bearer "+queryStack.TokenBearer, queryStack.LocalQuery.FindRequest, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -48,11 +64,8 @@ func retrieveData(in *query.InputT, queries *[]query.Query) ([]map[string]interf
 			return nil, err
 		}
 
-		switch rowsData["docs"].(interface{}).(type) {
-		case string:
-			return nil, errors.New(rowsData["docs"].(string))
-		case []map[string]interface{}:
-			data = append(data, rowsData["docs"].([]map[string]interface{})...)
+		for _, row := range rowsData["docs"].([]interface{}) {
+			data = append(data, row.(map[string]interface{}))
 		}
 
 	}
@@ -63,7 +76,7 @@ func retrieveData(in *query.InputT, queries *[]query.Query) ([]map[string]interf
 // QueryTarget decrypts instance given by the conductor and build queries
 func QueryTarget(in query.InputT) ([]map[string]interface{}, error) {
 
-	queries := make([]query.Query, len(in.Targets))
+	queries := make([]query.StackQuery, len(in.Targets))
 
 	if in.IsEncrypted {
 		if err := decryptInputT(&in); err != nil {
@@ -81,7 +94,7 @@ func QueryTarget(in query.InputT) ([]map[string]interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		q := buildQuery(item2instance, in.LocalQuery)
+		q := buildStackQuery(item2instance, in.LocalQuery)
 		queries[index] = q
 	}
 

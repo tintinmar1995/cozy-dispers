@@ -23,7 +23,7 @@ do
     fi
 done
 
-DATA+='],"is_encrypted":false,"instance":{"domain":"'$INST'","token":{"bearer" :"'$TOKEN'"}}}'
+DATA+='],"is_encrypted":false,"instance":{"domain":"'$INST'","bearer" :"'$TOKEN'"}}'
 
 curl --request POST \
   --url http://localhost:8008/subscribe/conductor/subscribe \
