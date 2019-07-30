@@ -155,17 +155,6 @@ func TestDefineConductor(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestErrorUnDefinedNumberActor(t *testing.T) {
-
-	in2 := query.InputNewQuery{
-		DomainQuerier: "usr0.test.cozy.tools:8008",
-		TargetProfile: targetProfile,
-	}
-
-	_, err := NewQuery(&in2)
-	assert.Error(t, err)
-}
-
 func TestDecryptConcept(t *testing.T) {
 
 	// Create a list of fake concepts
@@ -296,7 +285,105 @@ func TestGetListsOfInstances(t *testing.T) {
 
 }
 
-func TestQuery(t *testing.T) {
+func TestShouldBeComputed(t *testing.T) {
+
+	// Simulate one query
+	// First layer to be computed
+	queryDoc := &QueryDoc{
+		QueryID: "thisisatestagaiiin",
+		Layers: []query.LayerDA{
+			query.LayerDA{Size: 4},
+			query.LayerDA{Size: 4},
+		},
+	}
+
+	bool, err := queryDoc.ShouldBeComputed(0)
+	assert.NoError(t, err)
+	assert.Equal(t, true, bool)
+
+	// Return of the first DA
+	// ShouldBeComputed should be both layer to be computed
+	query.NewAsyncTask("thisisatestagaiiin", 0, 3, query.AsyncAggregation)
+	bool, err = queryDoc.ShouldBeComputed(0)
+	assert.NoError(t, err)
+	assert.Equal(t, false, bool)
+	bool, err = queryDoc.ShouldBeComputed(1)
+	assert.NoError(t, err)
+	assert.Equal(t, false, bool)
+
+	query.NewAsyncTask("thisisatestagaiiin", 0, 0, query.AsyncAggregation)
+	query.NewAsyncTask("thisisatestagaiiin", 0, 1, query.AsyncAggregation)
+	query.NewAsyncTask("thisisatestagaiiin", 0, 2, query.AsyncAggregation)
+
+	// Now every tasks are running
+	bool, err = queryDoc.ShouldBeComputed(0)
+	assert.NoError(t, err)
+	assert.Equal(t, false, bool)
+	bool, err = queryDoc.ShouldBeComputed(1)
+	assert.NoError(t, err)
+	assert.Equal(t, false, bool)
+
+	// 3 tasks over 4 are finished
+	err = query.SetAsyncTaskAsFinished("thisisatestagaiiin", 0, 0)
+	assert.NoError(t, err)
+	err = query.SetAsyncTaskAsFinished("thisisatestagaiiin", 0, 3)
+	assert.NoError(t, err)
+	err = query.SetAsyncTaskAsFinished("thisisatestagaiiin", 0, 1)
+	assert.NoError(t, err)
+	bool, err = queryDoc.ShouldBeComputed(0)
+	assert.NoError(t, err)
+	assert.Equal(t, false, bool)
+	bool, err = queryDoc.ShouldBeComputed(1)
+	assert.NoError(t, err)
+	assert.Equal(t, false, bool)
+
+	// The fourth DA has just finished
+	err = query.SetAsyncTaskAsFinished("thisisatestagaiiin", 0, 2)
+	assert.NoError(t, err)
+	bool, err = queryDoc.ShouldBeComputed(0)
+	assert.NoError(t, err)
+	assert.Equal(t, false, bool)
+	state, err := query.FetchAsyncStateLayer("thisisatestagaiiin", 0, 4)
+	assert.NoError(t, err)
+	assert.Equal(t, query.Finished, state)
+	bool, err = queryDoc.ShouldBeComputed(1)
+	assert.NoError(t, err)
+	assert.Equal(t, true, bool)
+
+	// 3 over 4 DA in second layer are finisehd
+	query.NewAsyncTask("thisisatestagaiiin", 1, 0, query.AsyncAggregation)
+	query.NewAsyncTask("thisisatestagaiiin", 1, 1, query.AsyncAggregation)
+	query.NewAsyncTask("thisisatestagaiiin", 1, 2, query.AsyncAggregation)
+	query.NewAsyncTask("thisisatestagaiiin", 1, 3, query.AsyncAggregation)
+	err = query.SetAsyncTaskAsFinished("thisisatestagaiiin", 1, 3)
+	assert.NoError(t, err)
+	err = query.SetAsyncTaskAsFinished("thisisatestagaiiin", 1, 2)
+	assert.NoError(t, err)
+	err = query.SetAsyncTaskAsFinished("thisisatestagaiiin", 1, 1)
+	assert.NoError(t, err)
+	bool, err = queryDoc.ShouldBeComputed(0)
+	assert.NoError(t, err)
+	assert.Equal(t, false, bool)
+	bool, err = queryDoc.ShouldBeComputed(1)
+	assert.NoError(t, err)
+	assert.Equal(t, false, bool)
+	bool, err = queryDoc.ShouldBeComputed(2)
+	assert.NoError(t, err)
+	assert.Equal(t, false, bool)
+
+	// Last DA on last layer has just finished
+	err = query.SetAsyncTaskAsFinished("thisisatestagaiiin", 1, 1)
+	assert.NoError(t, err)
+	bool, err = queryDoc.ShouldBeComputed(0)
+	assert.NoError(t, err)
+	assert.Equal(t, false, bool)
+	bool, err = queryDoc.ShouldBeComputed(1)
+	assert.NoError(t, err)
+	assert.Equal(t, false, bool)
+	bool, err = queryDoc.ShouldBeComputed(2)
+	assert.NoError(t, err)
+	assert.Equal(t, false, bool)
+
 }
 
 func TestAggregate(t *testing.T) {

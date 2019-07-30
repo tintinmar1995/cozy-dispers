@@ -9,6 +9,7 @@ import (
 	"github.com/cozy/cozy-stack/pkg/config/config"
 	"github.com/cozy/cozy-stack/pkg/couchdb"
 	"github.com/cozy/cozy-stack/pkg/dispers/network"
+	"github.com/cozy/cozy-stack/pkg/dispers/query"
 	"github.com/cozy/cozy-stack/pkg/prefixer"
 	"github.com/cozy/cozy-stack/tests/testutils"
 )
@@ -23,6 +24,7 @@ func TestMain(m *testing.M) {
 	// Run tests over TestDB
 	PrefixerC = prefixer.TestConductorPrefixer
 	PrefixerCI = prefixer.TestConceptIndexorPrefixer
+	query.PrefixerC = prefixer.TestConductorPrefixer
 
 	// Reinitiate DB
 	err := couchdb.ResetDB(PrefixerCI, "io.cozy.hashconcept")
@@ -38,6 +40,11 @@ func TestMain(m *testing.M) {
 	err = couchdb.ResetDB(PrefixerC, "io.cozy.instances")
 	if err != nil {
 		fmt.Printf("Cant reset db (%s, %s) %s\n", PrefixerC, "io.cozy.instances", err.Error())
+		os.Exit(1)
+	}
+	err = couchdb.ResetDB(PrefixerC, "io.cozy.async")
+	if err != nil {
+		fmt.Printf("Cant reset db (%s, %s) %s\n", PrefixerC, "io.cozy.async", err.Error())
 		os.Exit(1)
 	}
 	couchdb.InitGlobalDB()

@@ -39,6 +39,10 @@ type InputPatchQuery struct {
 	OutDA       OutputDA `json:"output_da,omitempty"`
 }
 
+type InputResumeQuery struct {
+	QueryID string `json:"queryid"`
+}
+
 /*
 *
 Concept Indexors' Input & Output
@@ -64,6 +68,8 @@ type OutputCI struct {
 func ConceptsToString(concepts []Concept) string {
 	str := ""
 	for index, concept := range concepts {
+		// Stack every concept, with ":" as separator
+		// TODO : Delete concept.Concept
 		if concept.IsEncrypted {
 			str = str + string(concept.EncryptedConcept)
 		} else {
