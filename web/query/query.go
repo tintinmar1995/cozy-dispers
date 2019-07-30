@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/cozy/cozy-stack/model/job"
-	"github.com/cozy/cozy-stack/pkg/couchdb"
 	"github.com/cozy/cozy-stack/pkg/dispers"
 	"github.com/cozy/cozy-stack/pkg/dispers/network"
 	"github.com/cozy/cozy-stack/pkg/dispers/query"
@@ -182,10 +181,7 @@ Conducotr'S ROUTES : those functions are used on route ./dispers
 */
 func getQuery(c echo.Context) error {
 
-	queryid := c.Param("queryid")
-
-	fetched := &enclave.QueryDoc{}
-	err := couchdb.GetDoc(enclave.PrefixerC, "io.cozy.query", queryid, fetched)
+	queryDoc, err := enclave.NewQueryFetchingQueryDoc(c.Param("queryid"))
 	if err != nil {
 		return err
 	}
@@ -198,7 +194,8 @@ func getQuery(c echo.Context) error {
 	*/
 
 	return c.JSON(http.StatusOK, echo.Map{
-		"Query":             fetched,
+		"Checkpoints":       queryDoc.CheckPoints,
+		"Results":           queryDoc.Results,
 		"ExecutionMetadata": nil,
 	})
 }
@@ -233,6 +230,7 @@ func updateQuery(c echo.Context) error {
 		fmt.Println(err.Error())
 		return err
 	}
+
 	if in.Role == network.RoleDA {
 		if err := query.SetAsyncTaskAsFinished(queryid, in.OutDA.AggregationID[0], in.OutDA.AggregationID[1]); err != nil {
 			fmt.Println(err.Error())
@@ -242,6 +240,8 @@ func updateQuery(c echo.Context) error {
 			fmt.Println(err.Error())
 			return err
 		}
+	} else {
+		return errors.New("Unknown role")
 	}
 
 	// Launch a worker to try to resume query

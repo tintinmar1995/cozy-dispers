@@ -131,7 +131,7 @@ func SetData(queryid string, indexLayer int, indexDA int, data map[string]interf
 		return errors.New("Async task not found")
 	}
 	if len(out) > 1 {
-		return errors.New("No many async task for this task")
+		return errors.New("Too many async task for this task")
 	}
 
 	out[0].Data = data
@@ -168,6 +168,28 @@ func FetchAsyncStateLayer(queryid string, indexLayer int, sizeLayer int) (State,
 	}
 
 	return Finished, nil
+}
+
+func FetchAsyncStateDA(queryid string, indexLayer int, indexDA int) (State, error) {
+
+	var out []Async
+	req := &couchdb.FindRequest{Selector: mango.And(mango.Equal("queryid", queryid), mango.Equal("layerid", indexLayer), mango.Equal("daid", indexDA))}
+	if err := couchdb.EnsureDBExist(PrefixerC, "io.cozy.async"); err != nil {
+		return Waiting, err
+	}
+	if err := couchdb.FindDocs(PrefixerC, "io.cozy.async", req, &out); err != nil {
+		return Waiting, err
+	}
+
+	if len(out) == 0 {
+		return Waiting, nil
+	}
+
+	if len(out) > 1 {
+		return Finished, errors.New("Too many async task for this task")
+	}
+
+	return out[0].StateDA, nil
 }
 
 func FetchAsyncData(queryid string, indexLayer int, indexDA int) (map[string]interface{}, error) {

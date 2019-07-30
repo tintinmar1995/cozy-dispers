@@ -20,7 +20,7 @@ func init() {
 	})
 	job.AddWorker(&job.WorkerConfig{
 		WorkerType:   "resume-query",
-		Concurrency:  1, // Prevent that conductor computes twice the same task
+		Concurrency:  runtime.NumCPU(),
 		MaxExecCount: 2,
 		WorkerFunc:   WorkerResumeQuery,
 	})
@@ -48,9 +48,6 @@ func WorkerResumeQuery(ctx *job.WorkerContext) error {
 	if err = queryDoc.Lead(); err != nil {
 		return handleError(err)
 	}
-	if err = queryDoc.TryToEndQuery(); err != nil {
-		return handleError(err)
-	}
 
 	return nil
 }
@@ -74,11 +71,15 @@ func WorkerDataAggregator(ctx *job.WorkerContext) error {
 	}
 
 	// Send result to Conductor
-	out := query.OutputDA{
-		Results:       res,
-		QueryID:       in.QueryID,
-		AggregationID: in.AggregationID,
+	out := query.InputPatchQuery{
+		OutDA: query.OutputDA{
+			Results:       res,
+			QueryID:       in.QueryID,
+			AggregationID: in.AggregationID,
+		},
+		Role: network.RoleDA,
 	}
+
 	conductor := network.NewExternalActor(network.RoleConductor, network.ModeQuery)
 	conductor.DefineConductor(in.ConductorURL, in.QueryID)
 	if err := conductor.MakeRequest("PATCH", "", out, nil); err != nil {

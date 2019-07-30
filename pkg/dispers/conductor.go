@@ -46,7 +46,7 @@ type QueryDoc struct {
 	Layers                    []query.LayerDA     `json:"layers,omitempty"`
 	NumberActors              map[string]int      `json:"nb_actors,omitempty"`
 	PseudoConcepts            map[string]string   `json:"pseudo_concepts,omitempty"`
-	Results                   interface{}         `json:"pseudo_concepts,omitempty"`
+	Results                   interface{}         `json:"results,omitempty"`
 	TargetProfile             query.OperationTree `json:"target_profile,omitempty"`
 	Targets                   []string            `json:"targets,omitempty"`
 	EncryptedConcepts         [][]byte            `json:"enc_concepts,omitempty"`
@@ -346,20 +346,35 @@ func (q *QueryDoc) aggregateLayer(indexLayer int, layer *query.LayerDA) error {
 		inputDA.AggregationID = [2]int{indexLayer, indexDA}
 
 		// make the request and unmarshal answer
-		query.NewAsyncTask(q.ID(), indexLayer, indexDA, query.AsyncAggregation)
-		da := network.NewExternalActor(network.RoleDA, network.ModeQuery)
-		da.DefineDispersActor("aggregation")
-		if err := da.MakeRequest("POST", "", inputDA, nil); err != nil {
+		// check one last time that DA hasnot been launch to prevent conflict
+		state, err := query.FetchAsyncStateDA(q.ID(), indexLayer, indexDA)
+		if err != nil {
 			return err
 		}
-		var out query.OutputDA
-		if err := json.Unmarshal(da.Out, &out); err != nil {
-			return err
+		if state == query.Waiting {
+			query.NewAsyncTask(q.ID(), indexLayer, indexDA, query.AsyncAggregation)
+			da := network.NewExternalActor(network.RoleDA, network.ModeQuery)
+			da.DefineDispersActor("aggregation")
+			if err := da.MakeRequest("POST", "", inputDA, nil); err != nil {
+				return err
+			}
+			var out query.OutputDA
+			if err := json.Unmarshal(da.Out, &out); err != nil {
+				return err
+			}
+		} else {
+			// The job has already been launch, this means that another worker has taken the job
+			// there is nothing to do
+			// This end of the process prevent conflict in couchdb
+			return nil
 		}
 	}
 
 	// async tasks is now running
-	return couchdb.UpdateDoc(PrefixerC, q)
+	if err := couchdb.UpdateDoc(PrefixerC, q); err != nil {
+		return err
+	}
+	return q.TryToEndQuery()
 }
 
 // Lead is the most general method. It will use the 5 previous methods to work.
@@ -429,6 +444,9 @@ func (q *QueryDoc) TryToEndQuery() error {
 		res, err := query.FetchAsyncData(q.ID(), len(q.Layers)-1, 0)
 		if err != nil {
 			return err
+		}
+		if res == nil {
+			return errors.New("Results are nil")
 		}
 		q.Results = res
 		// mark checkpoint
