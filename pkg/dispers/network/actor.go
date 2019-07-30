@@ -38,31 +38,31 @@ func chooseHost() url.URL {
 // ExternalActor structure gives a way to consider every Cozy-DISPERS server and
 // communicate with them. Each server can play the role of CI / TF / T / Conductor / DA
 type ExternalActor struct {
-	Method    string
-	URL       url.URL
-	Role      string
-	PathBegin string
-	Outstr    string
-	Out       []byte
+	Method string
+	URL    url.URL
+	Role   string
+	Path   []string
+	Outstr string
+	Out    []byte
 	//OutMeta dispers.Metadata
 }
 
 // NewExternalActor initiate a ExternalActor object
 func NewExternalActor(role string, mode string) ExternalActor {
 	return ExternalActor{
-		Role:      role,
-		PathBegin: mode,
+		Path: []string{mode},
+		Role: role,
 	}
 }
 
 func (act *ExternalActor) DefineConductor(url url.URL, queryid string) {
 	act.URL = url
-	act.URL.Path = strings.Join([]string{act.PathBegin, act.Role, queryid}, "/")
+	act.URL.Path = strings.Join(append(act.Path, act.Role, queryid), "/")
 }
 
 func (act *ExternalActor) DefineDispersActor(job string) {
 	act.URL = chooseHost()
-	act.URL.Path = strings.Join([]string{act.PathBegin, act.Role, job}, "/")
+	act.URL.Path = strings.Join(append(act.Path, act.Role, job), "/")
 }
 
 func (act *ExternalActor) DefineStack(url url.URL) {
