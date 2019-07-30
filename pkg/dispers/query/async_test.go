@@ -14,16 +14,16 @@ import (
 
 func TestAsync(t *testing.T) {
 
-	state, err := FetchAsyncState("testquery", 0, 0)
+	state, err := FetchAsyncStateLayer("testquery", 0, 4)
 	assert.NoError(t, err)
 	assert.Equal(t, Waiting, state)
 
 	doc, err := NewAsyncTask("testquery", 0, 0, AsyncAggregation)
 	assert.NoError(t, err)
 
-	state, err = FetchAsyncState("testquery", 0, 0)
+	state, err = FetchAsyncStateLayer("testquery", 0, 4)
 	assert.NoError(t, err)
-	assert.Equal(t, Finished, state)
+	assert.Equal(t, Running, state)
 
 	doc.Data = map[string]interface{}{"hey": "you"}
 	couchdb.UpdateDoc(PrefixerC, &doc)

@@ -2,6 +2,7 @@ package query
 
 import (
 	"errors"
+	"strconv"
 
 	"github.com/cozy/cozy-stack/pkg/couchdb"
 	"github.com/cozy/cozy-stack/pkg/couchdb/mango"
@@ -16,6 +17,7 @@ const (
 	Finished State = iota
 	Waiting
 	Running
+	Failed
 )
 
 type AsyncType int
@@ -31,6 +33,7 @@ type Async struct {
 	IndexLayer int                    `json:"layerid"`
 	IndexDA    int                    `json:"daid"`
 	Type       AsyncType              `json:"type"`
+	StateDA    State                  `json:"state"`
 	Data       map[string]interface{} `json:"data"`
 }
 
@@ -71,6 +74,7 @@ func NewAsyncTask(queryid string, indexLayer int, indexDA int, asyncType AsyncTy
 		IndexLayer: indexLayer,
 		IndexDA:    indexDA,
 		Type:       asyncType,
+		StateDA:    Running,
 	}
 
 	err := couchdb.CreateDoc(PrefixerC, &doc)
@@ -78,23 +82,89 @@ func NewAsyncTask(queryid string, indexLayer int, indexDA int, asyncType AsyncTy
 	return doc, err
 }
 
-func FetchAsyncState(queryid string, indexLayer int, indexDA int) (State, error) {
+func SetAsyncTaskAsFinished(queryid string, indexLayer int, indexDA int) error {
 
 	var out []Async
 
 	err := couchdb.EnsureDBExist(PrefixerC, "io.cozy.async")
 	if err != nil {
-		return Waiting, err
+		return err
 	}
 
 	req := &couchdb.FindRequest{Selector: mango.And(mango.Equal("queryid", queryid), mango.Equal("layerid", indexLayer), mango.Equal("daid", indexDA))}
 	err = couchdb.FindDocs(PrefixerC, "io.cozy.async", req, &out)
 	if err != nil {
+		return err
+	}
+
+	if len(out) == 0 {
+		return errors.New("Async task not found")
+	}
+	if len(out) > 1 {
+		return errors.New(queryid + " " + strconv.Itoa(indexLayer) + " " + strconv.Itoa(indexDA) + " Too many async task for this task")
+	}
+
+	out[0].StateDA = Finished
+	if err := couchdb.UpdateDoc(PrefixerC, &out[0]); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func SetData(queryid string, indexLayer int, indexDA int, data map[string]interface{}) error {
+
+	var out []Async
+
+	err := couchdb.EnsureDBExist(PrefixerC, "io.cozy.async")
+	if err != nil {
+		return err
+	}
+
+	req := &couchdb.FindRequest{Selector: mango.And(mango.Equal("queryid", queryid), mango.Equal("layerid", indexLayer), mango.Equal("daid", indexDA))}
+	err = couchdb.FindDocs(PrefixerC, "io.cozy.async", req, &out)
+	if err != nil {
+		return err
+	}
+
+	if len(out) == 0 {
+		return errors.New("Async task not found")
+	}
+	if len(out) > 1 {
+		return errors.New("No many async task for this task")
+	}
+
+	out[0].Data = data
+	if err := couchdb.UpdateDoc(PrefixerC, &out[0]); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func FetchAsyncStateLayer(queryid string, indexLayer int, sizeLayer int) (State, error) {
+
+	var out []Async
+	req := &couchdb.FindRequest{Selector: mango.And(mango.Equal("queryid", queryid), mango.Equal("layerid", indexLayer))}
+	if err := couchdb.EnsureDBExist(PrefixerC, "io.cozy.async"); err != nil {
+		return Waiting, err
+	}
+	if err := couchdb.FindDocs(PrefixerC, "io.cozy.async", req, &out); err != nil {
 		return Waiting, err
 	}
 
 	if len(out) == 0 {
 		return Waiting, nil
+	}
+
+	if len(out) < sizeLayer {
+		return Running, nil
+	}
+
+	for indexDA := 0; indexDA < sizeLayer; indexDA++ {
+		if out[indexDA].StateDA != Finished {
+			return Running, nil
+		}
 	}
 
 	return Finished, nil
