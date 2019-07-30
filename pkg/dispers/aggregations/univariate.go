@@ -36,26 +36,44 @@ func Sum(data []map[string]interface{}, args map[string]interface{}) (map[string
 	}
 
 	sums := make(map[string]interface{})
+	isWeightedSum := (args["weight"] != nil)
+	keyWeight := ""
+	if isWeightedSum {
+		keyWeight = args["weight"].(string)
+	}
+	var value float64
+	var weight float64
 
 	for _, key := range keys {
 		// Initiate sum
 		sumKey := 0.0
 		// We iterate over the data and sum the values if possible
 		for _, row := range data {
+
 			switch row[key].(type) {
 			case string:
-				return nil, errors.New("Unable to sum strings")
-			default:
-				if args["weight"] != nil {
-					switch row[args["weight"].(string)].(type) {
-					case int:
-						sumKey = sumKey + row[key].(float64)/float64(row[args["weight"].(string)].(int))
-					case float64:
-						sumKey = sumKey + row[key].(float64)/row[args["weight"].(string)].(float64)
-					}
-				} else {
-					sumKey = sumKey + row[key].(float64)
+				return nil, errors.New("Unable to operate on strings")
+			case int:
+				value = float64(row[key].(int))
+			case float64:
+				value = row[key].(float64)
+			}
+
+			if isWeightedSum {
+				switch row[keyWeight].(type) {
+				case string:
+					return nil, errors.New("Unable to operate on strings")
+				case int:
+					weight = float64(row[keyWeight].(int))
+				case float64:
+					weight = row[keyWeight].(float64)
 				}
+			}
+
+			if isWeightedSum {
+				sumKey = sumKey + value/weight
+			} else {
+				sumKey = sumKey + value
 			}
 		}
 		// Add sumKey to the returned structure
