@@ -25,6 +25,7 @@ const (
 	RoleT         = "target"
 	RoleDA        = "dataaggregator"
 	RoleStack     = "_find"
+	RoleConductor = "query"
 	ModeSubscribe = "subscribe"
 	ModeQuery     = "dispers"
 	ModeStack     = "data"
@@ -52,6 +53,11 @@ func NewExternalActor(role string, mode string) ExternalActor {
 		Role:      role,
 		PathBegin: mode,
 	}
+}
+
+func (act *ExternalActor) DefineConductor(url url.URL, queryid string) {
+	act.URL = url
+	act.URL.Path = strings.Join([]string{act.PathBegin, act.Role, queryid}, "/")
 }
 
 func (act *ExternalActor) DefineDispersActor(job string) {
