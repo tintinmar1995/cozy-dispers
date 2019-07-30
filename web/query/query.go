@@ -3,12 +3,14 @@ package query
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/cozy/cozy-stack/model/job"
 	"github.com/cozy/cozy-stack/pkg/couchdb"
 	"github.com/cozy/cozy-stack/pkg/dispers"
+	"github.com/cozy/cozy-stack/pkg/dispers/network"
 	"github.com/cozy/cozy-stack/pkg/dispers/query"
 	"github.com/cozy/cozy-stack/pkg/prefixer"
 	"github.com/cozy/echo"
@@ -222,58 +224,42 @@ func createQuery(c echo.Context) error {
 	return c.JSON(http.StatusOK, echo.Map{"ok": true, "query_id": query.ID()})
 }
 
-func resumeQuery(c echo.Context) error {
-
-	queryid := c.Param("queryid")
-
-	query, err := enclave.NewQueryFetchingQueryDoc(queryid)
-	if err != nil {
-		return err
-	}
-
-	err = query.Lead()
-	if err != nil {
-		return err
-	}
-
-	return c.JSON(http.StatusOK, echo.Map{"ok": true, "query_id": query.ID()})
-}
-
 func updateQuery(c echo.Context) error {
 
 	queryid := c.Param("queryid")
 
 	var in query.InputPatchQuery
 	if err := json.NewDecoder(c.Request().Body).Decode(&in); err != nil {
+		fmt.Println(err.Error())
 		return err
 	}
-	doc, err := query.NewAsyncTask(queryid, in.OutDA.AggregationID[0], in.OutDA.AggregationID[1], query.AsyncAggregation)
-	if err != nil {
-		return err
-	}
-	doc.Data = in.OutDA.Results
-	err = couchdb.UpdateDoc(enclave.PrefixerC, &doc)
-	if err != nil {
-		return err
-	}
-
-	queryDoc, err := enclave.NewQueryFetchingQueryDoc(queryid)
-	if err != nil {
-		return err
-	}
-	canContinue, err := queryDoc.ShouldBeComputed(in.OutDA.AggregationID[0] + 1)
-	if err != nil {
-		return err
-	}
-	if canContinue {
-
-		err = queryDoc.Lead()
-		if err != nil {
+	if in.Role == network.RoleDA {
+		if err := query.SetAsyncTaskAsFinished(queryid, in.OutDA.AggregationID[0], in.OutDA.AggregationID[1]); err != nil {
+			fmt.Println(err.Error())
+			return err
+		}
+		if err := query.SetData(queryid, in.OutDA.AggregationID[0], in.OutDA.AggregationID[1], in.OutDA.Results); err != nil {
+			fmt.Println(err.Error())
 			return err
 		}
 	}
 
-	return c.JSON(http.StatusOK, echo.Map{"ok": true, "query_id": queryDoc.ID()})
+	// Launch a worker to try to resume query
+	msg, err := job.NewMessage(query.InputResumeQuery{QueryID: queryid})
+	if err != nil {
+		fmt.Println(err.Error())
+		return err
+	}
+	_, err = job.System().PushJob(prefixer.DataAggregatorPrefixer, &job.JobRequest{
+		WorkerType: "resume-query",
+		Message:    msg,
+	})
+	if err != nil {
+		fmt.Println(err.Error())
+		return err
+	}
+
+	return c.JSON(http.StatusOK, echo.Map{"ok": true, "query_id": queryid})
 }
 
 func deleteQuery(c echo.Context) error {
@@ -302,8 +288,7 @@ func Routes(router *echo.Group) {
 
 	router.GET("/query/:queryid", getQuery)
 	router.POST("/query", createQuery)
-	router.POST("/query/:queryid", resumeQuery)
 	router.PATCH("/query/:queryid", updateQuery)
-	router.POST("/query/:queryid", deleteQuery)
+	router.DELETE("/query/:queryid", deleteQuery)
 
 }
