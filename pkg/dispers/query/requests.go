@@ -1,16 +1,22 @@
-package dispers
+package query
 
 import (
 	"encoding/json"
 	"errors"
-	"time"
+	"net/url"
 )
 
 /*
 *
-Queries' Input & Output
+Conductor's Input & Output
 *
 */
+
+type InputPatchQuery struct {
+	IsEncrypted bool     `json:"encrypted"`
+	Role        string   `json:"role"`
+	OutDA       OutputDA `json:"output_da,omitempty"`
+}
 
 /*
 *
@@ -19,19 +25,37 @@ Concept Indexors' Input & Output
 */
 
 type Concept struct {
+	IsEncrypted      bool   `json:"encrypted,omitempty"`
 	Concept          string `json:"concept,omitempty"`
 	EncryptedConcept []byte `json:"enc_concept,omitempty"`
-	Hash             string `json:"hash,omitempty"`
+	Hash             []byte `json:"hash,omitempty"`
 }
 
 type InputCI struct {
-	Concepts    []Concept `json:"concepts,omitempty"`
-	IsEncrypted bool      `json:"encrypted,omitempty"`
+	Concepts []Concept `json:"concepts,omitempty"`
 }
 
 // OutputCI contains a bool and the result
 type OutputCI struct {
 	Hashes []Concept `json:"hashes,omitempty"`
+}
+
+func ConceptsToString(concepts []Concept) string {
+	str := ""
+	for index, concept := range concepts {
+		// Stack every concept, with ":" as separator
+		// TODO : Delete concept.Concept
+		if concept.IsEncrypted {
+			str = str + string(concept.EncryptedConcept)
+		} else {
+			str = str + concept.Concept
+		}
+		if index != (len(concepts) - 1) {
+			str = str + ":"
+		}
+	}
+
+	return str
 }
 
 /*
@@ -101,7 +125,11 @@ func (o *OperationTree) Compute(listsOfAddresses map[string][]string) ([]string,
 		// Retrieve list of addresses from listsOfAddresses
 		val, ok := listsOfAddresses[o.Value]
 		if !ok {
-			return []string{}, errors.New("Unknown concept")
+			msg := "Unknown concept : " + o.Value + " expect one of : "
+			for k := range listsOfAddresses {
+				msg = msg + " " + k
+			}
+			return []string{}, errors.New(msg)
 		}
 		return val, nil
 
@@ -184,10 +212,10 @@ func (o *OperationTree) UnmarshalJSON(data []byte) error {
 // InputTF contains a map that associate every concept to a list of Addresses
 // and a operation to compute to retrive the final list
 type InputTF struct {
-	IsEncrypted               bool                `json:"isencrypted,omitempty"`
+	IsEncrypted               bool                `json:"isencrypted"`
 	EncryptedListsOfAddresses []byte              `json:"enc_instances,omitempty"`
 	EncryptedTargetProfile    []byte              `json:"enc_operation,omitempty"`
-	ListsOfAddresses          map[string][]string `json:"instances,omitempty"`
+	ListsOfAddresses          map[string][]string `json:"instances"`
 	TargetProfile             OperationTree       `json:"target_profile,omitempty"`
 }
 
@@ -197,17 +225,12 @@ type OutputTF struct {
 	EncryptedListOfAddresses []byte   `json:"enc_addresses,omitempty"`
 }
 
-// Token is used to serialize the token
-type Token struct {
-	TokenBearer string `json:"bearer,omitempty"`
-}
-
 // Instance describes the location of an instance and the token it had created
 // When Target received twice the same Instance, it needs to be able to consider the more recent item
 type Instance struct {
-	Domain           string    `json:"domain"`
-	SubscriptionDate time.Time `json:"date"`
-	Token            Token     `json:"token"`
+	Domain      string `json:"domain"`
+	TokenBearer string `json:"bearer,omitempty"`
+	Version     int    `json:"version"`
 }
 
 /*
@@ -223,10 +246,11 @@ type InputT struct {
 	Targets             []string   `json:"Addresses,omitempty"`
 	EncryptedLocalQuery []byte     `json:"enc_localquery,omitempty"`
 	EncryptedTargets    []byte     `json:"enc_addresses,omitempty"`
+	QueryID             string     `json:"queryid,omitempty"`
 }
 
-// Query is all the information needed by the conductor's and stack to make a query
-type Query struct {
+// StackQuery is all the information needed by the conductor's and stack to make a query
+type StackQuery struct {
 	Domain              string     `json:"domain,omitempty"`
 	LocalQuery          LocalQuery `json:"localquery,omitempty"`
 	TokenBearer         string     `json:"bearer,omitempty"`
@@ -237,10 +261,42 @@ type Query struct {
 
 // OutputT is what Target returns to the conductor
 type OutputT struct {
-	Data []map[string]interface{} `json:"data,omitempty"` // type Query
+	Data    []map[string]interface{} `json:"data,omitempty"`
+	QueryID string                   `json:"queryid,omitempty"`
 }
 
 // LocalQuery decribes which data the stack has to retrieve
 type LocalQuery struct {
 	FindRequest map[string]interface{} `json:"findrequest,omitempty"`
+	Doctype     string                 `json:"doctype,omitempty"`
+	Index       map[string]interface{} `json:"index,omitempty"`
+}
+
+/*
+*
+Data Aggregators' Input & Output
+*
+*/
+
+// AggregationFunction is transmitted
+type AggregationFunction struct {
+	Function string                 `json:"func,omitempty"`
+	Args     map[string]interface{} `json:"args,omitempty"`
+}
+
+type InputDA struct {
+	Job           AggregationFunction      `json:"job"`
+	QueryID       string                   `json:"queryid"`
+	AggregationID [2]int                   `json:"aggregationid,omitempty"`
+	ConductorURL  url.URL                  `json:"conductor_url"`
+	Data          []map[string]interface{} `json:"data,omitempty"`
+	IsEncrypted   bool                     `json:"isencrypted"`
+	EncryptedJob  []byte                   `json:"enc_type,omitempty"`
+	EncryptedData []byte                   `json:"enc_data,omitempty"`
+}
+
+type OutputDA struct {
+	Results       map[string]interface{} `json:"results,omitempty"`
+	QueryID       string                 `json:"queryid,omitempty"`
+	AggregationID [2]int                 `json:"aggregationid,omitempty"`
 }
