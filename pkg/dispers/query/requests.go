@@ -12,10 +12,35 @@ Conductor's Input & Output
 *
 */
 
+type InputNewQuery struct {
+	DomainQuerier          string            `json:"domain,omitempty"`
+	Concepts               []Concept         `json:"concepts,omitempty"`
+	PseudoConcepts         map[string]string `json:"pseudo_concepts,omitempty"`
+	IsEncrypted            bool              `json:"encrypted"`
+	LocalQuery             LocalQuery        `json:"localquery,omitempty"`
+	TargetProfile          OperationTree     `json:"operation,omitempty"`
+	NumberActors           map[string]int    `json:"nb_actors,omitempty"`
+	LayersDA               []LayerDA         `json:"layers_da,omitempty"`
+	EncryptedLocalQuery    []byte            `json:"enc_localquery,omitempty"`
+	EncryptedConcepts      [][]byte          `json:"enc_concepts,omitempty"`
+	EncryptedTargetProfile []byte            `json:"enc_operation,omitempty"`
+}
+
+type LayerDA struct {
+	AggregationFunctions        AggregationFunction      `json:"layer_job,omitempty"`
+	Data                        []map[string]interface{} `json:"layer_data,omitempty"`
+	Size                        int                      `json:"layer_size"`
+	EncryptedAggregateFunctions []byte                   `json:"layer_enc_job,omitempty"`
+}
+
 type InputPatchQuery struct {
 	IsEncrypted bool     `json:"encrypted"`
 	Role        string   `json:"role"`
 	OutDA       OutputDA `json:"output_da,omitempty"`
+}
+
+type InputResumeQuery struct {
+	QueryID string `json:"queryid"`
 }
 
 /*
