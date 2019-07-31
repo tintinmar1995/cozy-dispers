@@ -48,13 +48,18 @@ var conceptIndexorIndexes = []*mango.Index{
 	mango.IndexOnFields("io.cozy.hashconcept", "concept-index", []string{"concept"}),
 }
 
+// ConductorIndexes is the index list required by an instance to run properly.
+var conductorIndexes = []*mango.Index{
+	mango.IndexOnFields("io.cozy.instances", "hash", []string{"hash"}),
+	mango.IndexOnFields("io.cozy.async", "async-task", []string{"queryid", "layerid", "daid"}),
+	mango.IndexOnFields("io.cozy.async", "async-tasks", []string{"queryid", "layerid"}),
+}
+
 // secretIndexes is the index list required on the secret databases to run
 // properly
 var secretIndexes = []*mango.Index{
 	mango.IndexOnFields(consts.AccountTypes, "by-slug", []string{"slug"}),
 }
-
-var metadataIndexes = []*mango.Index{mango.IndexOnFields("io.cozy.execution.metadata", "metadata-index", []string{"query"})}
 
 // DomainAndAliasesView defines a view to fetch instances by domain and domain
 // aliases.
@@ -91,25 +96,13 @@ func InitGlobalDB() error {
 	if err := DefineIndexes(prefixer.ConceptIndexorPrefixer, conceptIndexorIndexes); err != nil {
 		return err
 	}
-	if err := DefineIndexes(prefixer.ConductorPrefixer, metadataIndexes); err != nil {
-		return err
-	}
-	return DefineViews(GlobalDB, globalViews)
-}
-
-// InitGlobalTestDB defines views and indexes on the global databases. It is called
-// on every startup of the stack.
-func InitGlobalTestDB() error {
-	if err := DefineIndexes(GlobalSecretsDB, secretIndexes); err != nil {
-		return err
-	}
-	if err := DefineIndexes(GlobalDB, globalIndexes); err != nil {
+	if err := DefineIndexes(prefixer.ConductorPrefixer, conductorIndexes); err != nil {
 		return err
 	}
 	if err := DefineIndexes(prefixer.TestConceptIndexorPrefixer, conceptIndexorIndexes); err != nil {
 		return err
 	}
-	if err := DefineIndexes(prefixer.TestConductorPrefixer, metadataIndexes); err != nil {
+	if err := DefineIndexes(prefixer.TestConductorPrefixer, conductorIndexes); err != nil {
 		return err
 	}
 	return DefineViews(GlobalDB, globalViews)
