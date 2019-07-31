@@ -3,11 +3,13 @@ package query
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/cozy/cozy-stack/model/job"
 	"github.com/cozy/cozy-stack/pkg/dispers"
+	"github.com/cozy/cozy-stack/pkg/dispers/network"
 	"github.com/cozy/cozy-stack/pkg/dispers/query"
 	"github.com/cozy/cozy-stack/pkg/prefixer"
 	"github.com/cozy/echo"
@@ -27,21 +29,18 @@ CONCEPT INDEXOR'S ROUTES : those functions are used on route ./dispers/conceptin
 // createConcept creates concepts in CI's database and returns the corresponding hashes.
 func createConcept(c echo.Context) error {
 
-	// Get concepts from body
+	// Get concept from body
 	var in query.InputCI
 	if err := json.NewDecoder(c.Request().Body).Decode(&in); err != nil {
 		return err
 	}
 
-	// Create concept one by one
 	for _, element := range in.Concepts {
 		err := enclave.CreateConcept(&element)
 		if err != nil {
 			return err
 		}
 	}
-
-	// Returns hashes
 	return c.JSON(http.StatusOK, query.OutputCI{
 		Hashes: in.Concepts,
 	})
@@ -49,7 +48,6 @@ func createConcept(c echo.Context) error {
 
 func getHash(c echo.Context) error {
 
-	// Get concepts from url
 	strConcepts := strings.Split(c.Param("concepts"), ":")
 	isEncrypted := true
 	if c.Param("is-encrypted") == "false" {
@@ -59,7 +57,6 @@ func getHash(c echo.Context) error {
 		return errors.New("Failed to read concept")
 	}
 
-	// Convert concepts from string to Concept and collect hashes
 	out := make([]query.Concept, len(strConcepts))
 	for i, strConcept := range strConcepts {
 		tmpConcept := query.Concept{IsEncrypted: isEncrypted, Concept: strConcept}
@@ -77,7 +74,6 @@ func getHash(c echo.Context) error {
 
 func deleteConcepts(c echo.Context) error {
 
-	// Get concepts from url
 	strConcepts := strings.Split(c.Param("concepts"), ":")
 	isEncrypted := true
 	if c.Param("is-encrypted") == "false" {
@@ -87,7 +83,6 @@ func deleteConcepts(c echo.Context) error {
 		return errors.New("Failed to read concept")
 	}
 
-	// Convert concepts from string to Concept and collect hashes
 	for _, strConcept := range strConcepts {
 		tmpConcept := query.Concept{IsEncrypted: isEncrypted, Concept: strConcept}
 		err := enclave.DeleteConcept(&tmpConcept)
@@ -108,13 +103,11 @@ TARGET FINDER'S ROUTES : those functions are used on route ./dispers/targetfinde
 */
 func selectAddresses(c echo.Context) error {
 
-	// Get Input Data from body (lists of addresses, pseudo-anonymised concepts)
 	var inputTF query.InputTF
 	if err := json.NewDecoder(c.Request().Body).Decode(&inputTF); err != nil {
 		return err
 	}
 
-	// Launch selection of addresses
 	finallist, err := enclave.SelectAddresses(inputTF)
 	if err != nil {
 		return err
@@ -134,20 +127,16 @@ Target'S ROUTES : those functions are used on route ./dispers/target/
 */
 func queryCozy(c echo.Context) error {
 
-	// Read Inputs from body (ListOfAddresses, tokens, ...)
 	var inputT query.InputT
+
 	if err := json.NewDecoder(c.Request().Body).Decode(&inputT); err != nil {
 		return err
 	}
 
-	// Query Targets to retrieve data
 	data, err := enclave.QueryTarget(inputT)
 	if err != nil {
 		return err
 	}
-
-	// TODO: Shuffle data ?
-
 	return c.JSON(http.StatusOK, query.OutputT{Data: data})
 }
 
@@ -159,18 +148,17 @@ Data Aggegator's ROUTES : those functions are used on route ./dispers/dataaggreg
 *
 */
 func aggregate(c echo.Context) error {
-
-	// Read inputs (AggregationFunction, Data, ...)
 	var in query.InputDA
+
 	if err := json.NewDecoder(c.Request().Body).Decode(&in); err != nil {
 		return err
 	}
 
-	// Launch a worker
 	msg, err := job.NewMessage(in)
 	if err != nil {
 		return err
 	}
+
 	_, err = job.System().PushJob(prefixer.DataAggregatorPrefixer, &job.JobRequest{
 		WorkerType: "aggregation",
 		Message:    msg,
@@ -179,10 +167,108 @@ func aggregate(c echo.Context) error {
 		return err
 	}
 
-	// Inform that worker has been scheduled
 	return c.JSON(http.StatusOK, echo.Map{
 		"ok": true,
 	})
+}
+
+/*
+*
+*
+Conducotr'S ROUTES : those functions are used on route ./dispers
+*
+*
+*/
+func getQuery(c echo.Context) error {
+
+	queryDoc, err := enclave.NewQueryFetchingQueryDoc(c.Param("queryid"))
+	if err != nil {
+		return err
+	}
+
+	/*
+		metas, err := metadata.RetrieveMetadata(queryid)
+		if err != nil {
+			return nil, *fetched, err
+		}
+	*/
+
+	return c.JSON(http.StatusOK, echo.Map{
+		"Checkpoints":       queryDoc.CheckPoints,
+		"Results":           queryDoc.Results,
+		"ExecutionMetadata": nil,
+	})
+}
+
+func createQuery(c echo.Context) error {
+
+	var in query.InputNewQuery
+
+	if err := json.NewDecoder(c.Request().Body).Decode(&in); err != nil {
+		return err
+	}
+
+	query, err := enclave.NewQuery(&in)
+	if err != nil {
+		return err
+	}
+
+	err = query.Lead()
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, echo.Map{"ok": true, "query_id": query.ID()})
+}
+
+func updateQuery(c echo.Context) error {
+
+	queryid := c.Param("queryid")
+
+	var in query.InputPatchQuery
+	if err := json.NewDecoder(c.Request().Body).Decode(&in); err != nil {
+		fmt.Println(err.Error())
+		return err
+	}
+
+	if in.Role == network.RoleDA {
+		if err := query.SetAsyncTaskAsFinished(queryid, in.OutDA.AggregationID[0], in.OutDA.AggregationID[1]); err != nil {
+			fmt.Println(err.Error())
+			return err
+		}
+		if err := query.SetData(queryid, in.OutDA.AggregationID[0], in.OutDA.AggregationID[1], in.OutDA.Results); err != nil {
+			fmt.Println(err.Error())
+			return err
+		}
+	} else {
+		return errors.New("Unknown role")
+	}
+
+	// Launch a worker to try to resume query
+	msg, err := job.NewMessage(query.InputResumeQuery{QueryID: queryid})
+	if err != nil {
+		fmt.Println(err.Error())
+		return err
+	}
+	_, err = job.System().PushJob(prefixer.DataAggregatorPrefixer, &job.JobRequest{
+		WorkerType: "resume-query",
+		Message:    msg,
+	})
+	if err != nil {
+		fmt.Println(err.Error())
+		return err
+	}
+
+	return c.JSON(http.StatusOK, echo.Map{"ok": true, "query_id": queryid})
+}
+
+func deleteQuery(c echo.Context) error {
+
+	// TODO: Stop workers (contact T/DA for DELETE /jobs/triggers/:trigger-id)
+	// TODO: Retrieve Query Doc
+	// TODO: Mark doc as aborted
+
+	return c.NoContent(http.StatusNoContent)
 }
 
 // Routes sets the routing for the dispers service
@@ -190,7 +276,6 @@ func aggregate(c echo.Context) error {
 func Routes(router *echo.Group) {
 
 	// TODO : Create a route to retrieve public key
-
 	router.GET("/conceptindexor/concept/:concepts/:is-encrypted", getHash)
 	router.POST("/conceptindexor/concept", createConcept)
 	router.DELETE("/conceptindexor/concept/:concepts/:is-encrypted", deleteConcepts)
@@ -200,5 +285,10 @@ func Routes(router *echo.Group) {
 	router.POST("/target/query", queryCozy)
 
 	router.POST("/dataaggregator/aggregation", aggregate)
+
+	router.GET("/query/:queryid", getQuery)
+	router.POST("/query", createQuery)
+	router.PATCH("/query/:queryid", updateQuery)
+	router.DELETE("/query/:queryid", deleteQuery)
 
 }
