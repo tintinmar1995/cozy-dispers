@@ -42,6 +42,12 @@ var DataAggregatorPrefixer = NewPrefixer("Data Aggregator", "dataaggregator")
 // TestDataAggregatorPrefixer returns a global prefixer with the wildcard '*' as prefix.
 var TestDataAggregatorPrefixer = NewPrefixer("Data Aggregator (TEST)", "testdataaggregator")
 
+// ConductorPrefixer returns a Conductor prefixer with the wildcard '*' as prefix.
+var ConductorPrefixer = NewPrefixer("Conductor", "conductor")
+
+// TestConductorPrefixer returns a Conductor prefixer with the wildcard '*' as prefix.
+var TestConductorPrefixer = NewPrefixer("Conductor (TEST)", "testconductor")
+
 // ConceptIndexorPrefixer returns a Concept Indexor prefixer with the wildcard '*' as prefix.
 var ConceptIndexorPrefixer = NewPrefixer("Concept Indexor", "conceptindexor")
 
