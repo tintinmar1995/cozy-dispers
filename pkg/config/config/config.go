@@ -89,6 +89,8 @@ type Config struct {
 	CredentialsEncryptorKey string
 	CredentialsDecryptorKey string
 
+	DevMode bool
+
 	RemoteAssets map[string]string
 
 	Fs            Fs
@@ -590,6 +592,8 @@ func UseViper(v *viper.Viper) error {
 
 		CredentialsEncryptorKey: v.GetString("vault.credentials_encryptor_key"),
 		CredentialsDecryptorKey: v.GetString("vault.credentials_decryptor_key"),
+
+		DevMode: v.GetBool("dev.mode"),
 
 		Fs: Fs{
 			URL:       fsURL,
