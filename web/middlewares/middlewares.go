@@ -1,7 +1,6 @@
 package middlewares
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/cozy/echo"
@@ -21,7 +20,6 @@ func Compose(handler echo.HandlerFunc, mws ...echo.MiddlewareFunc) echo.HandlerF
 // configuration mode used.
 func SplitHost(host string) (instanceHost, appSlug, siblings string) {
 	parts := strings.SplitN(host, ".", 2)
-	fmt.Println(host)
 	if len(parts) == 2 {
 		if host == "cozy.tools:8080" {
 			return host, "", ""
