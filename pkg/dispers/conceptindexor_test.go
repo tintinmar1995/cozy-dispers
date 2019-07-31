@@ -4,12 +4,12 @@ import (
 	"testing"
 
 	"github.com/cozy/cozy-stack/pkg/crypto"
-	"github.com/cozy/cozy-stack/pkg/dispers/dispers"
+	"github.com/cozy/cozy-stack/pkg/dispers/query"
 	"github.com/stretchr/testify/assert"
 )
 
-var conceptTestRandom = dispers.Concept{Concept: string(crypto.GenerateRandomBytes(50))}
-var conceptTest = dispers.Concept{Concept: "FrançoisEtPaul"}
+var conceptTestRandom = query.Concept{Concept: string(crypto.GenerateRandomBytes(50))}
+var conceptTest = query.Concept{Concept: "FrançoisEtPaul"}
 
 func TestConceptIndexor(t *testing.T) {
 
@@ -45,8 +45,8 @@ func TestConceptIndexor(t *testing.T) {
 	assert.Error(t, errGet)
 
 	// deleteConcept
-	errD := DeleteConcept(conceptTest)
-	errDb := DeleteConcept(conceptTestRandom)
+	errD := DeleteConcept(&conceptTest)
+	errDb := DeleteConcept(&conceptTestRandom)
 	assert.NoError(t, errD)
 	assert.NoError(t, errDb)
 
@@ -67,7 +67,7 @@ func TestAddSalt(t *testing.T) {
 
 func TestDeleteConcept(t *testing.T) {
 	saveConcept(conceptTestRandom.Concept)
-	err := DeleteConcept(conceptTestRandom)
+	err := DeleteConcept(&conceptTestRandom)
 	assert.NoError(t, err)
 }
 
@@ -105,7 +105,7 @@ func TestHashIsNotDeterministic(t *testing.T) {
 	out1 := conceptTestRandom.Hash
 	assert.Equal(t, true, len(out1) > 0)
 
-	err = DeleteConcept(conceptTestRandom)
+	err = DeleteConcept(&conceptTestRandom)
 	assert.NoError(t, err)
 
 	err = CreateConcept(&conceptTestRandom)
@@ -114,7 +114,7 @@ func TestHashIsNotDeterministic(t *testing.T) {
 	assert.Equal(t, true, len(out2) > 0)
 	assert.NotEqual(t, out1, out2)
 
-	err = DeleteConcept(conceptTestRandom)
+	err = DeleteConcept(&conceptTestRandom)
 	assert.NoError(t, err)
 }
 

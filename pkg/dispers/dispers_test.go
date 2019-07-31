@@ -5,36 +5,29 @@ import (
 	"os"
 	"testing"
 
-	"github.com/cozy/checkup"
 	"github.com/cozy/cozy-stack/pkg/config/config"
 	"github.com/cozy/cozy-stack/pkg/couchdb"
 	"github.com/cozy/cozy-stack/pkg/prefixer"
+	"github.com/cozy/cozy-stack/tests/testutils"
 )
 
 func TestMain(m *testing.M) {
 	config.UseTestFile()
 
-	// First we make sure couchdb is started
-	db, err := checkup.HTTPChecker{URL: config.CouchURL().String()}.Check()
-	if err != nil || db.Status() != checkup.Healthy {
-		fmt.Println("This test need couchdb to run.")
-		os.Exit(1)
-	}
+	// Check is CouchDB is running
+	testutils.NeedCouchdb()
+	// Run tests over TestDB
+	PrefixerCI = prefixer.TestConceptIndexorPrefixer
 
-	prefixerCI = prefixer.TestConceptIndexorPrefixer
-
-	err = couchdb.ResetDB(prefixerCI, "io.cozy.hashconcept")
+	// Reinitiate DB
+	err := couchdb.ResetDB(PrefixerCI, "io.cozy.hashconcept")
 	if err != nil {
-		fmt.Printf("Cant reset db (%s, %s) %s\n", prefixerCI, "io.cozy.hashconcept", err.Error())
+		fmt.Printf("Cant reset db (%s, %s) %s\n", PrefixerCI, "io.cozy.hashconcept", err.Error())
 		os.Exit(1)
 	}
 
-	if err := couchdb.InitGlobalDB(); err != nil {
-		fmt.Println("Cant init GlobalDB")
-		os.Exit(1)
-	}
+	couchdb.InitGlobalDB()
 
 	res := m.Run()
 	os.Exit(res)
-
 }
