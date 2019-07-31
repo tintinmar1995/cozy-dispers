@@ -1,84 +1,100 @@
 package enclave
 
 import (
-	"bytes"
 	"encoding/json"
-	"io/ioutil"
-	"net/http"
+	"errors"
 	"net/url"
 
-	"github.com/cozy/cozy-stack/pkg/dispers/dispers"
+	"github.com/cozy/cozy-stack/pkg/dispers/network"
+	"github.com/cozy/cozy-stack/pkg/dispers/query"
 )
 
-func buildQuery(instance dispers.Instance, localQuery dispers.LocalQuery) dispers.Query {
+func buildStackQuery(instance query.Instance, localQuery query.LocalQuery) query.StackQuery {
 	// TODO : encrypt outputs
-	query := dispers.Query{
+	query := query.StackQuery{
 		Domain:      instance.Domain,
 		LocalQuery:  localQuery,
-		TokenBearer: instance.Token.TokenBearer,
+		TokenBearer: instance.TokenBearer,
 	}
 
 	return query
 }
 
-func decryptInputT(in *dispers.InputT) error {
+func decryptInputT(in *query.InputT) error {
 	return nil
 }
 
-func retrieveData(in *dispers.InputT, queries *[]dispers.Query) ([]map[string]interface{}, error) {
+func retrieveData(in *query.InputT, queriesStack *[]query.StackQuery) ([]map[string]interface{}, error) {
 
 	var data []map[string]interface{}
-	var rowsData []map[string]interface{}
+	var rowsData map[string]interface{}
 
-	for _, query := range *queries {
+	for _, queryStack := range *queriesStack {
 
-		url := &url.URL{
+		stack := network.NewExternalActor(network.RoleStack, network.ModeStack)
+		stack.DefineStack(url.URL{
 			Scheme: "http",
-			Host:   query.Domain,
-			Path:   "data/_find/",
+			Host:   queryStack.Domain,
+			Path:   "data/" + queryStack.LocalQuery.Doctype + "/_index",
+		})
+
+		if &queryStack.LocalQuery == nil {
+			return nil, errors.New("An index is required")
 		}
 
-		marshalFindRequest, err := json.Marshal(query.LocalQuery.FindRequest)
-		if err != nil {
-			return nil, nil
+		input := map[string]interface{}{
+			"index": queryStack.LocalQuery.Index,
+			"name":  "idxdelamortquitue",
+			"ddoc":  "_design/idxdelamortquitue",
+			"type":  "json",
 		}
-		resp, err := http.Post(url.String(), "application/json", bytes.NewReader(marshalFindRequest))
+		err := stack.MakeRequest("POST", "Bearer "+queryStack.TokenBearer, input, nil)
 		if err != nil {
-			return nil, nil
-		}
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return nil, nil
-		}
-		err = json.Unmarshal(body, &rowsData)
-		if err != nil {
-			return nil, nil
+			return nil, err
 		}
 
-		data = append(data, rowsData...)
+		stack.URL.Path = "data/" + queryStack.LocalQuery.Doctype + "/_find"
+		err = stack.MakeRequest("POST", "Bearer "+queryStack.TokenBearer, queryStack.LocalQuery.FindRequest, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		err = json.Unmarshal(stack.Out, &rowsData)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, row := range rowsData["docs"].([]interface{}) {
+			data = append(data, row.(map[string]interface{}))
+		}
+
 	}
 
 	return data, nil
 }
 
 // QueryTarget decrypts instance given by the conductor and build queries
-func QueryTarget(in dispers.InputT) ([]map[string]interface{}, error) {
+func QueryTarget(in query.InputT) ([]map[string]interface{}, error) {
 
-	queries := make([]dispers.Query, len(in.Targets))
+	queries := make([]query.StackQuery, len(in.Targets))
 
 	if in.IsEncrypted {
 		if err := decryptInputT(&in); err != nil {
-			return []map[string]interface{}{}, err
+			return nil, err
 		}
 	}
 
-	var item2instance dispers.Instance
+	if len(in.Targets) == 0 {
+		return nil, errors.New("Targets is empty")
+	}
+
+	var item2instance query.Instance
 	for index, item := range in.Targets {
 		err := json.Unmarshal([]byte(item), &item2instance)
 		if err != nil {
 			return nil, err
 		}
-		q := buildQuery(item2instance, in.LocalQuery)
+		q := buildStackQuery(item2instance, in.LocalQuery)
 		queries[index] = q
 	}
 
