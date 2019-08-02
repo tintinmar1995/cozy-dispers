@@ -2,6 +2,7 @@ package subscribe
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/cozy/cozy-stack/pkg/dispers"
@@ -90,6 +91,10 @@ func insert(c echo.Context) error {
 	if absent {
 		instance.Version = 1
 		listOfInstances = append(listOfInstances, instance)
+	}
+
+	if len(instance.TokenBearer) < 5 {
+		return errors.New("Unvalid token bearer")
 	}
 
 	encListOfInstances, err := json.Marshal(listOfInstances)
