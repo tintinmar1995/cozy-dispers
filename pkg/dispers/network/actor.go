@@ -39,6 +39,7 @@ func chooseHost() url.URL {
 // communicate with them. Each server can play the role of CI / TF / T / Conductor / DA
 type ExternalActor struct {
 	Method string
+	Status string
 	URL    url.URL
 	Role   string
 	Path   []string
@@ -111,6 +112,7 @@ func (act *ExternalActor) MakeRequest(method string, token string, input interfa
 
 func (act *ExternalActor) handleError() error {
 	if strings.Contains(act.Outstr, "Error") {
+		act.Status = "404"
 		return errors.New("404 : Unknown route")
 	}
 
@@ -124,6 +126,7 @@ func (act *ExternalActor) handleError() error {
 
 		errorMsg := "cozy-dispers: " + act.Method + ">" + act.URL.String() + " error :"
 		for _, mapError := range receivedErrors["errors"] {
+			act.Status = mapError["status"].(string)
 			errorMsg = errorMsg + "\n"
 			errorMsg = errorMsg + mapError["status"].(string) + " "
 			errorMsg = errorMsg + mapError["detail"].(string)
@@ -137,10 +140,13 @@ func (act *ExternalActor) handleError() error {
 	if err != nil {
 		return err
 	}
+	indexCode := strings.LastIndex(receivedError["error"].(string), "code")
+	if indexCode != -1 {
+		act.Status = receivedError["error"].(string)[indexCode+5 : indexCode+8]
+	}
 
 	errorMsg := "cozy-dispers: " + act.Method + ">" + act.URL.String() + " error :"
-	errorMsg = errorMsg + "\n"
-	errorMsg = errorMsg + receivedError["error"].(string)
+	errorMsg = errorMsg + "\n" + receivedError["error"].(string)
 	return errors.New(errorMsg)
 
 }
