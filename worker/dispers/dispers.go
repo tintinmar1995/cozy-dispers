@@ -60,7 +60,11 @@ func WorkerDataAggregator(ctx *job.WorkerContext) error {
 	conductor := network.NewExternalActor(network.RoleConductor, network.ModeQuery)
 	conductor.DefineConductor(in.ConductorURL, in.QueryID)
 	if err := conductor.MakeRequest("PATCH", "", out, nil); err != nil {
-		return handleError(err)
+		if conductor.Status == "409" {
+			if err := conductor.MakeRequest("PATCH", "", out, nil); err != nil {
+				return handleError(err)
+			}
+		}
 	}
 
 	return nil
