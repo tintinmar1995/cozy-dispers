@@ -15,14 +15,14 @@ import (
 
 var (
 	targetProfile = query.OperationTree{
-		Type: query.UnionNode,
+		Type: query.OrNode,
 		LeftNode: query.OperationTree{
-			Type:      query.UnionNode,
+			Type:      query.OrNode,
 			LeftNode:  query.OperationTree{Type: 0, Value: "test1"},
 			RightNode: query.OperationTree{Type: 0, Value: "test2"},
 		},
 		RightNode: query.OperationTree{
-			Type:      query.UnionNode,
+			Type:      query.OrNode,
 			LeftNode:  query.OperationTree{Type: 0, Value: "test3"},
 			RightNode: query.OperationTree{Type: 0, Value: "test4"},
 		},
@@ -30,7 +30,7 @@ var (
 
 	in = query.InputNewQuery{
 		DomainQuerier: "usr0.test.cozy.tools:8008",
-		TargetProfile: targetProfile,
+		TargetProfile: "OR(OR(\"test1\"::\"test2\"):OR(\"test3\"::\"test4\"))",
 		NumberActors:  map[string]int{"ci": 1, "tf": 1, "t": 1},
 	}
 )

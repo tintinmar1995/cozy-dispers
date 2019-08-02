@@ -18,7 +18,7 @@ type InputNewQuery struct {
 	PseudoConcepts         map[string]string `json:"pseudo_concepts,omitempty"`
 	IsEncrypted            bool              `json:"encrypted"`
 	LocalQuery             LocalQuery        `json:"localquery,omitempty"`
-	TargetProfile          OperationTree     `json:"operation,omitempty"`
+	TargetProfile          string            `json:"operation,omitempty"`
 	NumberActors           map[string]int    `json:"nb_actors,omitempty"`
 	LayersDA               []LayerDA         `json:"layers_da,omitempty"`
 	EncryptedLocalQuery    []byte            `json:"enc_localquery,omitempty"`
