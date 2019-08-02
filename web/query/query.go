@@ -244,18 +244,12 @@ func updateQuery(c echo.Context) error {
 		return errors.New("Unknown role")
 	}
 
-	// Launch a worker to try to resume query
-	msg, err := job.NewMessage(query.InputResumeQuery{QueryID: queryid})
+	//try to resume query
+	queryDoc, err := enclave.NewQueryFetchingQueryDoc(queryid)
 	if err != nil {
-		fmt.Println(err.Error())
 		return err
 	}
-	_, err = job.System().PushJob(prefixer.DataAggregatorPrefixer, &job.JobRequest{
-		WorkerType: "resume-query",
-		Message:    msg,
-	})
-	if err != nil {
-		fmt.Println(err.Error())
+	if err = queryDoc.Lead(); err != nil {
 		return err
 	}
 

@@ -56,7 +56,6 @@ func WorkerDataAggregator(ctx *job.WorkerContext) error {
 		Role: network.RoleDA,
 	}
 
-	// Once Conductor received the result in a route PATCH, it creates a worker to resume if it's possible
 	conductor := network.NewExternalActor(network.RoleConductor, network.ModeQuery)
 	conductor.DefineConductor(in.ConductorURL, in.QueryID)
 	if err := conductor.MakeRequest("PATCH", "", out, nil); err != nil {
