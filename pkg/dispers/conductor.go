@@ -47,7 +47,7 @@ type QueryDoc struct {
 	NumberActors              map[string]int      `json:"nb_actors,omitempty"`
 	PseudoConcepts            map[string]string   `json:"pseudo_concepts,omitempty"`
 	Results                   interface{}         `json:"results,omitempty"`
-	TargetProfile             query.OperationTree `json:"target_profile,omitempty"`
+	TargetProfile             string              `json:"target_profile,omitempty"`
 	Targets                   []string            `json:"targets,omitempty"`
 	EncryptedConcepts         [][]byte            `json:"enc_concepts,omitempty"`
 	EncryptedListsOfAddresses []byte              `json:"enc_instances,omitempty"`
