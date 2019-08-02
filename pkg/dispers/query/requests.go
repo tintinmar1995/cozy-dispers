@@ -100,14 +100,14 @@ type NodeType int
 const (
 	// SingleNode are Target Profile's leafs
 	SingleNode NodeType = iota
-	// UnionNode are unions between two lists
-	UnionNode
-	// IntersectionNode are intersections between two lists
-	IntersectionNode
+	// OrNode are unions between two lists
+	OrNode
+	// AndNode are intersections between two lists
+	AndNode
 )
 
 // OperationTree allows the possibility to compute target profiles in a
-// recursive way. OperationTree contains SingleNode, UnionNode, IntersectionNode
+// recursive way. OperationTree contains SingleNode, OrNode, AndNode
 // SingleNodes have got a value field. A value is the name of a list of strings
 // To compute the OperationTree, Compute method needs a map that matches names
 // with list of encrypted addresses.
@@ -133,7 +133,7 @@ func (o *OperationTree) Compute(listsOfAddresses map[string][]string) ([]string,
 		}
 		return val, nil
 
-	} else if o.Type == UnionNode || o.Type == IntersectionNode {
+	} else if o.Type == OrNode || o.Type == AndNode {
 
 		// Compute operations on LeftNode and RightNode
 		leftNode := o.LeftNode.(OperationTree)
@@ -148,9 +148,9 @@ func (o *OperationTree) Compute(listsOfAddresses map[string][]string) ([]string,
 		}
 		// Compute operation between LeftNode and RightNode
 		switch o.Type {
-		case UnionNode:
+		case OrNode:
 			return union(a, b), nil
-		case IntersectionNode:
+		case AndNode:
 			return intersection(a, b), nil
 		default:
 			return []string{}, errors.New("Unknown type")
@@ -176,9 +176,9 @@ func (o *OperationTree) UnmarshalJSON(data []byte) error {
 	case 0:
 		o.Type = SingleNode
 	case 1:
-		o.Type = UnionNode
+		o.Type = OrNode
 	case 2:
-		o.Type = IntersectionNode
+		o.Type = AndNode
 	default:
 		return errors.New("Unknown type")
 	}
@@ -187,7 +187,7 @@ func (o *OperationTree) UnmarshalJSON(data []byte) error {
 	switch {
 	case o.Type == SingleNode:
 		o.Value, _ = v["value"].(string)
-	case o.Type == IntersectionNode || o.Type == UnionNode:
+	case o.Type == AndNode || o.Type == OrNode:
 		var leftNode OperationTree
 		var rightNode OperationTree
 
@@ -216,7 +216,7 @@ type InputTF struct {
 	EncryptedListsOfAddresses []byte              `json:"enc_instances,omitempty"`
 	EncryptedTargetProfile    []byte              `json:"enc_operation,omitempty"`
 	ListsOfAddresses          map[string][]string `json:"instances"`
-	TargetProfile             OperationTree       `json:"target_profile,omitempty"`
+	TargetProfile             string              `json:"target_profile,omitempty"`
 }
 
 // OutputTF is what Target Finder send to the conductor
