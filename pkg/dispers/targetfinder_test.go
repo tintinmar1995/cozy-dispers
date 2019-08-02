@@ -8,6 +8,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestDeveloppTargetProfile(t *testing.T) {
+
+	tp, err := developpTargetProfile("OR(AND(\"asse\"::\"losc\"):AND(\"psg\"::\"srfc\"))")
+	assert.NoError(t, err)
+	assert.Equal(t, "{\"type\": 1,\"left_node\": {\"type\": 2,\"left_node\": {\"type\": 0,\"value\": \"asse\"},\"right_node\": {\"type\": 0,\"value\": \"losc\"}},\"right_node\": {\"type\": 2,\"left_node\": {\"type\": 0,\"value\": \"psg\"},\"right_node\": {\"type\": 0,\"value\": \"srfc\"}}}", tp)
+
+	tp, err = developpTargetProfile("AND(\"asse\"::\"losc\")")
+	assert.NoError(t, err)
+	assert.Equal(t, "{\"type\": 2,\"left_node\": {\"type\": 0,\"value\": \"asse\"},\"right_node\": {\"type\": 0,\"value\": \"losc\"}}", tp)
+
+}
+
 func TestMarshalUnmarshalNil(t *testing.T) {
 
 	targetProfile := query.OperationTree{}
@@ -24,14 +36,14 @@ func TestMarshalUnmarshalNil(t *testing.T) {
 func TestMarshalUnmarshalOperationTree(t *testing.T) {
 
 	targetProfile := query.OperationTree{
-		Type: query.UnionNode,
+		Type: query.OrNode,
 		LeftNode: query.OperationTree{
-			Type:      query.IntersectionNode,
+			Type:      query.AndNode,
 			LeftNode:  query.OperationTree{Type: query.SingleNode, Value: "test1"},
 			RightNode: query.OperationTree{Type: query.SingleNode, Value: "test2"},
 		},
 		RightNode: query.OperationTree{
-			Type:      query.IntersectionNode,
+			Type:      query.AndNode,
 			LeftNode:  query.OperationTree{Type: query.SingleNode, Value: "test3"},
 			RightNode: query.OperationTree{Type: query.SingleNode, Value: "test4"},
 		},
@@ -56,89 +68,33 @@ func TestTargetFinder(t *testing.T) {
 	m["test3"] = []string{"paul", "claire", "françois"}
 	m["test4"] = []string{"paul", "benjamin", "florent"}
 
-	targetProfile := query.OperationTree{
-		Type: query.UnionNode,
-		LeftNode: query.OperationTree{
-			Type:      query.IntersectionNode,
-			LeftNode:  query.OperationTree{Type: query.SingleNode, Value: "test1"},
-			RightNode: query.OperationTree{Type: query.SingleNode, Value: "test2"},
-		},
-		RightNode: query.OperationTree{
-			Type:      query.IntersectionNode,
-			LeftNode:  query.OperationTree{Type: query.SingleNode, Value: "test3"},
-			RightNode: query.OperationTree{Type: query.SingleNode, Value: "test4"},
-		},
-	}
-
 	in := query.InputTF{
 		IsEncrypted:      false,
 		ListsOfAddresses: m,
-		TargetProfile:    targetProfile,
+		TargetProfile:    "OR(AND(\"test1\"::\"test2\"):AND(\"test3\"::\"test4\"))",
 	}
 
 	out, err := SelectAddresses(in)
 	assert.NoError(t, err)
 	assert.Equal(t, out, []string{"claire", "françois", "paul"})
 
-	targetProfile = query.OperationTree{
-		Type: query.IntersectionNode,
-		LeftNode: query.OperationTree{
-			Type:      query.UnionNode,
-			LeftNode:  query.OperationTree{Type: query.SingleNode, Value: "test1"},
-			RightNode: query.OperationTree{Type: query.SingleNode, Value: "test2"},
-		},
-		RightNode: query.OperationTree{
-			Type:      query.UnionNode,
-			LeftNode:  query.OperationTree{Type: query.SingleNode, Value: "test3"},
-			RightNode: query.OperationTree{Type: query.SingleNode, Value: "test7"},
-		},
-	}
-
 	in = query.InputTF{
 		IsEncrypted:      false,
 		ListsOfAddresses: m,
-		TargetProfile:    targetProfile,
+		TargetProfile:    "AND(OR(\"test1\"::\"test2\"):OR(\"test3\"::\"test7\"))",
 	}
 
 	_, err = SelectAddresses(in)
 	assert.Error(t, err)
 
-	// Union between Single and Intersection
-	targetProfile = query.OperationTree{
-		Type: query.IntersectionNode,
-		LeftNode: query.OperationTree{
-			Type:      query.UnionNode,
-			LeftNode:  query.OperationTree{Type: query.SingleNode, Value: "test1"},
-			RightNode: query.OperationTree{Type: query.SingleNode, Value: "test2"},
-		},
-		RightNode: query.OperationTree{Type: query.SingleNode, Value: "test4"},
-	}
-
 	in = query.InputTF{
 		IsEncrypted:      false,
 		ListsOfAddresses: m,
-		TargetProfile:    targetProfile,
+		TargetProfile:    "AND(OR(\"test1\"::\"test2\"):AND(\"test4\"::\"test4\"))",
 	}
 
 	out, err = SelectAddresses(in)
 	assert.NoError(t, err)
-	assert.Equal(t, out, []string{"paul"})
+	assert.Equal(t, []string{"paul"}, out)
 
-	// No type precised
-	targetProfile = query.OperationTree{
-		LeftNode: query.OperationTree{
-			LeftNode:  query.OperationTree{Value: "test1"},
-			RightNode: query.OperationTree{Value: "test2"},
-		},
-		RightNode: query.OperationTree{Value: "test4"},
-	}
-
-	in = query.InputTF{
-		IsEncrypted:      false,
-		ListsOfAddresses: m,
-		TargetProfile:    targetProfile,
-	}
-
-	_, err = SelectAddresses(in)
-	assert.Error(t, err)
 }

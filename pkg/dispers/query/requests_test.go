@@ -10,14 +10,14 @@ import (
 func TestMarshalUnmarshalOperationTree(t *testing.T) {
 
 	targetProfile := OperationTree{
-		Type: UnionNode,
+		Type: OrNode,
 		LeftNode: OperationTree{
-			Type:      IntersectionNode,
+			Type:      AndNode,
 			LeftNode:  OperationTree{Type: SingleNode, Value: "test1"},
 			RightNode: OperationTree{Type: SingleNode, Value: "test2"},
 		},
 		RightNode: OperationTree{
-			Type:      IntersectionNode,
+			Type:      AndNode,
 			LeftNode:  OperationTree{Type: SingleNode, Value: "test3"},
 			RightNode: OperationTree{Type: SingleNode, Value: "test4"},
 		},
@@ -41,7 +41,7 @@ func TestUnion(t *testing.T) {
 	m["test2"] = []string{"hihi"}
 
 	op := OperationTree{
-		Type:      UnionNode,
+		Type:      OrNode,
 		LeftNode:  OperationTree{Type: SingleNode, Value: "test1"},
 		RightNode: OperationTree{Type: SingleNode, Value: "test2"},
 	}
@@ -59,7 +59,7 @@ func TestIntersection(t *testing.T) {
 	m["test2"] = []string{"paul", "claire", "françois"}
 
 	op := OperationTree{
-		Type:      IntersectionNode,
+		Type:      AndNode,
 		LeftNode:  OperationTree{Type: SingleNode, Value: "test1"},
 		RightNode: OperationTree{Type: SingleNode, Value: "test2"},
 	}
@@ -79,14 +79,14 @@ func TestIntersectionAndUnion(t *testing.T) {
 	m["test4"] = []string{"paul", "benjamin", "florent"}
 
 	op := OperationTree{
-		Type: UnionNode,
+		Type: OrNode,
 		LeftNode: OperationTree{
-			Type:      IntersectionNode,
+			Type:      AndNode,
 			LeftNode:  OperationTree{Type: SingleNode, Value: "test1"},
 			RightNode: OperationTree{Type: SingleNode, Value: "test2"},
 		},
 		RightNode: OperationTree{
-			Type:      IntersectionNode,
+			Type:      AndNode,
 			LeftNode:  OperationTree{Type: SingleNode, Value: "test3"},
 			RightNode: OperationTree{Type: SingleNode, Value: "test4"},
 		},
@@ -105,7 +105,7 @@ func TestBlankLeaf(t *testing.T) {
 	m["test2"] = []string{"paul", "claire", "françois"}
 
 	op := OperationTree{
-		Type:      IntersectionNode,
+		Type:      AndNode,
 		LeftNode:  OperationTree{Type: SingleNode, Value: "test1"},
 		RightNode: OperationTree{Type: SingleNode, Value: "test2"},
 	}
@@ -122,7 +122,7 @@ func TestUnknownConcept(t *testing.T) {
 	m["test2"] = []string{"paul", "claire", "françois"}
 
 	op := OperationTree{
-		Type:      IntersectionNode,
+		Type:      AndNode,
 		LeftNode:  OperationTree{Type: SingleNode, Value: "test3"},
 		RightNode: OperationTree{Type: SingleNode, Value: "test2"},
 	}
