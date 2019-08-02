@@ -27,6 +27,7 @@ func TestMain(m *testing.M) {
 	}
 
 	couchdb.InitGlobalDB()
+	couchdb.InitGlobalTestDB()
 
 	res := m.Run()
 	os.Exit(res)

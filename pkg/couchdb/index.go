@@ -91,9 +91,6 @@ func InitGlobalDB() error {
 	if err := DefineIndexes(prefixer.ConceptIndexorPrefixer, conceptIndexorIndexes); err != nil {
 		return err
 	}
-	if err := DefineIndexes(prefixer.ConductorPrefixer, metadataIndexes); err != nil {
-		return err
-	}
 	return DefineViews(GlobalDB, globalViews)
 }
 
@@ -107,9 +104,6 @@ func InitGlobalTestDB() error {
 		return err
 	}
 	if err := DefineIndexes(prefixer.TestConceptIndexorPrefixer, conceptIndexorIndexes); err != nil {
-		return err
-	}
-	if err := DefineIndexes(prefixer.TestConductorPrefixer, metadataIndexes); err != nil {
 		return err
 	}
 	return DefineViews(GlobalDB, globalViews)
