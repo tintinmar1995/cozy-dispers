@@ -5,7 +5,7 @@ source ~/.bash_aliases
 
 # check the parameters (nb Cozy (re)ini)
 if [ $# -ne 2 ]; then
-    echo "Usage : "$0" csv_file"
+    echo "Usage : "$0" nb_cozy csv_file"
     exit 1
 fi
 
