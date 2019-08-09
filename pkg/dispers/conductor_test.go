@@ -29,9 +29,8 @@ var (
 	}
 
 	in = query.InputNewQuery{
-		DomainQuerier: "usr0.test.cozy.tools:8008",
+		IsEncrypted:   false,
 		TargetProfile: "OR(OR(\"test1\"::\"test2\"):OR(\"test3\"::\"test4\"))",
-		NumberActors:  map[string]int{"ci": 1, "tf": 1, "t": 1},
 	}
 )
 
@@ -39,16 +38,14 @@ func TestCreateSubscribeDoc(t *testing.T) {
 
 	// Create the three concepts
 	inputCI := query.InputCI{
+		IsEncrypted: false,
 		Concepts: []query.Concept{
 			query.Concept{
-				IsEncrypted: false,
-				Concept:     "julien"},
+				EncryptedConcept: []byte("julien")},
 			query.Concept{
-				IsEncrypted: false,
-				Concept:     "francois"},
+				EncryptedConcept: []byte("francois")},
 			query.Concept{
-				IsEncrypted: false,
-				Concept:     "paul"},
+				EncryptedConcept: []byte("paul")},
 		},
 	}
 
@@ -74,19 +71,16 @@ func TestSubscribe(t *testing.T) {
 	ci := network.NewExternalActor(network.RoleCI, network.ModeQuery)
 
 	inputCI := query.InputCI{
+		IsEncrypted: false,
 		Concepts: []query.Concept{
 			query.Concept{
-				IsEncrypted: false,
-				Concept:     "aime les fraises"},
+				EncryptedConcept: []byte("aime les fraises")},
 			query.Concept{
-				IsEncrypted: false,
-				Concept:     "aime les framboises"},
+				EncryptedConcept: []byte("aime les framboises")},
 			query.Concept{
-				IsEncrypted: false,
-				Concept:     "joue de la guitare"},
+				EncryptedConcept: []byte("joue de la guitare")},
 			query.Concept{
-				IsEncrypted: false,
-				Concept:     "est designer chez cozy"},
+				EncryptedConcept: []byte("est designer chez cozy")},
 		},
 	}
 
@@ -108,10 +102,15 @@ func TestSubscribe(t *testing.T) {
 		sizeIni := len(listOfInstance)
 
 		// Make few instances subscribe to Cozy-DISPERS
+		encInst, _ := json.Marshal(
+			query.Instance{
+				Domain:      "joel.mycozy.cloud",
+				TokenBearer: "hfeuziyeurbyuilrz",
+			})
 		inSubs := subscribe.InputConductor{
 			Concepts:          []string{"aime les fraises"},
 			IsEncrypted:       false,
-			EncryptedInstance: []byte("{\"domain\":\"joel.mycozy.cloud\"}"),
+			EncryptedInstance: encInst,
 		}
 		err = Subscribe(&inSubs)
 		assert.NoError(t, err)
@@ -119,10 +118,15 @@ func TestSubscribe(t *testing.T) {
 		json.Unmarshal(docs[0].EncryptedInstances, &listOfInstance)
 		size := len(listOfInstance)
 		assert.Equal(t, sizeIni+1, size)
+		encInst, _ = json.Marshal(
+			query.Instance{
+				Domain:      "paul.mycozy.cloud",
+				TokenBearer: "hfeuziyeurbyuilrz",
+			})
 		inSubs = subscribe.InputConductor{
 			Concepts:          []string{"aime les fraises", "aime les framboises"},
 			IsEncrypted:       false,
-			EncryptedInstance: []byte("{\"domain\":\"paul.mycozy.cloud\"}"),
+			EncryptedInstance: encInst,
 		}
 		err = Subscribe(&inSubs)
 		assert.NoError(t, err)
@@ -130,10 +134,15 @@ func TestSubscribe(t *testing.T) {
 		json.Unmarshal(docs[0].EncryptedInstances, &listOfInstance)
 		size = len(listOfInstance)
 		assert.Equal(t, sizeIni+2, size)
+		encInst, _ = json.Marshal(
+			query.Instance{
+				Domain:      "francois.mycozy.cloud",
+				TokenBearer: "hfeuziyeurbyuilrz",
+			})
 		inSubs = subscribe.InputConductor{
 			Concepts:          []string{"aime les fraises", "aime les framboises", "est designer chez cozy"},
 			IsEncrypted:       false,
-			EncryptedInstance: []byte("{\"domain\":\"francois.mycozy.cloud\"}"),
+			EncryptedInstance: encInst,
 		}
 		err = Subscribe(&inSubs)
 		assert.NoError(t, err)
@@ -158,21 +167,18 @@ func TestDefineConductor(t *testing.T) {
 func TestDecryptConcept(t *testing.T) {
 
 	// Create a list of fake concepts
-	in.Concepts = []query.Concept{
+	in.EncryptedConcepts = []query.Concept{
 		query.Concept{
-			IsEncrypted: false,
-			Concept:     "julien"},
+			EncryptedConcept: []byte("julien")},
 		query.Concept{
-			IsEncrypted: false,
-			Concept:     "francois"},
+			EncryptedConcept: []byte("francois")},
 		query.Concept{
-			IsEncrypted: false,
-			Concept:     "paul"},
+			EncryptedConcept: []byte("paul")},
 	}
-	CreateConceptInConductorDB(&query.InputCI{Concepts: in.Concepts})
+	CreateConceptInConductorDB(&query.InputCI{Concepts: in.EncryptedConcepts})
 
 	// Re-Create the three concepts
-	inputCI := query.InputCI{Concepts: in.Concepts}
+	inputCI := query.InputCI{Concepts: in.EncryptedConcepts}
 	ci := network.NewExternalActor(network.RoleCI, network.ModeQuery)
 	ci.DefineDispersActor("concept")
 	err := ci.MakeRequest("POST", "", inputCI, nil)
@@ -181,15 +187,15 @@ func TestDecryptConcept(t *testing.T) {
 	// Get the three concepts' hashes from Concept Indexor
 	ci.DefineDispersActor("concept/julien:francois:paul/false")
 	err = ci.MakeRequest("GET", "", nil, nil)
-
 	assert.NoError(t, err)
 	var outputCI query.OutputCI
 	json.Unmarshal(ci.Out, &outputCI)
 
 	// Get the three concepts' hashes from query
+	in.Concepts = []string{"julien", "francois", "paul"}
 	query, _ := NewQuery(&in)
 	query.decryptConcept()
-	assert.Equal(t, outputCI.Hashes, query.Concepts)
+	assert.Equal(t, outputCI.Hashes, query.EncryptedConcepts)
 
 	// Delete the created concepts
 	ci.DefineDispersActor("concept/julien:francois:paul/false")
@@ -200,16 +206,13 @@ func TestDecryptConcept(t *testing.T) {
 
 func TestFetchListFromDB(t *testing.T) {
 
-	in.Concepts = []query.Concept{
-		query.Concept{
-			IsEncrypted: false,
-			Concept:     "aime les fraises"},
-	}
+	in.Concepts = []string{"aime les fraises"}
 	in.PseudoConcepts = make(map[string]string)
 	in.PseudoConcepts["aime les fraises"] = "test1"
+	in.EncryptedConcepts = []query.Concept{query.Concept{EncryptedConcept: []byte("aime les fraises")}}
 
 	// Create the four concepts
-	CreateConceptInConductorDB(&query.InputCI{Concepts: in.Concepts})
+	CreateConceptInConductorDB(&query.InputCI{Concepts: in.EncryptedConcepts})
 	query, _ := NewQuery(&in)
 	err := query.decryptConcept()
 	assert.NoError(t, err)
@@ -218,27 +221,24 @@ func TestFetchListFromDB(t *testing.T) {
 
 	// Delete the created concepts
 	ci := network.NewExternalActor(network.RoleCI, network.ModeQuery)
-	ci.DefineDispersActor("concept/aime les fraises/true")
+	ci.DefineDispersActor("concept/aime les fraises/false")
 	err = ci.MakeRequest("DELETE", "", nil, nil)
 	assert.NoError(t, err)
 }
 
 func TestGetListsOfInstances(t *testing.T) {
 
-	in.Concepts = []query.Concept{
+	in.EncryptedConcepts = []query.Concept{
 		query.Concept{
-			IsEncrypted: false,
-			Concept:     "aime les fraises"},
+			EncryptedConcept: []byte("aime les fraises")},
 		query.Concept{
-			IsEncrypted: false,
-			Concept:     "aime les framboises"},
+			EncryptedConcept: []byte("aime les framboises")},
 		query.Concept{
-			IsEncrypted: false,
-			Concept:     "joue de la guitare"},
+			EncryptedConcept: []byte("joue de la guitare")},
 		query.Concept{
-			IsEncrypted: false,
-			Concept:     "est designer chez cozy"},
+			EncryptedConcept: []byte("est designer chez cozy")},
 	}
+	in.Concepts = []string{"aime les fraises", "aime les framboises", "joue de la guitare", "est designer chez cozy"}
 	in.PseudoConcepts = make(map[string]string)
 	in.PseudoConcepts["aime les fraises"] = "test1"
 	in.PseudoConcepts["aime les framboises"] = "test2"
@@ -246,37 +246,59 @@ func TestGetListsOfInstances(t *testing.T) {
 	in.PseudoConcepts["est designer chez cozy"] = "test4"
 
 	// Create the four concepts
-	CreateConceptInConductorDB(&query.InputCI{Concepts: in.Concepts})
+	CreateConceptInConductorDB(&query.InputCI{Concepts: in.EncryptedConcepts})
 	// Make few instances subscribe to Cozy-DISPERS
-	_ = Subscribe(&subscribe.InputConductor{
+	encInst, _ := json.Marshal(query.Instance{
+		Domain:      "caroline.mycozy.cloud",
+		TokenBearer: "nreuizonfezio",
+	})
+	err := Subscribe(&subscribe.InputConductor{
 		Concepts:          []string{"aime les fraises"},
 		IsEncrypted:       false,
-		EncryptedInstance: []byte("{\"domain\":\"caroline.mycozy.cloud\"}"),
+		EncryptedInstance: encInst,
 	})
-	_ = Subscribe(&subscribe.InputConductor{
+	assert.NoError(t, err)
+	encInst, _ = json.Marshal(query.Instance{
+		Domain:      "mathieu.mycozy.cloud",
+		TokenBearer: "nreuizonfezio",
+	})
+	err = Subscribe(&subscribe.InputConductor{
 		Concepts:          []string{"aime les fraises", "joue de la guitare", "aime les framboises"},
 		IsEncrypted:       false,
-		EncryptedInstance: []byte("{\"domain\":\"mathieu.mycozy.cloud\"}"),
+		EncryptedInstance: encInst,
 	})
-	_ = Subscribe(&subscribe.InputConductor{
+	assert.NoError(t, err)
+	encInst, _ = json.Marshal(query.Instance{
+		Domain:      "zoe.mycozy.cloud",
+		TokenBearer: "nreuizonfezio",
+	})
+	err = Subscribe(&subscribe.InputConductor{
 		Concepts:          []string{"aime les fraises", "aime les framboises"},
 		IsEncrypted:       false,
-		EncryptedInstance: []byte("{\"domain\":\"zoe.mycozy.cloud\"}"),
+		EncryptedInstance: encInst,
 	})
-	_ = Subscribe(&subscribe.InputConductor{
+	assert.NoError(t, err)
+	encInst, _ = json.Marshal(query.Instance{
+		Domain:      "thomas.mycozy.cloud",
+		TokenBearer: "nreuizonfezio",
+	})
+	err = Subscribe(&subscribe.InputConductor{
 		Concepts:          []string{"aime les fraises", "aime les framboises", "est designer chez cozy"},
 		IsEncrypted:       false,
-		EncryptedInstance: []byte("{\"domain\":\"thomas.mycozy.cloud\"}"),
+		EncryptedInstance: encInst,
 	})
+	assert.NoError(t, err)
 
 	query, _ := NewQuery(&in)
-	err := query.decryptConcept()
+	err = query.decryptConcept()
 	assert.NoError(t, err)
 	err = query.fetchListsOfInstancesFromDB()
 	assert.NoError(t, err)
 	err = query.selectTargets()
 	assert.NoError(t, err)
-	assert.Equal(t, 4, len(query.Targets))
+	var targets []string
+	_ = json.Unmarshal(query.EncryptedTargets, &targets)
+	assert.Equal(t, 4, len(targets))
 	// Delete the created concepts
 	ci := network.NewExternalActor(network.RoleCI, network.ModeQuery)
 	ci.DefineDispersActor("concept/aime les fraises:aime les framboises:joue de la guitare:est designer chez cozy/false")
@@ -403,22 +425,24 @@ func TestAggregate(t *testing.T) {
 	args2 := make(map[string]interface{})
 	args2["keys"] = []string{"sepal_length", "sepal_width"}
 	args2["weight"] = "length"
+	encFunc1, _ := json.Marshal(query.AggregationFunction{
+		Function: "sum",
+		Args:     args1,
+	})
+	encFunc2, _ := json.Marshal(query.AggregationFunction{
+		Function: "sum",
+		Args:     args2,
+	})
 	layers := []query.LayerDA{
 		query.LayerDA{
-			AggregationFunctions: query.AggregationFunction{
-				Function: "sum",
-				Args:     args1,
-			},
-			Data: data,
-			Size: 4,
+			EncryptedFunction: encFunc1,
+			Data:              data,
+			Size:              4,
 		},
 		query.LayerDA{
-			AggregationFunctions: query.AggregationFunction{
-				Function: "sum",
-				Args:     args2,
-			},
-			Data: data,
-			Size: 4,
+			EncryptedFunction: encFunc2,
+			Data:              data,
+			Size:              4,
 		},
 	}
 	in.LayersDA = layers
