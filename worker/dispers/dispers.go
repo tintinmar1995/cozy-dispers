@@ -1,7 +1,6 @@
 package enclave
 
 import (
-	"errors"
 	"fmt"
 	"runtime"
 
@@ -18,12 +17,6 @@ func init() {
 		MaxExecCount: 2,
 		WorkerFunc:   WorkerDataAggregator,
 	})
-	job.AddWorker(&job.WorkerConfig{
-		WorkerType:   "resume-query",
-		Concurrency:  runtime.NumCPU(),
-		MaxExecCount: 2,
-		WorkerFunc:   WorkerResumeQuery,
-	})
 }
 
 func handleError(err error) error {
@@ -34,24 +27,6 @@ func handleError(err error) error {
 	return err
 }
 
-func WorkerResumeQuery(ctx *job.WorkerContext) error {
-
-	in := &query.InputResumeQuery{}
-	if err := ctx.UnmarshalMessage(in); err != nil {
-		return handleError(err)
-	}
-
-	queryDoc, err := enclave.NewQueryFetchingQueryDoc(in.QueryID)
-	if err != nil {
-		return handleError(err)
-	}
-	if err = queryDoc.Lead(); err != nil {
-		return handleError(err)
-	}
-
-	return nil
-}
-
 // WorkerDataAggregator is a worker that launch DataAggregator's treatment.
 func WorkerDataAggregator(ctx *job.WorkerContext) error {
 
@@ -59,9 +34,6 @@ func WorkerDataAggregator(ctx *job.WorkerContext) error {
 	in := &query.InputDA{}
 	if err := ctx.UnmarshalMessage(in); err != nil {
 		return handleError(err)
-	}
-	if len(in.Data) == 0 {
-		return handleError(errors.New("Worker has to receive Data to compute the aggregation"))
 	}
 
 	// Launch Treatment

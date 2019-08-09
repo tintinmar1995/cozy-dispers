@@ -1,6 +1,7 @@
 package enclave
 
 import (
+	"encoding/json"
 	"errors"
 
 	"github.com/cozy/cozy-stack/pkg/couchdb"
@@ -41,18 +42,30 @@ func (t *DataAggrDoc) SetID(id string) { t.DataAggrDocID = id }
 // SetRev sets Doc's Rev
 func (t *DataAggrDoc) SetRev(rev string) { t.DataAggrDocRev = rev }
 
-func applyAggregateFunction(data []map[string]interface{}, function string, args map[string]interface{}) (map[string]interface{}, error) {
+func applyAggregateFunction(data []map[string]interface{}, function query.AggregationFunction) (map[string]interface{}, error) {
 
-	switch function {
+	switch function.Function {
 	case "sum":
-		return aggregations.Sum(data, args)
+		return aggregations.Sum(data, function.Args)
 	default:
 		return nil, errors.New("Aggregation function unknown")
 	}
 }
 
-func decryptInputs(in *query.InputDA) error {
-	return nil
+func decryptInputDA(in *query.InputDA) (query.AggregationFunction, []map[string]interface{}, error) {
+
+	// TODO: Decrypt if encrypted
+
+	var function query.AggregationFunction
+	var data []map[string]interface{}
+	if err := json.Unmarshal(in.EncryptedFunction, &function); err != nil {
+		return function, data, errors.New("Failed to unmarshal function : " + err.Error())
+	}
+	if err := json.Unmarshal(in.EncryptedData, &data); err != nil {
+		return function, data, errors.New("Failed to unmarshal data : " + err.Error())
+	}
+
+	return function, data, nil
 }
 
 // AggregateData leads an aggregation of data
@@ -60,14 +73,16 @@ func AggregateData(in query.InputDA) (map[string]interface{}, error) {
 
 	var results map[string]interface{}
 
-	if in.IsEncrypted {
-		if err := decryptInputs(&in); err != nil {
-			return results, err
-		}
+	function, data, err := decryptInputDA(&in)
+	if err != nil {
+		return results, err
 	}
 
-	results, err := applyAggregateFunction(in.Data, in.Job.Function, in.Job.Args)
-	return results, err
+	results, err = applyAggregateFunction(data, function)
+	if err != nil {
+		return results, errors.New("Failed to apply aggregate function : " + err.Error())
+	}
+	return results, nil
 }
 
 // GetStateOrGetResult returns at any time the state of the algorithm

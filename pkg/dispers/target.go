@@ -20,8 +20,21 @@ func buildStackQuery(instance query.Instance, localQuery query.LocalQuery) query
 	return query
 }
 
-func decryptInputT(in *query.InputT) error {
-	return nil
+func decryptInputT(in *query.InputT) ([]query.Instance, query.LocalQuery, error) {
+
+	var targets []query.Instance
+	var localQuery query.LocalQuery
+
+	// TODO: Decrypt inputs if encrypted
+
+	if err := json.Unmarshal(in.EncryptedTargets, &targets); err != nil {
+		return targets, localQuery, errors.New("Failed to unmarshal targets : " + err.Error())
+	}
+	if err := json.Unmarshal(in.EncryptedLocalQuery, &localQuery); err != nil {
+		return targets, localQuery, errors.New("Failed to unmarshal local query : " + err.Error())
+	}
+
+	return targets, localQuery, nil
 }
 
 func retrieveData(in *query.InputT, queriesStack *[]query.StackQuery) ([]map[string]interface{}, error) {
@@ -59,9 +72,11 @@ func retrieveData(in *query.InputT, queriesStack *[]query.StackQuery) ([]map[str
 			return nil, err
 		}
 
+		// TODO : Decrypt data
+
 		err = json.Unmarshal(stack.Out, &rowsData)
 		if err != nil {
-			return nil, err
+			return nil, errors.New("Failed to unmarshal data of stack : " + err.Error())
 		}
 
 		for _, row := range rowsData["docs"].([]interface{}) {
@@ -76,25 +91,19 @@ func retrieveData(in *query.InputT, queriesStack *[]query.StackQuery) ([]map[str
 // QueryTarget decrypts instance given by the conductor and build queries
 func QueryTarget(in query.InputT) ([]map[string]interface{}, error) {
 
-	queries := make([]query.StackQuery, len(in.Targets))
-
-	if in.IsEncrypted {
-		if err := decryptInputT(&in); err != nil {
-			return nil, err
-		}
+	targets, localQuery, err := decryptInputT(&in)
+	if err != nil {
+		return nil, err
 	}
 
-	if len(in.Targets) == 0 {
+	queries := make([]query.StackQuery, len(targets))
+
+	if len(targets) == 0 {
 		return nil, errors.New("Targets is empty")
 	}
 
-	var item2instance query.Instance
-	for index, item := range in.Targets {
-		err := json.Unmarshal([]byte(item), &item2instance)
-		if err != nil {
-			return nil, err
-		}
-		q := buildStackQuery(item2instance, in.LocalQuery)
+	for index, target := range targets {
+		q := buildStackQuery(target, localQuery)
 		queries[index] = q
 	}
 
