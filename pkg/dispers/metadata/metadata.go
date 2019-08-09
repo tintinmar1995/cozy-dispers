@@ -1,4 +1,4 @@
-package dispers
+package metadata
 
 import (
 	"errors"

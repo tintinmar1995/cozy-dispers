@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
+
+	"github.com/cozy/cozy-stack/pkg/dispers/metadata"
 )
 
 /*
@@ -12,10 +14,29 @@ Conductor's Input & Output
 *
 */
 
+type InputNewQuery struct {
+	Concepts               []string          `json:"concepts,omitempty"`
+	PseudoConcepts         map[string]string `json:"pseudo_concepts,omitempty"`
+	IsEncrypted            bool              `json:"is_encrypted"`
+	LocalQuery             LocalQuery        `json:"local_query,omitempty"`
+	TargetProfile          string            `json:"target_profile,omitempty"`
+	LayersDA               []LayerDA         `json:"layers_da,omitempty"`
+	EncryptedLocalQuery    []byte            `json:"enc_local_query,omitempty"`
+	EncryptedConcepts      []Concept         `json:"enc_concepts,omitempty"`
+	EncryptedTargetProfile []byte            `json:"enc_operation,omitempty"`
+}
+
+type LayerDA struct {
+	Data              []map[string]interface{} `json:"layer_data,omitempty"`
+	Size              int                      `json:"layer_size"`
+	EncryptedFunction []byte                   `json:"layer_enc_func"`
+}
+
 type InputPatchQuery struct {
-	IsEncrypted bool     `json:"encrypted"`
+	IsEncrypted bool     `json:"is_encrypted"`
 	Role        string   `json:"role"`
 	OutDA       OutputDA `json:"output_da,omitempty"`
+	OutT        OutputT  `json:"output_t,omitempty"`
 }
 
 /*
@@ -25,31 +46,28 @@ Concept Indexors' Input & Output
 */
 
 type Concept struct {
-	IsEncrypted      bool   `json:"encrypted,omitempty"`
-	Concept          string `json:"concept,omitempty"`
 	EncryptedConcept []byte `json:"enc_concept,omitempty"`
 	Hash             []byte `json:"hash,omitempty"`
 }
 
 type InputCI struct {
-	Concepts []Concept `json:"concepts,omitempty"`
+	IsEncrypted   bool                  `json:"is_encrypted,omitempty"`
+	Concepts      []Concept             `json:"concepts,omitempty"`
+	InputMetadata metadata.TaskMetadata `json:"metadata_input,omitempty"`
 }
 
 // OutputCI contains a bool and the result
 type OutputCI struct {
-	Hashes []Concept `json:"hashes,omitempty"`
+	Hashes         []Concept             `json:"hashes,omitempty"`
+	TaskMetadata   metadata.TaskMetadata `json:"metadata_task,omitempty"`
+	OutputMetadata metadata.TaskMetadata `json:"metadata_output,omitempty"`
 }
 
 func ConceptsToString(concepts []Concept) string {
 	str := ""
 	for index, concept := range concepts {
 		// Stack every concept, with ":" as separator
-		// TODO : Delete concept.Concept
-		if concept.IsEncrypted {
-			str = str + string(concept.EncryptedConcept)
-		} else {
-			str = str + concept.Concept
-		}
+		str = str + string(concept.EncryptedConcept)
 		if index != (len(concepts) - 1) {
 			str = str + ":"
 		}
@@ -212,25 +230,17 @@ func (o *OperationTree) UnmarshalJSON(data []byte) error {
 // InputTF contains a map that associate every concept to a list of Addresses
 // and a operation to compute to retrive the final list
 type InputTF struct {
-	IsEncrypted               bool                `json:"isencrypted"`
-	EncryptedListsOfAddresses []byte              `json:"enc_instances,omitempty"`
-	EncryptedTargetProfile    []byte              `json:"enc_operation,omitempty"`
-	ListsOfAddresses          map[string][]string `json:"instances"`
-	TargetProfile             string              `json:"target_profile,omitempty"`
+	IsEncrypted               bool                  `json:"is_encrypted"`
+	EncryptedListsOfAddresses map[string][]byte     `json:"enc_instances,omitempty"`
+	EncryptedTargetProfile    []byte                `json:"enc_operation,omitempty"`
+	InputMetadata             metadata.TaskMetadata `json:"metadata_input,omitempty"`
 }
 
 // OutputTF is what Target Finder send to the conductor
 type OutputTF struct {
-	ListOfAddresses          []string `json:"addresses,omitempty"`
-	EncryptedListOfAddresses []byte   `json:"enc_addresses,omitempty"`
-}
-
-// Instance describes the location of an instance and the token it had created
-// When Target received twice the same Instance, it needs to be able to consider the more recent item
-type Instance struct {
-	Domain      string `json:"domain"`
-	TokenBearer string `json:"bearer,omitempty"`
-	Version     int    `json:"version"`
+	EncryptedTargets []byte                `json:"enc_targets,omitempty"`
+	TaskMetadata     metadata.TaskMetadata `json:"metadata_task,omitempty"`
+	OutputMetadata   metadata.TaskMetadata `json:"metadata_output,omitempty"`
 }
 
 /*
@@ -241,28 +251,35 @@ Targets' Input & Output
 
 // InputT contains information received by Target's enclave
 type InputT struct {
-	IsEncrypted         bool       `json:"isencrypted,omitempty"`
-	LocalQuery          LocalQuery `json:"localquery,omitempty"`
-	Targets             []string   `json:"Addresses,omitempty"`
-	EncryptedLocalQuery []byte     `json:"enc_localquery,omitempty"`
-	EncryptedTargets    []byte     `json:"enc_addresses,omitempty"`
-	QueryID             string     `json:"queryid,omitempty"`
+	IsEncrypted         bool                  `json:"is_encrypted,omitempty"`
+	EncryptedLocalQuery []byte                `json:"enc_local_query,omitempty"`
+	EncryptedTargets    []byte                `json:"enc_addresses,omitempty"`
+	QueryID             string                `json:"queryid,omitempty"`
+	InputMetadata       metadata.TaskMetadata `json:"metadata_input,omitempty"`
+}
+
+// Instance describes the location of an instance and the token it had created
+// When Target received twice the same Instance, it needs to be able to consider the more recent item
+type Instance struct {
+	Domain      string `json:"domain"`
+	TokenBearer string `json:"token_bearer"`
+	Version     int    `json:"version"`
 }
 
 // StackQuery is all the information needed by the conductor's and stack to make a query
 type StackQuery struct {
-	Domain              string     `json:"domain,omitempty"`
-	LocalQuery          LocalQuery `json:"localquery,omitempty"`
-	TokenBearer         string     `json:"bearer,omitempty"`
-	IsEncrypted         bool       `json:"isencrypted,omitempty"`
-	EncryptedLocalQuery []byte     `json:"enc_localquery,omitempty"`
-	EncryptedTokens     []byte     `json:"enc_token,omitempty"`
+	Domain      string     `json:"domain,omitempty"`
+	LocalQuery  LocalQuery `json:"local_query,omitempty"`
+	TokenBearer string     `json:"token_bearer,omitempty"`
+	IsEncrypted bool       `json:"is_encrypted,omitempty"`
 }
 
 // OutputT is what Target returns to the conductor
 type OutputT struct {
-	Data    []map[string]interface{} `json:"data,omitempty"`
-	QueryID string                   `json:"queryid,omitempty"`
+	Data           []map[string]interface{} `json:"data,omitempty"`
+	QueryID        string                   `json:"queryid,omitempty"`
+	TaskMetadata   metadata.TaskMetadata    `json:"metadata_task,omitempty"`
+	OutputMetadata metadata.TaskMetadata    `json:"metadata_output,omitempty"`
 }
 
 // LocalQuery decribes which data the stack has to retrieve
@@ -285,18 +302,19 @@ type AggregationFunction struct {
 }
 
 type InputDA struct {
-	Job           AggregationFunction      `json:"job"`
-	QueryID       string                   `json:"queryid"`
-	AggregationID [2]int                   `json:"aggregationid,omitempty"`
-	ConductorURL  url.URL                  `json:"conductor_url"`
-	Data          []map[string]interface{} `json:"data,omitempty"`
-	IsEncrypted   bool                     `json:"isencrypted"`
-	EncryptedJob  []byte                   `json:"enc_type,omitempty"`
-	EncryptedData []byte                   `json:"enc_data,omitempty"`
+	QueryID           string                `json:"queryid"`
+	AggregationID     [2]int                `json:"aggregationid,omitempty"`
+	ConductorURL      url.URL               `json:"conductor_url"`
+	IsEncrypted       bool                  `json:"is_encrypted"`
+	EncryptedFunction []byte                `json:"enc_func,omitempty"`
+	EncryptedData     []byte                `json:"enc_data,omitempty"`
+	InputMetadata     metadata.TaskMetadata `json:"metadata_input,omitempty"`
 }
 
 type OutputDA struct {
-	Results       map[string]interface{} `json:"results,omitempty"`
-	QueryID       string                 `json:"queryid,omitempty"`
-	AggregationID [2]int                 `json:"aggregationid,omitempty"`
+	Results        map[string]interface{} `json:"results,omitempty"`
+	QueryID        string                 `json:"queryid,omitempty"`
+	AggregationID  [2]int                 `json:"aggregationid,omitempty"`
+	TaskMetadata   metadata.TaskMetadata  `json:"metadata_task,omitempty"`
+	OutputMetadata metadata.TaskMetadata  `json:"metadata_output,omitempty"`
 }
