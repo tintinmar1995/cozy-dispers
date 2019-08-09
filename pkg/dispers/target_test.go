@@ -18,9 +18,6 @@ func TestBuildQuery(t *testing.T) {
 		FindRequest: map[string]interface{}{},
 	}
 
-	in := query.InputT{
-		LocalQuery: localQuery,
-	}
-	out := buildStackQuery(inst, in.LocalQuery)
+	out := buildStackQuery(inst, localQuery)
 	assert.Equal(t, inst.Domain, out.Domain)
 }

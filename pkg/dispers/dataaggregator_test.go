@@ -27,7 +27,7 @@ func TestAggregateSum(t *testing.T) {
 	args["keys"] = []string{"sepal_length", "sepal_width"}
 	function := "sum"
 
-	res, err := applyAggregateFunction(data, function, args)
+	res, err := applyAggregateFunction(data, query.AggregationFunction{Function: function, Args: args})
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]interface{}{"length": 150, "sepal_length": 876.5000000000002, "sepal_width": 458.10000000000014}, res)
 
@@ -50,7 +50,7 @@ func TestAggregateMean(t *testing.T) {
 		args["keys"] = []string{"sepal_length", "sepal_width"}
 		function := "sum"
 
-		results, _ := applyAggregateFunction(data, function, args)
+		results, _ := applyAggregateFunction(data, query.AggregationFunction{Function: function, Args: args})
 		res[i] = results
 		i = i + 1
 	}
@@ -60,12 +60,14 @@ func TestAggregateMean(t *testing.T) {
 	args := make(map[string]interface{})
 	args["keys"] = []string{"sepal_length", "sepal_width"}
 	args["weight"] = "length"
+	encData, _ := json.Marshal(res)
+	encFunc, _ := json.Marshal(query.AggregationFunction{
+		Function: "sum",
+		Args:     args,
+	})
 	in2 := query.InputDA{
-		Data: res,
-		Job: query.AggregationFunction{
-			Function: "sum",
-			Args:     args,
-		},
+		EncryptedData:     encData,
+		EncryptedFunction: encFunc,
 	}
 	means, err := AggregateData(in2)
 	assert.NoError(t, err)

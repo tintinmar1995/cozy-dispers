@@ -63,38 +63,40 @@ func TestMarshalUnmarshalOperationTree(t *testing.T) {
 func TestTargetFinder(t *testing.T) {
 
 	m := make(map[string][]string)
-	m["test1"] = []string{"joel", "claire", "caroline", "françois"}
-	m["test2"] = []string{"paul", "claire", "françois"}
-	m["test3"] = []string{"paul", "claire", "françois"}
-	m["test4"] = []string{"paul", "benjamin", "florent"}
+	encLoA := make(map[string][]byte)
+	m["test1"] = []string{"{joel}", "{claire}", "{caroline}", "{françois}"}
+	m["test2"] = []string{"{paul}", "{claire}", "{françois}"}
+	m["test3"] = []string{"{paul}", "{claire}", "{françois}"}
+	m["test4"] = []string{"{paul}", "{benjamin}", "{florent}"}
+	for key, list := range m {
+		encList, _ := json.Marshal(list)
+		encLoA[key] = encList
+	}
 
 	in := query.InputTF{
-		IsEncrypted:      false,
-		ListsOfAddresses: m,
-		TargetProfile:    "OR(AND(\"test1\"::\"test2\"):AND(\"test3\"::\"test4\"))",
+		IsEncrypted:               false,
+		EncryptedListsOfAddresses: encLoA,
+		EncryptedTargetProfile:    []byte("OR(AND(\"test1\"::\"test2\"):AND(\"test3\"::\"test4\"))"),
 	}
-
 	out, err := SelectAddresses(in)
 	assert.NoError(t, err)
-	assert.Equal(t, out, []string{"claire", "françois", "paul"})
+	assert.Equal(t, []string{"{claire}", "{françois}", "{paul}"}, out)
 
 	in = query.InputTF{
-		IsEncrypted:      false,
-		ListsOfAddresses: m,
-		TargetProfile:    "AND(OR(\"test1\"::\"test2\"):OR(\"test3\"::\"test7\"))",
+		IsEncrypted:               false,
+		EncryptedListsOfAddresses: encLoA,
+		EncryptedTargetProfile:    []byte("AND(OR(\"test1\"::\"test2\"):OR(\"test3\"::\"test7\"))"),
 	}
-
 	_, err = SelectAddresses(in)
 	assert.Error(t, err)
 
 	in = query.InputTF{
-		IsEncrypted:      false,
-		ListsOfAddresses: m,
-		TargetProfile:    "AND(OR(\"test1\"::\"test2\"):AND(\"test4\"::\"test4\"))",
+		IsEncrypted:               false,
+		EncryptedListsOfAddresses: encLoA,
+		EncryptedTargetProfile:    []byte("AND(\"test4\"::\"test4\")"),
 	}
-
 	out, err = SelectAddresses(in)
 	assert.NoError(t, err)
-	assert.Equal(t, []string{"paul"}, out)
+	assert.Equal(t, []string{"{paul}", "{benjamin}", "{florent}"}, out)
 
 }

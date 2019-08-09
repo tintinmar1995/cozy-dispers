@@ -1,7 +1,6 @@
 package enclave
 
 import (
-	"errors"
 	"fmt"
 	"runtime"
 
@@ -35,9 +34,6 @@ func WorkerDataAggregator(ctx *job.WorkerContext) error {
 	in := &query.InputDA{}
 	if err := ctx.UnmarshalMessage(in); err != nil {
 		return handleError(err)
-	}
-	if len(in.Data) == 0 {
-		return handleError(errors.New("Worker has to receive Data to compute the aggregation"))
 	}
 
 	// Launch Treatment
