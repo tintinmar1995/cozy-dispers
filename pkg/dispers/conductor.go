@@ -35,25 +35,18 @@ var (
 // Conductor's database. Thanks to that, CheckPoints can be made, and the process
 // can be followed by the querier.
 type QueryDoc struct {
-	QueryID                   string              `json:"_id,omitempty"`
-	QueryRev                  string              `json:"_rev,omitempty"`
-	IsEncrypted               bool                `json:"encrypted,omitempty"`
-	CheckPoints               map[string]bool     `json:"checkpoints,omitempty"`
-	Concepts                  []query.Concept     `json:"concepts,omitempty"`
-	DomainQuerier             string              `json:"domain,omitempty"`
-	ListsOfAddresses          map[string][]string `json:"lists_of_instances,omitempty"`
-	LocalQuery                query.LocalQuery    `json:"localquery,omitempty"`
-	Layers                    []query.LayerDA     `json:"layers,omitempty"`
-	NumberActors              map[string]int      `json:"nb_actors,omitempty"`
-	PseudoConcepts            map[string]string   `json:"pseudo_concepts,omitempty"`
-	Results                   interface{}         `json:"results,omitempty"`
-	TargetProfile             string              `json:"target_profile,omitempty"`
-	Targets                   []string            `json:"targets,omitempty"`
-	EncryptedConcepts         [][]byte            `json:"enc_concepts,omitempty"`
-	EncryptedListsOfAddresses []byte              `json:"enc_instances,omitempty"`
-	EncryptedLocalQuery       []byte              `json:"enc_localquery,omitempty"`
-	EncryptedTargetProfile    []byte              `json:"enc_operation,omitempty"`
-	EncryptedTargets          []byte              `json:"enc_addresses,omitempty"`
+	QueryID                   string            `json:"_id,omitempty"`
+	QueryRev                  string            `json:"_rev,omitempty"`
+	IsEncrypted               bool              `json:"encrypted,omitempty"`
+	CheckPoints               map[string]bool   `json:"checkpoints,omitempty"`
+	Layers                    []query.LayerDA   `json:"layers,omitempty"`
+	PseudoConcepts            map[string]string `json:"pseudo_concepts,omitempty"`
+	Results                   interface{}       `json:"results,omitempty"`
+	EncryptedConcepts         []query.Concept   `json:"concepts,omitempty"`
+	EncryptedListsOfAddresses map[string][]byte `json:"enc_instances,omitempty"`
+	EncryptedLocalQuery       []byte            `json:"enc_localquery,omitempty"`
+	EncryptedTargetProfile    []byte            `json:"enc_operation,omitempty"`
+	EncryptedTargets          []byte            `json:"enc_addresses,omitempty"`
 }
 
 // ID returns the QueryID
@@ -90,21 +83,42 @@ func (q *QueryDoc) SetRev(rev string) {
 // NewQuery returns a Query object to lead, resume, get info about the query.
 func NewQuery(in *query.InputNewQuery) (*QueryDoc, error) {
 
-	// Creating the QueryDoc that will be saved in the Conductor's database
-	q := &QueryDoc{
-		CheckPoints:            make(map[string]bool),
-		Concepts:               in.Concepts,
-		DomainQuerier:          in.DomainQuerier,
-		IsEncrypted:            in.IsEncrypted,
-		Layers:                 in.LayersDA,
-		LocalQuery:             in.LocalQuery,
-		NumberActors:           in.NumberActors,
-		PseudoConcepts:         in.PseudoConcepts,
-		TargetProfile:          in.TargetProfile,
-		EncryptedConcepts:      in.EncryptedConcepts,
-		EncryptedLocalQuery:    in.EncryptedLocalQuery,
-		EncryptedTargetProfile: in.EncryptedTargetProfile,
+	var q *QueryDoc
+
+	if in.IsEncrypted {
+		// Creating the QueryDoc that will be saved in the Conductor's database
+		q = &QueryDoc{
+			CheckPoints:            make(map[string]bool),
+			IsEncrypted:            in.IsEncrypted,
+			Layers:                 in.LayersDA,
+			PseudoConcepts:         in.PseudoConcepts,
+			EncryptedConcepts:      in.EncryptedConcepts,
+			EncryptedLocalQuery:    in.EncryptedLocalQuery,
+			EncryptedTargetProfile: in.EncryptedTargetProfile,
+		}
+	} else {
+
+		encryptedConcepts := []query.Concept{}
+		for _, concept := range in.Concepts {
+			encryptedConcepts = append(encryptedConcepts, query.Concept{EncryptedConcept: []byte(concept)})
+		}
+
+		encryptedLocalQuery, err := json.Marshal(in.LocalQuery)
+		if err != nil {
+			return q, err
+		}
+
+		q = &QueryDoc{
+			CheckPoints:            make(map[string]bool),
+			IsEncrypted:            in.IsEncrypted,
+			Layers:                 in.LayersDA,
+			PseudoConcepts:         in.PseudoConcepts,
+			EncryptedConcepts:      encryptedConcepts,
+			EncryptedLocalQuery:    encryptedLocalQuery,
+			EncryptedTargetProfile: []byte(in.TargetProfile),
+		}
 	}
+
 	if err := couchdb.CreateDoc(PrefixerC, q); err != nil {
 		return &QueryDoc{}, err
 	}
@@ -127,7 +141,7 @@ func (q *QueryDoc) decryptConcept() error {
 	// Making the URL to call the other Cozy-DISPERS server
 	// TODO : Delete IsEncrypted from Concept struct and add it to InputCI, use q.IsEncrypted instead
 	ci := network.NewExternalActor(network.RoleCI, network.ModeQuery)
-	ci.DefineDispersActor("concept/" + query.ConceptsToString(q.Concepts) + "/" + strconv.FormatBool(q.Concepts[0].IsEncrypted))
+	ci.DefineDispersActor("concept/" + query.ConceptsToString(q.EncryptedConcepts) + "/" + strconv.FormatBool(q.IsEncrypted))
 	err := ci.MakeRequest("GET", "", nil, nil)
 	if err != nil {
 		return err
@@ -136,18 +150,16 @@ func (q *QueryDoc) decryptConcept() error {
 	var outputCI query.OutputCI
 	json.Unmarshal(ci.Out, &outputCI)
 	q.CheckPoints["ci"] = true
-	q.Concepts = outputCI.Hashes
+	q.EncryptedConcepts = outputCI.Hashes
 	return couchdb.UpdateDoc(PrefixerC, q)
 }
 
 func (q *QueryDoc) fetchListsOfInstancesFromDB() error {
 
 	encListsOfA := make(map[string][]byte)
-	listsOfA := make(map[string][]string)
 
 	// Retrieve the lists of addresses from Conductor's database
-	// TODO : Pass to TF encrypted data (the script will be shorter)
-	for _, concept := range q.Concepts {
+	for _, concept := range q.EncryptedConcepts {
 
 		s, err := RetrieveSubscribeDoc(concept.Hash)
 		if err != nil {
@@ -158,27 +170,9 @@ func (q *QueryDoc) fetchListsOfInstancesFromDB() error {
 			return errors.New("Cannot find SubscribeDoc associated to hash : " + string(concept.Hash))
 		}
 
-		if q.IsEncrypted {
-			encListsOfA[q.PseudoConcepts[string(concept.EncryptedConcept)]] = s[0].EncryptedInstances
-			res, _ := json.Marshal(encListsOfA)
-			q.EncryptedListsOfAddresses = res
+		encListsOfA[q.PseudoConcepts[string(concept.EncryptedConcept)]] = s[0].EncryptedInstances
+		q.EncryptedListsOfAddresses = encListsOfA
 
-		} else {
-			// Pretty ugly way to convert EncryptedInstance to []string.
-			// This part will be removed when clearing Inputs and Outputs and deleting Non-Encrypted data
-			var insts []query.Instance
-			err = json.Unmarshal(s[0].EncryptedInstances, &insts)
-			if err != nil {
-				return err
-			}
-			instsStr := make([]string, len(insts))
-			for index, ins := range insts {
-				marshalledIns, _ := json.Marshal(ins)
-				instsStr[index] = string(marshalledIns)
-			}
-			listsOfA[q.PseudoConcepts[concept.Concept]] = instsStr
-		}
-		q.ListsOfAddresses = listsOfA
 	}
 
 	// Check the process as done and update QueryDoc
@@ -191,8 +185,6 @@ func (q *QueryDoc) selectTargets() error {
 	// Make a request to Target Finder to retrieve the final list of targets
 	inputTF := query.InputTF{
 		IsEncrypted:               q.IsEncrypted,
-		ListsOfAddresses:          q.ListsOfAddresses,
-		TargetProfile:             q.TargetProfile,
 		EncryptedListsOfAddresses: q.EncryptedListsOfAddresses,
 		EncryptedTargetProfile:    q.EncryptedTargetProfile,
 	}
@@ -203,8 +195,7 @@ func (q *QueryDoc) selectTargets() error {
 	}
 	var outputTF query.OutputTF
 	json.Unmarshal(tf.Out, &outputTF)
-	q.EncryptedTargets = outputTF.EncryptedListOfAddresses
-	q.Targets = outputTF.ListOfAddresses
+	q.EncryptedTargets = outputTF.EncryptedTargets
 	q.CheckPoints["tf"] = true
 	return couchdb.UpdateDoc(PrefixerC, q)
 }
@@ -215,8 +206,6 @@ func (q *QueryDoc) makeLocalQuery() error {
 	// Retrieve an array of encrypted data
 	inputT := query.InputT{
 		IsEncrypted:         q.IsEncrypted,
-		LocalQuery:          q.LocalQuery,
-		Targets:             q.Targets,
 		EncryptedLocalQuery: q.EncryptedLocalQuery,
 		EncryptedTargets:    q.EncryptedTargets,
 	}
@@ -321,9 +310,8 @@ func (q *QueryDoc) aggregateLayer(indexLayer int, layer *query.LayerDA) error {
 
 	// Create InputDA for the layer
 	inputDA := query.InputDA{
-		Job:          layer.AggregationFunctions,
-		EncryptedJob: layer.EncryptedAggregateFunctions,
-		QueryID:      q.ID(),
+		EncryptedFunction: layer.EncryptedFunction,
+		QueryID:           q.ID(),
 	}
 
 	// Set Conductor's URL
@@ -342,7 +330,8 @@ func (q *QueryDoc) aggregateLayer(indexLayer int, layer *query.LayerDA) error {
 
 	for indexDA := 0; indexDA < layer.Size; indexDA++ {
 		// Fit inputDA for each DA (data, id, ...)
-		inputDA.Data = data[seps[indexDA]:seps[indexDA+1]]
+		encData, err := json.Marshal(data[seps[indexDA]:seps[indexDA+1]])
+		inputDA.EncryptedData = encData
 		inputDA.AggregationID = [2]int{indexLayer, indexDA}
 
 		// make the request and unmarshal answer
@@ -485,7 +474,7 @@ func CreateConceptInConductorDB(in *query.InputCI) error {
 	errPost := ci.MakeRequest("POST", "", *in, nil)
 
 	// try to get concept
-	path := query.ConceptsToString(in.Concepts) + "/" + strconv.FormatBool(in.Concepts[0].IsEncrypted)
+	path := query.ConceptsToString(in.Concepts) + "/" + strconv.FormatBool(in.IsEncrypted)
 	ci.DefineDispersActor("concept/" + path)
 	err := ci.MakeRequest("GET", "", nil, nil)
 
