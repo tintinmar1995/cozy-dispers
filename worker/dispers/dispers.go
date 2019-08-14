@@ -3,6 +3,7 @@ package enclave
 import (
 	"fmt"
 	"runtime"
+	"time"
 
 	"github.com/cozy/cozy-stack/model/job"
 	"github.com/cozy/cozy-stack/pkg/dispers"
@@ -36,11 +37,15 @@ func WorkerDataAggregator(ctx *job.WorkerContext) error {
 		return handleError(err)
 	}
 
+	in.TaskMetadata.Arrival = time.Now()
+
 	// Launch Treatment
 	res, err := enclave.AggregateData(*in)
 	if err != nil {
 		return handleError(err)
 	}
+
+	in.TaskMetadata.Returning = time.Now()
 
 	// Send result to Conductor
 	out := query.InputPatchQuery{
@@ -48,6 +53,7 @@ func WorkerDataAggregator(ctx *job.WorkerContext) error {
 			Results:       res,
 			QueryID:       in.QueryID,
 			AggregationID: in.AggregationID,
+			TaskMetadata:  in.TaskMetadata,
 		},
 		Role: network.RoleDA,
 	}
@@ -60,6 +66,8 @@ func WorkerDataAggregator(ctx *job.WorkerContext) error {
 			if err := conductor.MakeRequest("PATCH", "", out, nil); err != nil {
 				return handleError(err)
 			}
+		} else {
+			return handleError(err)
 		}
 	}
 
