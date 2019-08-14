@@ -14,20 +14,23 @@ import (
 var prefixC = prefixer.ConductorPrefixer
 
 type TaskMetadata struct {
-	Start time.Time `json:"start,omitempty"`
-	End   time.Time `json:"end,omitempty"`
-	URL   url.URL   `json:"url,omitempty"`
-	Error error     `json:"error,omitempty"`
+	Name      string    `json:"name,omitempty"`
+	Start     time.Time `json:"start,omitempty"`
+	Arrival   time.Time `json:"arrival,omitempty"`
+	Returning time.Time `json:"returning,omitempty"`
+	End       time.Time `json:"end,omitempty"`
+	URL       url.URL   `json:"url,omitempty"`
+	Error     error     `json:"error,omitempty"`
 }
 
 // NewTaskMetadata returns a new TaskMetadata object
-func NewTaskMetadata() (TaskMetadata, error) {
+func NewTaskMetadata() TaskMetadata {
 	now := time.Now()
 	doc := TaskMetadata{
 		Start: now,
 	}
 
-	return doc, nil
+	return doc
 }
 
 // Save the ExecutionMetadata in Conductor's database
@@ -83,22 +86,20 @@ func NewExecutionMetadata(process string, queryid string, host url.URL) (Executi
 		Host:    host,
 		Tasks:   make(map[string]TaskMetadata),
 	}
-
 	err := couchdb.CreateDoc(prefixC, &doc)
-
 	return doc, err
 }
 
-// Save the ExecutionMetadata in Conductor's database
-func (m *ExecutionMetadata) SetTask(name string, task TaskMetadata) error {
-	if m.Tasks == nil {
-		tasks := make(map[string]TaskMetadata)
-		tasks[name] = task
-		m.Tasks = tasks
-	} else {
-		m.Tasks[name] = task
+func (m *ExecutionMetadata) HandleError(name string, task TaskMetadata, err error) error {
+
+	task.EndTask(err)
+	task.Name = name
+	m.Tasks[name] = task
+	errTsk := couchdb.UpdateDoc(prefixC, m)
+	if err == nil {
+		err = errTsk
 	}
-	return couchdb.UpdateDoc(prefixC, m)
+	return err
 }
 
 // EndExecution the ExecutionMetadata in Conductor's database
@@ -108,28 +109,28 @@ func (m *ExecutionMetadata) EndExecution(err error) error {
 }
 
 // RetrieveExecutionMetadata get ExecutionMetadata from a ExecutionMetadata in CouchDB
-func RetrieveExecutionMetadata(queryid string) (ExecutionMetadata, error) {
+func RetrieveExecutionMetadata(queryid string) (*ExecutionMetadata, error) {
 
 	var out []ExecutionMetadata
 
 	err := couchdb.EnsureDBExist(prefixC, "io.cozy.execution.metadata")
 	if err != nil {
-		return ExecutionMetadata{}, err
+		return &ExecutionMetadata{}, err
 	}
 
 	req := &couchdb.FindRequest{Selector: mango.Equal("query", queryid)}
 	err = couchdb.FindDocs(prefixC, "io.cozy.execution.metadata", req, &out)
 	if err != nil {
-		return ExecutionMetadata{}, err
+		return &ExecutionMetadata{}, err
 	}
 
 	if len(out) == 0 {
-		return ExecutionMetadata{}, errors.New("No ExecutionMetadata for this query")
+		return &ExecutionMetadata{}, errors.New("No ExecutionMetadata for this query")
 	}
 
 	if len(out) > 1 {
-		return ExecutionMetadata{}, errors.New("Too many ExecutionMetadata for this query")
+		return &ExecutionMetadata{}, errors.New("Too many ExecutionMetadata for this query")
 	}
 
-	return out[0], nil
+	return &out[0], nil
 }
