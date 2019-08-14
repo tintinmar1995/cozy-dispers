@@ -12,6 +12,7 @@ import (
 	"github.com/cozy/cozy-stack/pkg/config/config"
 	"github.com/cozy/cozy-stack/pkg/couchdb"
 	"github.com/cozy/cozy-stack/pkg/couchdb/mango"
+	"github.com/cozy/cozy-stack/pkg/dispers/metadata"
 	"github.com/cozy/cozy-stack/pkg/dispers/network"
 	"github.com/cozy/cozy-stack/pkg/dispers/query"
 	"github.com/cozy/cozy-stack/pkg/dispers/subscribe"
@@ -29,6 +30,9 @@ var (
 	}
 	// PrefixerC is exported to easilly pass in dev-mode
 	PrefixerC = prefixer.ConductorPrefixer
+
+	executionMetadata *metadata.ExecutionMetadata
+	cursor            = 0
 )
 
 // QueryDoc saves every information about the query. QueryDoc are saved in the
@@ -108,6 +112,14 @@ func NewQuery(in *query.InputNewQuery) (*QueryDoc, error) {
 			return q, err
 		}
 
+		for index, layer := range in.LayersDA {
+			encryptedFunction, err := json.Marshal(layer.Function)
+			if err != nil {
+				return q, err
+			}
+			in.LayersDA[index].EncryptedFunction = encryptedFunction
+		}
+
 		q = &QueryDoc{
 			CheckPoints:            make(map[string]bool),
 			IsEncrypted:            in.IsEncrypted,
@@ -123,14 +135,39 @@ func NewQuery(in *query.InputNewQuery) (*QueryDoc, error) {
 		return &QueryDoc{}, err
 	}
 
+	hostname, err := os.Hostname()
+	if err != nil {
+		return q, errors.New("Failed to retrieve hostname : " + err.Error())
+	}
+	urlCond, err := url.Parse(hostname)
+	if err != nil {
+		return q, errors.New("Failed to parse hostname : " + err.Error())
+	}
+	meta, err := metadata.NewExecutionMetadata("Query", q.ID(), *urlCond)
+	if err != nil {
+		return q, errors.New("Failed to create a new ExecutionMetadata : " + err.Error())
+	}
+	executionMetadata = &meta
+
 	return q, nil
 }
 
 // NewQueryFetchingQueryDoc returns a QueryDoc object to resume the request
-func NewQueryFetchingQueryDoc(queryid string) (*QueryDoc, error) {
+func NewQueryFetchingQueryDoc(queryid string, indexLayer int) (*QueryDoc, error) {
+
+	cursor = indexLayer
 
 	q := &QueryDoc{}
 	err := couchdb.GetDoc(PrefixerC, "io.cozy.query", queryid, q)
+	if err != nil {
+		return q, errors.New("Failed to retrieve QueryDoc : " + err.Error())
+	}
+
+	executionMetadata, err = metadata.RetrieveExecutionMetadata(queryid)
+	if err != nil {
+		return q, errors.New("Failed to retrieve ExecutionMetadata : " + err.Error())
+	}
+
 	return q, err
 }
 
@@ -139,13 +176,14 @@ func NewQueryFetchingQueryDoc(queryid string) (*QueryDoc, error) {
 func (q *QueryDoc) decryptConcept() error {
 
 	// Making the URL to call the other Cozy-DISPERS server
-	// TODO : Delete IsEncrypted from Concept struct and add it to InputCI, use q.IsEncrypted instead
+	task := metadata.NewTaskMetadata()
 	ci := network.NewExternalActor(network.RoleCI, network.ModeQuery)
 	ci.DefineDispersActor("concept/" + query.ConceptsToString(q.EncryptedConcepts) + "/" + strconv.FormatBool(q.IsEncrypted))
 	err := ci.MakeRequest("GET", "", nil, nil)
 	if err != nil {
-		return err
+		return executionMetadata.HandleError("DecryptConcept", task, err)
 	}
+	executionMetadata.HandleError("DecryptConcept", task, nil)
 	// Read CI's answer, check the process as done, update QueryDoc
 	var outputCI query.OutputCI
 	json.Unmarshal(ci.Out, &outputCI)
@@ -156,6 +194,7 @@ func (q *QueryDoc) decryptConcept() error {
 
 func (q *QueryDoc) fetchListsOfInstancesFromDB() error {
 
+	task := metadata.NewTaskMetadata()
 	encListsOfA := make(map[string][]byte)
 
 	// Retrieve the lists of addresses from Conductor's database
@@ -163,13 +202,14 @@ func (q *QueryDoc) fetchListsOfInstancesFromDB() error {
 
 		s, err := RetrieveSubscribeDoc(concept.Hash)
 		if err != nil {
-			return err
+			return executionMetadata.HandleError("FetchListsOfAddresses", task, err)
 		}
 
 		if len(s) == 0 {
-			return errors.New("Cannot find SubscribeDoc associated to hash : " + string(concept.Hash))
+			return executionMetadata.HandleError("FetchListsOfAddresses", task, errors.New("Cannot find SubscribeDoc associated to hash : "+string(concept.Hash)))
 		}
 
+		executionMetadata.HandleError("FetchListsOfAddresses", task, nil)
 		encListsOfA[q.PseudoConcepts[string(concept.EncryptedConcept)]] = s[0].EncryptedInstances
 		q.EncryptedListsOfAddresses = encListsOfA
 
@@ -182,19 +222,25 @@ func (q *QueryDoc) fetchListsOfInstancesFromDB() error {
 
 func (q *QueryDoc) selectTargets() error {
 
+	task := metadata.NewTaskMetadata()
+
 	// Make a request to Target Finder to retrieve the final list of targets
 	inputTF := query.InputTF{
 		IsEncrypted:               q.IsEncrypted,
 		EncryptedListsOfAddresses: q.EncryptedListsOfAddresses,
 		EncryptedTargetProfile:    q.EncryptedTargetProfile,
+		TaskMetadata:              task,
 	}
 	tf := network.NewExternalActor(network.RoleTF, network.ModeQuery)
 	tf.DefineDispersActor("addresses")
 	if err := tf.MakeRequest("POST", "", inputTF, nil); err != nil {
-		return err
+		return executionMetadata.HandleError("SelectTargets", task, err)
 	}
 	var outputTF query.OutputTF
-	json.Unmarshal(tf.Out, &outputTF)
+	if err := json.Unmarshal(tf.Out, &outputTF); err != nil {
+		return executionMetadata.HandleError("SelectTargets", task, err)
+	}
+	executionMetadata.HandleError("SelectTargets", outputTF.TaskMetadata, nil)
 	q.EncryptedTargets = outputTF.EncryptedTargets
 	q.CheckPoints["tf"] = true
 	return couchdb.UpdateDoc(PrefixerC, q)
@@ -202,29 +248,33 @@ func (q *QueryDoc) selectTargets() error {
 
 func (q *QueryDoc) makeLocalQuery() error {
 
+	task := metadata.NewTaskMetadata()
+
 	// Pass the list of targets to anther Cozy-DISPERS as Target
 	// Retrieve an array of encrypted data
 	inputT := query.InputT{
 		IsEncrypted:         q.IsEncrypted,
 		EncryptedLocalQuery: q.EncryptedLocalQuery,
 		EncryptedTargets:    q.EncryptedTargets,
+		TaskMetadata:        task,
 	}
 	t := network.NewExternalActor(network.RoleT, network.ModeQuery)
 	t.DefineDispersActor("query")
 	if err := t.MakeRequest("POST", "", inputT, nil); err != nil {
-		return err
+		return executionMetadata.HandleError("LocalQuery", task, err)
 	}
 	var outputT query.OutputT
 	if err := json.Unmarshal(t.Out, &outputT); err != nil {
-		return err
+		return executionMetadata.HandleError("LocalQuery", task, err)
 	}
 
 	if len(q.Layers) == 0 {
-		return errors.New("Query should have at least one aggregation array")
+		return executionMetadata.HandleError("LocalQuery", task, errors.New("Query should have at least one aggregation array"))
 	}
 	if len(outputT.Data) == 0 {
-		return errors.New("No data to query on")
+		return executionMetadata.HandleError("LocalQuery", task, errors.New("No data to query on"))
 	}
+	executionMetadata.HandleError("LocalQuery", outputT.TaskMetadata, nil)
 	q.Layers[0].Data = outputT.Data
 	q.CheckPoints["t"] = true
 	return couchdb.UpdateDoc(PrefixerC, q)
@@ -246,35 +296,37 @@ func (q *QueryDoc) ShouldBeComputed(indexLayer int) (bool, error) {
 	}
 	// If this is the first Layer and it is waiting
 	// Conductor should compute the layer
-	if stateLayer == query.Waiting && indexLayer == 0 {
+	if indexLayer == 0 && stateLayer == query.Waiting {
 		return true, nil
 	}
 	if stateLayer == query.Finished || stateLayer == query.Running {
 		return false, nil
 	}
 
+	// indexLayer is bigger than 0. indexLayer is Waiting.
+	// We need to check indexLayer-1 is finished
 	// ShouldBeComputed returns false if indexLayer-1 is not finished
 	// Conductor should wait that indexLayer-1 is finished before computing indexLayer
 	statePreviousLayer, err := query.FetchAsyncStateLayer(q.QueryID, indexLayer-1, q.Layers[indexLayer-1].Size)
 	if err != nil {
 		return false, err
 	}
-	if statePreviousLayer == query.Waiting || statePreviousLayer == query.Running {
-		return false, nil
+	if statePreviousLayer == query.Finished {
+		return true, nil
 	}
 
-	// The previous layer is finished, the layer has not been begun...
-	// Conductor can compute indexLayer
-	return true, nil
+	// The previous layer is not finished
+	return false, nil
 }
 
 func (q *QueryDoc) aggregateLayer(indexLayer int, layer *query.LayerDA) error {
 
-	var data []map[string]interface{}
-
-	// if it is the first layer, data should should be retrieved from Target's result
+	// if it is the first layer, data should be retrieved from Target's result
 	// if not, data should be fetched from async tasks' database.
-	if indexLayer != 0 {
+	var data []map[string]interface{}
+	if indexLayer == 0 {
+		data = layer.Data
+	} else {
 		for indexDA := 0; indexDA < q.Layers[indexLayer-1].Size; indexDA++ {
 			rowData, err := query.FetchAsyncData(q.ID(), indexLayer-1, indexDA)
 			if err != nil {
@@ -282,11 +334,10 @@ func (q *QueryDoc) aggregateLayer(indexLayer int, layer *query.LayerDA) error {
 			}
 			data = append(data, rowData)
 		}
-		if len(data) == 0 {
-			return errors.New("No data fetched from previous layer")
-		}
-	} else {
-		data = layer.Data
+	}
+
+	if len(data) == 0 {
+		return errors.New("No data fetched from previous layer")
 	}
 
 	// Shuffle Data to reduce bias
@@ -323,19 +374,24 @@ func (q *QueryDoc) aggregateLayer(indexLayer int, layer *query.LayerDA) error {
 	if hostname == "martin-perso" {
 		hostname = "localhost"
 	}
+
 	inputDA.ConductorURL = url.URL{
 		Scheme: "http",
 		Host:   hostname + ":" + strconv.Itoa(config.GetConfig().Port),
 	}
 
 	for indexDA := 0; indexDA < layer.Size; indexDA++ {
+
 		// Fit inputDA for each DA (data, id, ...)
 		encData, err := json.Marshal(data[seps[indexDA]:seps[indexDA+1]])
+		if err != nil {
+			return err
+		}
 		inputDA.EncryptedData = encData
 		inputDA.AggregationID = [2]int{indexLayer, indexDA}
-
+		inputDA.TaskMetadata = metadata.NewTaskMetadata()
 		// make the request and unmarshal answer
-		// check one last time that DA hasnot been launch to prevent conflict
+		// check one last time that DA hasnot been launched to prevent conflict
 		state, err := query.FetchAsyncStateDA(q.ID(), indexLayer, indexDA)
 		if err != nil {
 			return err
@@ -360,10 +416,7 @@ func (q *QueryDoc) aggregateLayer(indexLayer int, layer *query.LayerDA) error {
 	}
 
 	// async tasks is now running
-	if err := couchdb.UpdateDoc(PrefixerC, q); err != nil {
-		return err
-	}
-	return q.TryToEndQuery()
+	return couchdb.UpdateDoc(PrefixerC, q)
 }
 
 // Lead is the most general method. It will use the 5 previous methods to work.
@@ -395,22 +448,23 @@ func (q *QueryDoc) Lead() error {
 	}
 
 	if q.CheckPoints["da"] != true {
-		for indexLayer := range q.Layers {
+		for indexLayer := cursor; indexLayer < len(q.Layers); indexLayer++ {
 			layerShouldBeComputed, err := q.ShouldBeComputed(indexLayer)
 			if err != nil {
 				return err
 			}
 			if layerShouldBeComputed {
+				task := metadata.NewTaskMetadata()
 				if err := q.aggregateLayer(indexLayer, &(q.Layers[indexLayer])); err != nil {
-					return err
+					return executionMetadata.HandleError("LaunchLayer"+strconv.Itoa(indexLayer), task, err)
 				}
 				// Stop the process and wait for DAs' answers to resume
-				return nil
+				return executionMetadata.HandleError("LaunchLayer"+strconv.Itoa(indexLayer), task, nil)
 			}
 		}
 	}
 
-	return nil
+	return q.TryToEndQuery()
 }
 
 func (q *QueryDoc) TryToEndQuery() error {
@@ -428,7 +482,10 @@ func (q *QueryDoc) TryToEndQuery() error {
 	}
 
 	if isQueryFinished {
-
+		q, err := NewQueryFetchingQueryDoc(q.ID(), 0)
+		if err != nil {
+			return err
+		}
 		// get results
 		res, err := query.FetchAsyncData(q.ID(), len(q.Layers)-1, 0)
 		if err != nil {
@@ -440,7 +497,7 @@ func (q *QueryDoc) TryToEndQuery() error {
 		q.Results = res
 		// mark checkpoint
 		q.CheckPoints["da"] = true
-
+		executionMetadata.EndExecution(nil)
 		return couchdb.UpdateDoc(PrefixerC, q)
 	}
 
@@ -468,13 +525,20 @@ func RetrieveSubscribeDoc(hash []byte) ([]subscribe.SubscribeDoc, error) {
 // CreateConceptInConductorDB is used to add a concept to Cozy-DISPERS
 func CreateConceptInConductorDB(in *query.InputCI) error {
 
+	if !in.IsEncrypted {
+		in.EncryptedConcepts = []query.Concept{}
+		for _, concept := range in.Concepts {
+			in.EncryptedConcepts = append(in.EncryptedConcepts, query.Concept{EncryptedConcept: []byte(concept)})
+		}
+	}
+
 	// try to create concept
 	ci := network.NewExternalActor(network.RoleCI, network.ModeQuery)
 	ci.DefineDispersActor("concept")
 	errPost := ci.MakeRequest("POST", "", *in, nil)
 
 	// try to get concept
-	path := query.ConceptsToString(in.Concepts) + "/" + strconv.FormatBool(in.IsEncrypted)
+	path := query.ConceptsToString(in.EncryptedConcepts) + "/" + strconv.FormatBool(in.IsEncrypted)
 	ci.DefineDispersActor("concept/" + path)
 	err := ci.MakeRequest("GET", "", nil, nil)
 
