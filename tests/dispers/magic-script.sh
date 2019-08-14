@@ -7,7 +7,6 @@ COZY_STACK=/home/martin/dev/cozy-stack
 PATH_DOCTYPES=/home/martin/dev/cozy-doctypes
 PATH_TEST_FOLDER=/home/martin/go/src/github.com/cozy/cozy-stack/tests/dispers
 PATH_APP=/home/martin/dev/cozy-dispers-app
-# /!\ /!\ /!\ /!\ /!\ /!\
 PATH_INSTANCES=/home/martin/go/src/github.com/cozy/cozy-stack/tests/dispers/data/instances.csv
 PATH_CONCEPTS=/home/martin/go/src/github.com/cozy/cozy-stack/tests/dispers/data/concepts.csv
 
