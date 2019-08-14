@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
+	"strings"
 
 	"github.com/cozy/cozy-stack/pkg/dispers/network"
 	"github.com/cozy/cozy-stack/pkg/dispers/query"
@@ -26,6 +27,11 @@ func decryptInputT(in *query.InputT) ([]query.Instance, query.LocalQuery, error)
 	var localQuery query.LocalQuery
 
 	// TODO: Decrypt inputs if encrypted
+
+	if strings.Contains(string(in.EncryptedTargets), "\\\"") {
+		in.EncryptedTargets = []byte(strings.ReplaceAll(string(in.EncryptedTargets), "\"", ""))
+		in.EncryptedTargets = []byte(strings.ReplaceAll(string(in.EncryptedTargets), "\\", "\""))
+	}
 
 	if err := json.Unmarshal(in.EncryptedTargets, &targets); err != nil {
 		return targets, localQuery, errors.New("Failed to unmarshal targets : " + err.Error())
