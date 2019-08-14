@@ -28,6 +28,7 @@ type LayerDA struct {
 	Data              []map[string]interface{} `json:"layer_data,omitempty"`
 	Size              int                      `json:"layer_size"`
 	EncryptedFunction []byte                   `json:"layer_enc_func"`
+	Function          AggregationFunction      `json:"layer_func"`
 }
 
 type InputPatchQuery struct {
@@ -49,16 +50,15 @@ type Concept struct {
 }
 
 type InputCI struct {
-	IsEncrypted   bool                  `json:"is_encrypted,omitempty"`
-	Concepts      []Concept             `json:"concepts,omitempty"`
-	InputMetadata metadata.TaskMetadata `json:"metadata_input,omitempty"`
+	IsEncrypted       bool      `json:"is_encrypted,omitempty"`
+	Concepts          []string  `json:"concepts,omitempty"`
+	EncryptedConcepts []Concept `json:"enc_concepts,omitempty"`
 }
 
 // OutputCI contains a bool and the result
 type OutputCI struct {
-	Hashes         []Concept             `json:"hashes,omitempty"`
-	TaskMetadata   metadata.TaskMetadata `json:"metadata_task,omitempty"`
-	OutputMetadata metadata.TaskMetadata `json:"metadata_output,omitempty"`
+	Hashes       []Concept             `json:"hashes,omitempty"`
+	TaskMetadata metadata.TaskMetadata `json:"metadata_task,omitempty"`
 }
 
 func ConceptsToString(concepts []Concept) string {
@@ -231,14 +231,13 @@ type InputTF struct {
 	IsEncrypted               bool                  `json:"is_encrypted"`
 	EncryptedListsOfAddresses map[string][]byte     `json:"enc_instances,omitempty"`
 	EncryptedTargetProfile    []byte                `json:"enc_operation,omitempty"`
-	InputMetadata             metadata.TaskMetadata `json:"metadata_input,omitempty"`
+	TaskMetadata              metadata.TaskMetadata `json:"metadata_task,omitempty"`
 }
 
 // OutputTF is what Target Finder send to the conductor
 type OutputTF struct {
 	EncryptedTargets []byte                `json:"enc_targets,omitempty"`
 	TaskMetadata     metadata.TaskMetadata `json:"metadata_task,omitempty"`
-	OutputMetadata   metadata.TaskMetadata `json:"metadata_output,omitempty"`
 }
 
 /*
@@ -253,7 +252,7 @@ type InputT struct {
 	EncryptedLocalQuery []byte                `json:"enc_local_query,omitempty"`
 	EncryptedTargets    []byte                `json:"enc_addresses,omitempty"`
 	QueryID             string                `json:"queryid,omitempty"`
-	InputMetadata       metadata.TaskMetadata `json:"metadata_input,omitempty"`
+	TaskMetadata        metadata.TaskMetadata `json:"metadata_task,omitempty"`
 }
 
 // Instance describes the location of an instance and the token it had created
@@ -274,10 +273,9 @@ type StackQuery struct {
 
 // OutputT is what Target returns to the conductor
 type OutputT struct {
-	Data           []map[string]interface{} `json:"data,omitempty"`
-	QueryID        string                   `json:"queryid,omitempty"`
-	TaskMetadata   metadata.TaskMetadata    `json:"metadata_task,omitempty"`
-	OutputMetadata metadata.TaskMetadata    `json:"metadata_output,omitempty"`
+	Data         []map[string]interface{} `json:"data,omitempty"`
+	QueryID      string                   `json:"queryid,omitempty"`
+	TaskMetadata metadata.TaskMetadata    `json:"metadata_task,omitempty"`
 }
 
 // LocalQuery decribes which data the stack has to retrieve
@@ -306,13 +304,12 @@ type InputDA struct {
 	IsEncrypted       bool                  `json:"is_encrypted"`
 	EncryptedFunction []byte                `json:"enc_func,omitempty"`
 	EncryptedData     []byte                `json:"enc_data,omitempty"`
-	InputMetadata     metadata.TaskMetadata `json:"metadata_input,omitempty"`
+	TaskMetadata      metadata.TaskMetadata `json:"metadata_task,omitempty"`
 }
 
 type OutputDA struct {
-	Results        map[string]interface{} `json:"results,omitempty"`
-	QueryID        string                 `json:"queryid,omitempty"`
-	AggregationID  [2]int                 `json:"aggregationid,omitempty"`
-	TaskMetadata   metadata.TaskMetadata  `json:"metadata_task,omitempty"`
-	OutputMetadata metadata.TaskMetadata  `json:"metadata_output,omitempty"`
+	Results       map[string]interface{} `json:"results,omitempty"`
+	QueryID       string                 `json:"queryid,omitempty"`
+	AggregationID [2]int                 `json:"aggregationid,omitempty"`
+	TaskMetadata  metadata.TaskMetadata  `json:"metadata_task,omitempty"`
 }
