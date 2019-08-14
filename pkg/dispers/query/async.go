@@ -6,6 +6,7 @@ import (
 
 	"github.com/cozy/cozy-stack/pkg/couchdb"
 	"github.com/cozy/cozy-stack/pkg/couchdb/mango"
+	"github.com/cozy/cozy-stack/pkg/dispers/metadata"
 	"github.com/cozy/cozy-stack/pkg/prefixer"
 )
 
@@ -22,19 +23,22 @@ const (
 
 type AsyncType int
 
+var AsyncTypes = []string{"AsyncAggregation"}
+
 const (
 	AsyncAggregation AsyncType = iota
 )
 
 type Async struct {
-	AsyncID    string                 `json:"_id,omitempty"`
-	AsyncRev   string                 `json:"_rev,omitempty"`
-	QueryID    string                 `json:"queryid"`
-	IndexLayer int                    `json:"layerid"`
-	IndexDA    int                    `json:"daid"`
-	Type       AsyncType              `json:"type"`
-	StateDA    State                  `json:"state"`
-	Data       map[string]interface{} `json:"data"`
+	AsyncID      string                 `json:"_id,omitempty"`
+	AsyncRev     string                 `json:"_rev,omitempty"`
+	QueryID      string                 `json:"queryid"`
+	IndexLayer   int                    `json:"layerid"`
+	IndexDA      int                    `json:"daid"`
+	Type         AsyncType              `json:"type"`
+	StateDA      State                  `json:"state"`
+	Data         map[string]interface{} `json:"data"`
+	TaskMetadata metadata.TaskMetadata  `json:"metadata"`
 }
 
 // ID returns the Doc ID
@@ -112,7 +116,7 @@ func SetAsyncTaskAsFinished(queryid string, indexLayer int, indexDA int) error {
 	return nil
 }
 
-func SetData(queryid string, indexLayer int, indexDA int, data map[string]interface{}) error {
+func SetData(queryid string, indexLayer int, indexDA int, data map[string]interface{}, task metadata.TaskMetadata) error {
 
 	var out []Async
 
@@ -135,6 +139,7 @@ func SetData(queryid string, indexLayer int, indexDA int, data map[string]interf
 	}
 
 	out[0].Data = data
+	out[0].TaskMetadata = task
 	if err := couchdb.UpdateDoc(PrefixerC, &out[0]); err != nil {
 		return err
 	}
@@ -142,31 +147,36 @@ func SetData(queryid string, indexLayer int, indexDA int, data map[string]interf
 	return nil
 }
 
+// FetchAsyncStateDA returns the state of the layer
+// The function has to be the fastest as possible
 func FetchAsyncStateLayer(queryid string, indexLayer int, sizeLayer int) (State, error) {
 
+	// Fetch everydoc that match queryid and indexLayer
 	var out []Async
 	req := &couchdb.FindRequest{Selector: mango.And(mango.Equal("queryid", queryid), mango.Equal("layerid", indexLayer))}
-	if err := couchdb.EnsureDBExist(PrefixerC, "io.cozy.async"); err != nil {
-		return Waiting, err
-	}
 	if err := couchdb.FindDocs(PrefixerC, "io.cozy.async", req, &out); err != nil {
 		return Waiting, err
 	}
 
+	// No doc match the queryid & indexLayer, the layer has not been launched at all
 	if len(out) == 0 {
 		return Waiting, nil
 	}
 
+	// There is still some DA that havenot been launched
 	if len(out) < sizeLayer {
 		return Running, nil
 	}
 
+	// Check if every DA has finished, and has sent there results back
 	for indexDA := 0; indexDA < sizeLayer; indexDA++ {
 		if out[indexDA].StateDA != Finished {
+			// We've found one DA that has not finished
 			return Running, nil
 		}
 	}
 
+	// Everything looks fine, the layer is officially finished
 	return Finished, nil
 }
 
@@ -195,7 +205,6 @@ func FetchAsyncStateDA(queryid string, indexLayer int, indexDA int) (State, erro
 func FetchAsyncData(queryid string, indexLayer int, indexDA int) (map[string]interface{}, error) {
 
 	var out []Async
-
 	err := couchdb.EnsureDBExist(PrefixerC, "io.cozy.async")
 	if err != nil {
 		return nil, err
@@ -212,4 +221,26 @@ func FetchAsyncData(queryid string, indexLayer int, indexDA int) (map[string]int
 	}
 
 	return out[0].Data, nil
+}
+
+func FetchAsyncMetadata(queryid string) ([]metadata.TaskMetadata, error) {
+
+	var out []Async
+	req := &couchdb.FindRequest{Selector: mango.Equal("queryid", queryid)}
+	if err := couchdb.EnsureDBExist(PrefixerC, "io.cozy.async"); err != nil {
+		return nil, err
+	}
+	if err := couchdb.FindDocs(PrefixerC, "io.cozy.async", req, &out); err != nil {
+		return nil, err
+	}
+
+	var task metadata.TaskMetadata
+	meta := make([]metadata.TaskMetadata, len(out))
+	for index, async := range out {
+		task = async.TaskMetadata
+		task.Name = AsyncTypes[async.Type] + strconv.Itoa(async.IndexLayer) + "-" + strconv.Itoa(async.IndexDA)
+		meta[index] = task
+	}
+
+	return meta, nil
 }

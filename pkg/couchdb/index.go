@@ -53,6 +53,8 @@ var conductorIndexes = []*mango.Index{
 	mango.IndexOnFields("io.cozy.instances", "hash", []string{"hash"}),
 	mango.IndexOnFields("io.cozy.async", "async-task", []string{"queryid", "layerid", "daid"}),
 	mango.IndexOnFields("io.cozy.async", "async-tasks", []string{"queryid", "layerid"}),
+	mango.IndexOnFields("io.cozy.async", "async-metadata", []string{"queryid"}),
+	mango.IndexOnFields("io.cozy.execution.metadata", "metadata-index", []string{"query"}),
 }
 
 // secretIndexes is the index list required on the secret databases to run
