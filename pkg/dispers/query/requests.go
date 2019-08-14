@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
+
+	"github.com/cozy/cozy-stack/pkg/dispers/metadata"
 )
 
 /*

@@ -9,7 +9,7 @@ import (
 
 	"github.com/cozy/cozy-stack/model/job"
 	"github.com/cozy/cozy-stack/pkg/dispers"
-	"github.com/cozy/cozy-stack/pkg/dispers/network"
+	"github.com/cozy/cozy-stack/pkg/dispers/metadata"
 	"github.com/cozy/cozy-stack/pkg/dispers/query"
 	"github.com/cozy/cozy-stack/pkg/prefixer"
 	"github.com/cozy/echo"
@@ -181,22 +181,26 @@ Conducotr'S ROUTES : those functions are used on route ./dispers
 */
 func getQuery(c echo.Context) error {
 
-	queryDoc, err := enclave.NewQueryFetchingQueryDoc(c.Param("queryid"))
+	queryDoc, err := enclave.NewQueryFetchingQueryDoc(c.Param("queryid"), 0)
 	if err != nil {
 		return err
 	}
 
-	/*
-		metas, err := metadata.RetrieveMetadata(queryid)
-		if err != nil {
-			return nil, *fetched, err
-		}
-	*/
+	executionMetadata, err := metadata.RetrieveExecutionMetadata(queryDoc.ID())
+	if err != nil {
+		return err
+	}
+
+	asyncMetadata, err := query.FetchAsyncMetadata(queryDoc.ID())
+	if err != nil {
+		return err
+	}
 
 	return c.JSON(http.StatusOK, echo.Map{
 		"Checkpoints":       queryDoc.CheckPoints,
 		"Results":           queryDoc.Results,
-		"ExecutionMetadata": nil,
+		"ExecutionMetadata": executionMetadata,
+		"AsyncMetadata":     asyncMetadata,
 	})
 }
 
@@ -221,36 +225,56 @@ func createQuery(c echo.Context) error {
 	return c.JSON(http.StatusOK, echo.Map{"ok": true, "query_id": query.ID()})
 }
 
-func updateQuery(c echo.Context) error {
+func updateQueryDA(c echo.Context) error {
 
+	// Retrieve input
 	queryid := c.Param("queryid")
-
 	var in query.InputPatchQuery
 	if err := json.NewDecoder(c.Request().Body).Decode(&in); err != nil {
 		fmt.Println(err.Error())
 		return err
 	}
 
-	if in.Role == network.RoleDA {
-		if err := query.SetAsyncTaskAsFinished(queryid, in.OutDA.AggregationID[0], in.OutDA.AggregationID[1]); err != nil {
-			fmt.Println(err.Error())
-			return err
-		}
-		if err := query.SetData(queryid, in.OutDA.AggregationID[0], in.OutDA.AggregationID[1], in.OutDA.Results); err != nil {
-			fmt.Println(err.Error())
-			return err
-		}
-	} else {
-		return errors.New("Unknown role")
-	}
-
-	//try to resume query
-	queryDoc, err := enclave.NewQueryFetchingQueryDoc(queryid)
+	// Check if you have not got already those results
+	state, err := query.FetchAsyncStateDA(queryid, in.OutDA.AggregationID[0], in.OutDA.AggregationID[1])
 	if err != nil {
 		return err
 	}
-	if err = queryDoc.Lead(); err != nil {
+	if state == query.Running {
+		// This is the first we try to save results
+		// We can save it and try to resume query right after
+		if err := query.SetAsyncTaskAsFinished(queryid, in.OutDA.AggregationID[0], in.OutDA.AggregationID[1]); err != nil {
+			return err
+		}
+		task := in.OutDA.TaskMetadata
+		task.EndTask(nil)
+		if err := query.SetData(queryid, in.OutDA.AggregationID[0], in.OutDA.AggregationID[1], in.OutDA.Results, task); err != nil {
+			return err
+		}
+	} else if state == query.Finished {
+		// There has been a conflict but there is no problem
+		// Results have been successfully saved the first time
+		// This thread has to be killed, another one is resuming the query
+		return c.JSON(http.StatusOK, echo.Map{"ok": true, "query_id": queryid})
+	} else {
+		return errors.New("Cannot get results from a DA that has not been launched")
+	}
+
+	// AsyncDoc has successfully been updated, now try to resume query
+	// As first security to prevent conflict, we check if indexLayer is finished
+	// There will be more check-up later in the thread
+	queryDoc, err := enclave.NewQueryFetchingQueryDoc(queryid, in.OutDA.AggregationID[0]+1)
+	if err != nil {
 		return err
+	}
+	stateLayer, err := query.FetchAsyncStateLayer(queryid, in.OutDA.AggregationID[0], queryDoc.Layers[in.OutDA.AggregationID[0]].Size)
+	if err != nil {
+		return err
+	}
+	if stateLayer == query.Finished {
+		if err = queryDoc.Lead(); err != nil {
+			return err
+		}
 	}
 
 	return c.JSON(http.StatusOK, echo.Map{"ok": true, "query_id": queryid})
@@ -282,7 +306,7 @@ func Routes(router *echo.Group) {
 
 	router.GET("/query/:queryid", getQuery)
 	router.POST("/query", createQuery)
-	router.PATCH("/query/:queryid", updateQuery)
+	router.PATCH("/query/:queryid", updateQueryDA)
 	router.DELETE("/query/:queryid", deleteQuery)
 
 }

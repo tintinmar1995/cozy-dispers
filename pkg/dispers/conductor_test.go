@@ -39,14 +39,7 @@ func TestCreateSubscribeDoc(t *testing.T) {
 	// Create the three concepts
 	inputCI := query.InputCI{
 		IsEncrypted: false,
-		Concepts: []query.Concept{
-			query.Concept{
-				EncryptedConcept: []byte("julien")},
-			query.Concept{
-				EncryptedConcept: []byte("francois")},
-			query.Concept{
-				EncryptedConcept: []byte("paul")},
-		},
+		Concepts:    []string{"julien", "francois", "paul"},
 	}
 
 	err := CreateConceptInConductorDB(&inputCI)
@@ -72,16 +65,7 @@ func TestSubscribe(t *testing.T) {
 
 	inputCI := query.InputCI{
 		IsEncrypted: false,
-		Concepts: []query.Concept{
-			query.Concept{
-				EncryptedConcept: []byte("aime les fraises")},
-			query.Concept{
-				EncryptedConcept: []byte("aime les framboises")},
-			query.Concept{
-				EncryptedConcept: []byte("joue de la guitare")},
-			query.Concept{
-				EncryptedConcept: []byte("est designer chez cozy")},
-		},
+		Concepts:    []string{"aime les fraises", "aime les framboises", "joue de la guitare", "est designer chez cozy"},
 	}
 
 	err := CreateConceptInConductorDB(&inputCI)
@@ -175,10 +159,10 @@ func TestDecryptConcept(t *testing.T) {
 		query.Concept{
 			EncryptedConcept: []byte("paul")},
 	}
-	CreateConceptInConductorDB(&query.InputCI{Concepts: in.EncryptedConcepts})
+	CreateConceptInConductorDB(&query.InputCI{EncryptedConcepts: in.EncryptedConcepts})
 
 	// Re-Create the three concepts
-	inputCI := query.InputCI{Concepts: in.EncryptedConcepts}
+	inputCI := query.InputCI{EncryptedConcepts: in.EncryptedConcepts}
 	ci := network.NewExternalActor(network.RoleCI, network.ModeQuery)
 	ci.DefineDispersActor("concept")
 	err := ci.MakeRequest("POST", "", inputCI, nil)
@@ -212,7 +196,7 @@ func TestFetchListFromDB(t *testing.T) {
 	in.EncryptedConcepts = []query.Concept{query.Concept{EncryptedConcept: []byte("aime les fraises")}}
 
 	// Create the four concepts
-	CreateConceptInConductorDB(&query.InputCI{Concepts: in.EncryptedConcepts})
+	CreateConceptInConductorDB(&query.InputCI{EncryptedConcepts: in.EncryptedConcepts})
 	query, _ := NewQuery(&in)
 	err := query.decryptConcept()
 	assert.NoError(t, err)
@@ -246,7 +230,7 @@ func TestGetListsOfInstances(t *testing.T) {
 	in.PseudoConcepts["est designer chez cozy"] = "test4"
 
 	// Create the four concepts
-	CreateConceptInConductorDB(&query.InputCI{Concepts: in.EncryptedConcepts})
+	CreateConceptInConductorDB(&query.InputCI{EncryptedConcepts: in.EncryptedConcepts})
 	// Make few instances subscribe to Cozy-DISPERS
 	encInst, _ := json.Marshal(query.Instance{
 		Domain:      "caroline.mycozy.cloud",
