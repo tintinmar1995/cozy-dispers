@@ -47,3 +47,9 @@ var ConceptIndexorPrefixer = NewPrefixer("Concept Indexor", "conceptindexor")
 
 // TestConceptIndexorPrefixer returns a Concept Indexor prefixer for tests with the wildcard '*' as prefix.
 var TestConceptIndexorPrefixer = NewPrefixer("Concept Indexor (TEST)", "testconceptindexor")
+
+// ConceptIndexorPrefixer returns a Concept Indexor prefixer with the wildcard '*' as prefix.
+var ConductorPrefixer = NewPrefixer("Conductor", "conductor")
+
+// TestConceptIndexorPrefixer returns a Concept Indexor prefixer for tests with the wildcard '*' as prefix.
+var TestConductorPrefixer = NewPrefixer("Conductor (TEST)", "testconductor")
