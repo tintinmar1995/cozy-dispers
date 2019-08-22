@@ -300,13 +300,13 @@ type AggregationFunction struct {
 }
 
 type InputDA struct {
-	QueryID           string                `json:"queryid"`
-	AggregationID     [2]int                `json:"aggregationid,omitempty"`
-	ConductorURL      url.URL               `json:"conductor_url"`
-	IsEncrypted       bool                  `json:"is_encrypted"`
-	EncryptedFunction []byte                `json:"enc_func,omitempty"`
-	EncryptedData     []byte                `json:"enc_data,omitempty"`
-	TaskMetadata      metadata.TaskMetadata `json:"metadata_task,omitempty"`
+	QueryID            string                `json:"queryid"`
+	AggregationID      [2]int                `json:"aggregationid,omitempty"`
+	ConductorURL       url.URL               `json:"conductor_url"`
+	IsEncrypted        bool                  `json:"is_encrypted"`
+	EncryptedFunctions []byte                `json:"enc_func,omitempty"`
+	EncryptedData      []byte                `json:"enc_data,omitempty"`
+	TaskMetadata       metadata.TaskMetadata `json:"metadata_task,omitempty"`
 }
 
 type OutputDA struct {

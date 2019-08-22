@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestAggregateSum(t *testing.T) {
+func TestAggregateOneLayer(t *testing.T) {
 	// Get Data From dummy_dataset
 	s := ""
 	absPath, _ := filepath.Abs("../../assets/test/dummy_dataset.json")
@@ -23,13 +23,49 @@ func TestAggregateSum(t *testing.T) {
 	var data []map[string]interface{}
 	json.Unmarshal([]byte(s), &data)
 
+	// Test Sum
+	results := make(map[string]interface{})
 	args := make(map[string]interface{})
 	args["keys"] = []string{"sepal_length", "sepal_width"}
 	function := "sum"
+	for idx, rowData := range data {
+		results, err = applyAggregateFunction(idx, results, rowData, query.AggregationFunction{Function: function, Args: args})
+		assert.NoError(t, err)
+	}
+	assert.Equal(t, map[string]interface{}{"sum_sepal_length": 876.5000000000002, "sum_sepal_width": 458.10000000000014}, results)
 
-	res, err := applyAggregateFunction(data, query.AggregationFunction{Function: function, Args: args})
-	assert.NoError(t, err)
-	assert.Equal(t, map[string]interface{}{"length": 150, "sepal_length": 876.5000000000002, "sepal_width": 458.10000000000014}, res)
+	// Test SumSquare
+	results = make(map[string]interface{})
+	args = make(map[string]interface{})
+	args["keys"] = []string{"sepal_length", "sepal_width"}
+	function = "sum_square"
+	for idx, rowData := range data {
+		results, err = applyAggregateFunction(idx, results, rowData, query.AggregationFunction{Function: function, Args: args})
+		assert.NoError(t, err)
+	}
+	assert.Equal(t, map[string]interface{}{"sum_square_sepal_length": 5223.849999999998, "sum_square_sepal_width": 1427.049999999999}, results)
+
+	// Test Min
+	results = make(map[string]interface{})
+	args = make(map[string]interface{})
+	args["keys"] = []string{"sepal_length", "sepal_width"}
+	function = "min"
+	for idx, rowData := range data {
+		results, err = applyAggregateFunction(idx, results, rowData, query.AggregationFunction{Function: function, Args: args})
+		assert.NoError(t, err)
+	}
+	assert.Equal(t, map[string]interface{}{"min_sepal_length": 4.3, "min_sepal_width": 2.0}, results)
+
+	// Test Max
+	results = make(map[string]interface{})
+	args = make(map[string]interface{})
+	args["keys"] = []string{"sepal_length", "sepal_width"}
+	function = "max"
+	for idx, rowData := range data {
+		results, err = applyAggregateFunction(idx, results, rowData, query.AggregationFunction{Function: function, Args: args})
+		assert.NoError(t, err)
+	}
+	assert.Equal(t, map[string]interface{}{"max_sepal_length": 7.9, "max_sepal_width": 4.4}, results)
 
 }
 
@@ -46,31 +82,32 @@ func TestAggregateMean(t *testing.T) {
 		var data []map[string]interface{}
 		json.Unmarshal([]byte(s), &data)
 
+		results := make(map[string]interface{})
 		args := make(map[string]interface{})
 		args["keys"] = []string{"sepal_length", "sepal_width"}
 		function := "sum"
-
-		results, _ := applyAggregateFunction(data, query.AggregationFunction{Function: function, Args: args})
+		for idx, rowData := range data {
+			results, _ = applyAggregateFunction(idx, results, rowData, query.AggregationFunction{Function: function, Args: args})
+		}
+		results["length"] = len(data)
 		res[i] = results
 		i = i + 1
 	}
-
-	assert.Equal(t, []map[string]interface{}([]map[string]interface{}{map[string]interface{}{"length": 7, "sepal_length": 34.3, "sepal_width": 23.699999999999996}, map[string]interface{}{"length": 21, "sepal_length": 106.6, "sepal_width": 73.19999999999999}, map[string]interface{}{"length": 37, "sepal_length": 198.99999999999997, "sepal_width": 115.7}, map[string]interface{}{"length": 85, "sepal_length": 536.5999999999998, "sepal_width": 245.50000000000003}}), res)
+	assert.Equal(t, []map[string]interface{}{map[string]interface{}{"length": 7, "sum_sepal_length": 34.3, "sum_sepal_width": 23.699999999999996}, map[string]interface{}{"length": 21, "sum_sepal_length": 106.6, "sum_sepal_width": 73.19999999999999}, map[string]interface{}{"length": 37, "sum_sepal_length": 198.99999999999997, "sum_sepal_width": 115.7}, map[string]interface{}{"length": 85, "sum_sepal_length": 536.5999999999998, "sum_sepal_width": 245.50000000000003}}, res)
 
 	args := make(map[string]interface{})
-	args["keys"] = []string{"sepal_length", "sepal_width"}
+	args["keys"] = []string{"sum_sepal_length", "sum_sepal_width"}
 	args["weight"] = "length"
 	encData, _ := json.Marshal(res)
-	encFunc, _ := json.Marshal(query.AggregationFunction{
+	encFunc, _ := json.Marshal([]query.AggregationFunction{query.AggregationFunction{
 		Function: "sum",
 		Args:     args,
-	})
+	}})
 	in2 := query.InputDA{
-		EncryptedData:     encData,
-		EncryptedFunction: encFunc,
+		EncryptedData:      encData,
+		EncryptedFunctions: encFunc,
 	}
 	means, err := AggregateData(in2)
 	assert.NoError(t, err)
-	assert.Equal(t, map[string]interface{}(map[string]interface{}{"length": 4, "sepal_length": 21.667510031039438, "sepal_width": 12.886690892573245}), means)
-
+	assert.Equal(t, map[string]interface{}{"length": 4, "sum_sum_sepal_length": 21.667510031039438, "sum_sum_sepal_width": 12.886690892573245}, means)
 }
