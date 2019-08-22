@@ -347,10 +347,9 @@ func (q *QueryDoc) aggregateLayer(indexLayer int, layer *query.LayerDA) error {
 
 	// Distribute data in folds. Each DA will have one fold.
 	seps := make([]int, layer.Size+1)
-	seps[0] = 0
 	if layer.Size > 1 {
 		if len(data)%layer.Size != 0 {
-			seps[len(seps)-1] = len(data) - 1
+			seps[len(seps)-1] = len(data)
 		}
 		for indexSep := 1; indexSep < len(seps)-1; indexSep++ {
 			seps[indexSep] = (len(data) / layer.Size) * indexSep
