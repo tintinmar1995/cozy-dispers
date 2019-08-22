@@ -78,6 +78,8 @@ func retrieveData(in *query.InputT, queriesStack *[]query.StackQuery) ([]map[str
 			return nil, err
 		}
 
+		// TODO : Deal with pagination when target's data overflow limit
+
 		// TODO : Decrypt data
 
 		err = json.Unmarshal(stack.Out, &rowsData)
