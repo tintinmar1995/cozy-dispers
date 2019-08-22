@@ -42,57 +42,61 @@ func (t *DataAggrDoc) SetID(id string) { t.DataAggrDocID = id }
 // SetRev sets Doc's Rev
 func (t *DataAggrDoc) SetRev(rev string) { t.DataAggrDocRev = rev }
 
-func applyAggregateFunction(data []map[string]interface{}, function query.AggregationFunction) (map[string]interface{}, error) {
+func applyAggregateFunction(indexRow int, previousRes map[string]interface{}, rowData map[string]interface{}, function query.AggregationFunction) (map[string]interface{}, error) {
 
 	switch function.Function {
 	case "sum":
-		return aggregations.Sum(data, function.Args)
+		return aggregations.Sum(previousRes, rowData, function.Args)
+	case "sum_square":
+		return aggregations.SumSquare(previousRes, rowData, function.Args)
+	case "min":
+		return aggregations.Min(indexRow, previousRes, rowData, function.Args)
+	case "max":
+		return aggregations.Max(indexRow, previousRes, rowData, function.Args)
 	default:
-		return nil, errors.New("Aggregation function unknown")
+		return nil, errors.New("Unknown aggregation function")
 	}
 }
 
-func decryptInputDA(in *query.InputDA) (query.AggregationFunction, []map[string]interface{}, error) {
+func decryptInputDA(in *query.InputDA) ([]query.AggregationFunction, []map[string]interface{}, error) {
 
 	// TODO: Decrypt if encrypted
 
-	var function query.AggregationFunction
+	var functions []query.AggregationFunction
 	var data []map[string]interface{}
-	if err := json.Unmarshal(in.EncryptedFunction, &function); err != nil {
-		return function, data, errors.New("Failed to unmarshal function : " + err.Error())
+	if err := json.Unmarshal(in.EncryptedFunctions, &functions); err != nil {
+		return functions, data, errors.New("Failed to unmarshal functions : " + err.Error())
 	}
 	if err := json.Unmarshal(in.EncryptedData, &data); err != nil {
-		return function, data, errors.New("Failed to unmarshal data : " + err.Error())
+		return functions, data, errors.New("Failed to unmarshal data : " + err.Error())
 	}
 
-	return function, data, nil
+	return functions, data, nil
 }
 
 // AggregateData leads an aggregation of data
 func AggregateData(in query.InputDA) (map[string]interface{}, error) {
 
-	var results map[string]interface{}
+	// Creation of the output map
+	results := make(map[string]interface{})
 
-	function, data, err := decryptInputDA(&in)
+	// Decrypt inputs
+	functions, data, err := decryptInputDA(&in)
 	if err != nil {
-		return results, err
+		return nil, err
 	}
 
-	results, err = applyAggregateFunction(data, function)
-	if err != nil {
-		return results, errors.New("Failed to apply aggregate function : " + err.Error())
+	// Go through Data
+	for index, rowData := range data {
+		// Go through aggregation functions
+		for _, function := range functions {
+			results, err = applyAggregateFunction(index, results, rowData, function)
+			if err != nil {
+				return results, errors.New("Failed to apply aggregate function " + function.Function + ": " + err.Error())
+			}
+		}
 	}
+
+	results["length"] = len(data)
 	return results, nil
-}
-
-// GetStateOrGetResult returns at any time the state of the algorithm
-func GetStateOrGetResult(id string) ([]string, error) {
-	couchdb.EnsureDBExist(prefixerDA, "io.cozy.aggregation")
-	fetched := &DataAggrDoc{}
-	err := couchdb.GetDoc(prefixerDA, "io.cozy.aggregation", id, fetched)
-	if err != nil {
-		return []string{}, err
-	}
-
-	return []string{}, err
 }
