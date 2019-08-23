@@ -7,7 +7,6 @@ COZY_STACK=/home/martin/dev/cozy-stack
 PATH_DOCTYPES=/home/martin/dev/cozy-doctypes
 PATH_TEST_FOLDER=/home/martin/go/src/github.com/cozy/cozy-stack/tests/dispers
 PATH_APP=/home/martin/dev/cozy-dispers-app
-# /!\ /!\ /!\ /!\ /!\ /!\
 PATH_INSTANCES=/home/martin/go/src/github.com/cozy/cozy-stack/tests/dispers/data/instances.csv
 PATH_CONCEPTS=/home/martin/go/src/github.com/cozy/cozy-stack/tests/dispers/data/concepts.csv
 
@@ -26,7 +25,7 @@ if [ "$1" = "INIT" ] || [ "$1" = "START" ] || [ "$1" = "DEV_APP" ]; then
   # Start CouchDB
   sudo docker start cozy-stack-couch
   # Wait that CouchDB is launched
-  sleep 5s
+  sleep 10s
   # Start Stack and DISPERS
   gnome-terminal --tab -- bash -c "$COZY_STACK serve --doctypes $PATH_DOCTYPES; bash"
   gnome-terminal --tab -- bash -c "$COZY_DISPERS serve --port 8008 --admin-port 6061; bash"
@@ -37,9 +36,9 @@ if [ "$1" = "INIT" ]; then
   # Initialize instances
   for ((i=1 ; $NB_INSTANCES - $i + 1 ; i++)) do
   	# domain name, row in database, creation of json doc
-  	INST=$($PATH_TEST_FOLDER/get_cel.sh $3 ${i} 0)
-  	NAME=$($PATH_TEST_FOLDER/get_cel.sh $3 ${i} 1)
-  	MAIL=$($PATH_TEST_FOLDER/get_cel.sh $3 ${i} 2)
+  	INST=$($PATH_TEST_FOLDER/get_cel.sh $PATH_INSTANCES ${i} 0)
+  	NAME=$($PATH_TEST_FOLDER/get_cel.sh $PATH_INSTANCES ${i} 1)
+  	MAIL=$($PATH_TEST_FOLDER/get_cel.sh $PATH_INSTANCES ${i} 2)
 
 		echo "Test existance of $INST..."
 		DB_PREFIX=$($COZY_STACK instances show-db-prefix $INST)
