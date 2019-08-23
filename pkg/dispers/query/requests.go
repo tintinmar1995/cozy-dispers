@@ -30,7 +30,7 @@ type LayerDA struct {
 	Data               []map[string]interface{} `json:"layer_data,omitempty"`
 	Size               int                      `json:"layer_size"`
 	EncryptedFunctions []byte                   `json:"layer_enc_func"`
-	Function           AggregationFunction      `json:"layer_func"`
+	Functions          []AggregationFunction    `json:"layer_func"`
 }
 
 type InputPatchQuery struct {
