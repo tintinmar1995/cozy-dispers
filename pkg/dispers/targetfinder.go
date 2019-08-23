@@ -47,17 +47,73 @@ func decryptInputsTF(in *query.InputTF) (string, map[string][]string, error) {
 
 func developpTargetProfile(compressedTP string) (string, error) {
 
-	compressedTP = strings.ReplaceAll(compressedTP, "::", "},\"right_node\": {\"type\": 0,\"value\": ")
-	compressedTP = strings.ReplaceAll(compressedTP, "(\"", "({\"type\": 0,\"value\": \"")
-	compressedTP = strings.ReplaceAll(compressedTP, "\")", "\"}")
-	compressedTP = strings.ReplaceAll(compressedTP, ":OR(", "},\"right_node\": OR(")
-	compressedTP = strings.ReplaceAll(compressedTP, ":AND(", "},\"right_node\": AND(")
-	compressedTP = strings.ReplaceAll(compressedTP, "OR(", "{\"type\": 1,\"left_node\": ")
-	compressedTP = strings.ReplaceAll(compressedTP, "AND(", "{\"type\": 2,\"left_node\": ")
-	compressedTP = strings.ReplaceAll(compressedTP, ")", "}")
-	compressedTP = compressedTP + "}"
+	compressedTP = strings.ReplaceAll(compressedTP, ")", ":):")
+	secondSplit := []string{}
+	firstSplit := strings.Split(compressedTP, "(")
+	for _, a := range firstSplit {
+		secondSplit = append(secondSplit, strings.Split(a, ":")...)
+	}
 
-	return compressedTP, nil
+	// Remove empty element
+	index := 0
+	for index < len(secondSplit) {
+		if len(secondSplit[index]) < 2 && secondSplit[index] != ")" {
+			if index != len(secondSplit)-1 {
+				secondSplit = append(secondSplit[:index], secondSplit[index+1:]...)
+			} else {
+				secondSplit = secondSplit[:index]
+			}
+		} else {
+			index = index + 1
+		}
+	}
+
+	// Look for leafs and wrap them with json
+	for index, item := range secondSplit {
+		if item != "OR" && item != "AND" && item != ")" {
+			secondSplit[index] = "{\"type\":0,\"value\":\"" + item + "\"}"
+		}
+	}
+
+	// Look for ) and aggregate OR/AND node 1 and node 2
+	var op string
+	var nodeA string
+	var nodeB string
+	index = 0
+	jsonNode := "{\"type\"://TYPE//,\"left_node\"://LEFT//,\"right_node\"://RIGHT//}"
+	for index < len(secondSplit) {
+		if secondSplit[index] == ")" {
+			op = secondSplit[index-3]
+			nodeA = secondSplit[index-2]
+			nodeB = secondSplit[index-1]
+
+			// remove nodeA
+			secondSplit = append(secondSplit[:index-2], secondSplit[index-2+1:]...)
+			// remove nodeB
+			secondSplit = append(secondSplit[:index-2], secondSplit[index-2+1:]...)
+			// remove )
+			if index-2 != len(secondSplit)-1 {
+				secondSplit = append(secondSplit[:index-2], secondSplit[index-2+1:]...)
+			} else {
+				secondSplit = secondSplit[:index-2]
+			}
+
+			// aggregate to build json and replace with op
+			if op == "AND" {
+				op = strings.ReplaceAll(jsonNode, "//TYPE//", "2")
+			} else if op == "OR" {
+				op = strings.ReplaceAll(jsonNode, "//TYPE//", "1")
+			}
+			op = strings.ReplaceAll(op, "//LEFT//", nodeA)
+			op = strings.ReplaceAll(op, "//RIGHT//", nodeB)
+			secondSplit[index-3] = op
+			index = 0
+		} else {
+			index = index + 1
+		}
+	}
+
+	return secondSplit[0], nil
 }
 
 // SelectAddresses apply the target profile over lists of addresses
