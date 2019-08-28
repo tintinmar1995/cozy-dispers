@@ -73,11 +73,11 @@ func createHash(str string) ([]byte, []byte, error) {
 
 func decryptConcept(in *query.Concept, isEncrypted bool) (string, error) {
 	var concept string
+
 	if isEncrypted {
-		// TODO: Decrypte concept with private key
-	} else {
-		concept = string(in.EncryptedConcept)
+		// TODO: Decrypt concept with private key
 	}
+	concept = string(in.EncryptedConcept)
 
 	if len(concept) == 0 {
 		return "", errors.New("Concept shouldn't be empty")
