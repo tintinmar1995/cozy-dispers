@@ -14,23 +14,9 @@ import (
 )
 
 var (
-	targetProfile = query.OperationTree{
-		Type: query.OrNode,
-		LeftNode: query.OperationTree{
-			Type:      query.OrNode,
-			LeftNode:  query.OperationTree{Type: 0, Value: "test1"},
-			RightNode: query.OperationTree{Type: 0, Value: "test2"},
-		},
-		RightNode: query.OperationTree{
-			Type:      query.OrNode,
-			LeftNode:  query.OperationTree{Type: 0, Value: "test3"},
-			RightNode: query.OperationTree{Type: 0, Value: "test4"},
-		},
-	}
-
 	in = query.InputNewQuery{
 		IsEncrypted:   false,
-		TargetProfile: "OR(OR(\"test1\"::\"test2\"):OR(\"test3\"::\"test4\"))",
+		TargetProfile: "OR(OR(test1:test2):OR(test3:test4))",
 	}
 )
 
@@ -153,36 +139,37 @@ func TestDecryptConcept(t *testing.T) {
 	// Create a list of fake concepts
 	in.EncryptedConcepts = []query.Concept{
 		query.Concept{
-			EncryptedConcept: []byte("julien")},
+			EncryptedConcept: []byte("julien-1")},
 		query.Concept{
-			EncryptedConcept: []byte("francois")},
+			EncryptedConcept: []byte("francois-1")},
 		query.Concept{
-			EncryptedConcept: []byte("paul")},
+			EncryptedConcept: []byte("paul-1")},
 	}
-	CreateConceptInConductorDB(&query.InputCI{EncryptedConcepts: in.EncryptedConcepts})
+	err := CreateConceptInConductorDB(&query.InputCI{IsEncrypted: true, EncryptedConcepts: in.EncryptedConcepts})
+	assert.NoError(t, err)
 
 	// Re-Create the three concepts
 	inputCI := query.InputCI{EncryptedConcepts: in.EncryptedConcepts}
 	ci := network.NewExternalActor(network.RoleCI, network.ModeQuery)
 	ci.DefineDispersActor("concept")
-	err := ci.MakeRequest("POST", "", inputCI, nil)
+	err = ci.MakeRequest("POST", "", inputCI, nil)
 	assert.Error(t, err)
 
 	// Get the three concepts' hashes from Concept Indexor
-	ci.DefineDispersActor("concept/julien:francois:paul/false")
+	ci.DefineDispersActor("concept/julien-1:francois-1:paul-1/false")
 	err = ci.MakeRequest("GET", "", nil, nil)
 	assert.NoError(t, err)
 	var outputCI query.OutputCI
 	json.Unmarshal(ci.Out, &outputCI)
 
 	// Get the three concepts' hashes from query
-	in.Concepts = []string{"julien", "francois", "paul"}
+	in.Concepts = []string{"julien-1", "francois-1", "paul-1"}
 	query, _ := NewQuery(&in)
 	query.decryptConcept()
 	assert.Equal(t, outputCI.Hashes, query.EncryptedConcepts)
 
 	// Delete the created concepts
-	ci.DefineDispersActor("concept/julien:francois:paul/false")
+	ci.DefineDispersActor("concept/julien-1:francois-1:paul-1/false")
 	err = ci.MakeRequest("DELETE", "", nil, nil)
 	assert.NoError(t, err)
 
@@ -196,9 +183,10 @@ func TestFetchListFromDB(t *testing.T) {
 	in.EncryptedConcepts = []query.Concept{query.Concept{EncryptedConcept: []byte("aime les fraises")}}
 
 	// Create the four concepts
-	CreateConceptInConductorDB(&query.InputCI{EncryptedConcepts: in.EncryptedConcepts})
+	err := CreateConceptInConductorDB(&query.InputCI{IsEncrypted: false, Concepts: in.Concepts})
+	assert.NoError(t, err)
 	query, _ := NewQuery(&in)
-	err := query.decryptConcept()
+	err = query.decryptConcept()
 	assert.NoError(t, err)
 	err = query.fetchListsOfInstancesFromDB()
 	assert.NoError(t, err)
@@ -230,7 +218,7 @@ func TestGetListsOfInstances(t *testing.T) {
 	in.PseudoConcepts["est designer chez cozy"] = "test4"
 
 	// Create the four concepts
-	CreateConceptInConductorDB(&query.InputCI{EncryptedConcepts: in.EncryptedConcepts})
+	CreateConceptInConductorDB(&query.InputCI{IsEncrypted: false, Concepts: in.Concepts})
 	// Make few instances subscribe to Cozy-DISPERS
 	encInst, _ := json.Marshal(query.Instance{
 		Domain:      "caroline.mycozy.cloud",
