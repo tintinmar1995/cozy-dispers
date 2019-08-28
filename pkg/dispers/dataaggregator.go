@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/cozy/cozy-stack/pkg/couchdb"
 	"github.com/cozy/cozy-stack/pkg/dispers/aggregations"
 	"github.com/cozy/cozy-stack/pkg/dispers/query"
 	"github.com/cozy/cozy-stack/pkg/prefixer"
@@ -12,47 +11,32 @@ import (
 
 var prefixerDA = prefixer.DataAggregatorPrefixer
 
-// DataAggrDoc will be used to save the aggregation process in memory
-// It will be usefull if one API has to work several times or recover after
-// a crash.
-type DataAggrDoc struct {
-	DataAggrDocID  string        `json:"_id,omitempty"`
-	DataAggrDocRev string        `json:"_rev,omitempty"`
-	Input          query.InputDA `json:"input,omitempty"`
-}
+func applyAggregateFunction(indexRow int, results map[string]interface{}, rowData map[string]interface{}, function query.AggregationFunction) (map[string]interface{}, error) {
 
-// ID returns the DataAggrDocID
-func (t *DataAggrDoc) ID() string { return t.DataAggrDocID }
-
-// Rev returns DataAggrDocRev
-func (t *DataAggrDoc) Rev() string { return t.DataAggrDocRev }
-
-// DocType returns doc's doctype
-func (t *DataAggrDoc) DocType() string { return "io.cozy.aggregation" }
-
-// Clone copy the doc
-func (t *DataAggrDoc) Clone() couchdb.Doc {
-	cloned := *t
-	return &cloned
-}
-
-// SetID sets the doc's ID
-func (t *DataAggrDoc) SetID(id string) { t.DataAggrDocID = id }
-
-// SetRev sets Doc's Rev
-func (t *DataAggrDoc) SetRev(rev string) { t.DataAggrDocRev = rev }
-
-func applyAggregateFunction(indexRow int, previousRes map[string]interface{}, rowData map[string]interface{}, function query.AggregationFunction) (map[string]interface{}, error) {
-
+	// Every aggegation function have the same structure in input or output
+	// Results that will be returned are given in input and modified step by step
+	// Every parameter has to be set in args (ex : Args[weigth]=length)
+	// The Results map is shared by every functions.
+	// It allows to build a treatment with several functions
 	switch function.Function {
+	// From univariate.go
 	case "sum":
-		return aggregations.Sum(previousRes, rowData, function.Args)
+		return aggregations.Sum(results, rowData, function.Args)
 	case "sum_square":
-		return aggregations.SumSquare(previousRes, rowData, function.Args)
+		return aggregations.SumSquare(results, rowData, function.Args)
 	case "min":
-		return aggregations.Min(indexRow, previousRes, rowData, function.Args)
+		return aggregations.Min(results, rowData, function.Args)
 	case "max":
-		return aggregations.Max(indexRow, previousRes, rowData, function.Args)
+		return aggregations.Max(results, rowData, function.Args)
+	// From categ.go
+	case "bank_preprocess":
+		return aggregations.Preprocessing(results, rowData, function.Args)
+	case "logit_map":
+		return aggregations.LogisticRegressionMap(results, rowData, function.Args)
+	case "logit_reduce":
+		return aggregations.LogisticRegressionReduce(results, rowData, function.Args)
+	case "logit_update":
+		return aggregations.LogisticRegressionUpdateParameters(results, rowData, function.Args)
 	default:
 		return nil, errors.New("Unknown aggregation function")
 	}
@@ -60,8 +44,9 @@ func applyAggregateFunction(indexRow int, previousRes map[string]interface{}, ro
 
 func decryptInputDA(in *query.InputDA) ([]query.AggregationFunction, []map[string]interface{}, error) {
 
-	// TODO: Decrypt if encrypted
+	// TODO: Decrypt bytes if encrypted
 
+	// Unmarshal bytes
 	var functions []query.AggregationFunction
 	var data []map[string]interface{}
 	if err := json.Unmarshal(in.EncryptedFunctions, &functions); err != nil {
@@ -86,10 +71,14 @@ func AggregateData(in query.InputDA) (map[string]interface{}, error) {
 		return nil, err
 	}
 
-	// Go through Data
-	for index, rowData := range data {
-		// Go through aggregation functions
-		for _, function := range functions {
+	// Add length to results
+	// Warning : due to that line, aggregation functions should not returns a result with key "length"
+	results["length"] = len(data)
+
+	// Go through aggregation functions
+	for _, function := range functions {
+		// Go through Data
+		for index, rowData := range data {
 			results, err = applyAggregateFunction(index, results, rowData, function)
 			if err != nil {
 				return results, errors.New("Failed to apply aggregate function " + function.Function + ": " + err.Error())
@@ -97,6 +86,5 @@ func AggregateData(in query.InputDA) (map[string]interface{}, error) {
 		}
 	}
 
-	results["length"] = len(data)
 	return results, nil
 }

@@ -12,6 +12,43 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestCategPreprocessing(t *testing.T) {
+
+	// Get data from dummy_dataset
+	s := ""
+	absPath, _ := filepath.Abs("../../assets/test/dummy_bank_data.json")
+	buf, err := ioutil.ReadFile(absPath)
+	assert.NoError(t, err)
+	s = string(buf)
+	assert.Equal(t, "[\n    {\n      \"", s[:15])
+	var data []map[string]interface{}
+	err = json.Unmarshal([]byte(s), &data)
+	assert.NoError(t, err)
+
+	voc := ""
+	absPath, _ = filepath.Abs("../../assets/test/vocabulary.txt")
+	buf, err = ioutil.ReadFile(absPath)
+	assert.NoError(t, err)
+	voc = string(buf)
+
+	args := make(map[string]interface{})
+	args["voc"] = voc
+	args["target_key"] = "cozyCategoryId"
+	args["target_value"] = "400340"
+	args["doctype"] = "io.cozy.bank.operations"
+	encData, _ := json.Marshal(data)
+	encFunc, _ := json.Marshal([]query.AggregationFunction{query.AggregationFunction{
+		Function: "bank_preprocess",
+		Args:     args,
+	}})
+	in := query.InputDA{
+		EncryptedData:      encData,
+		EncryptedFunctions: encFunc,
+	}
+	_, err = AggregateData(in)
+	assert.NoError(t, err)
+}
+
 func TestAggregateOneLayer(t *testing.T) {
 	// Get Data From dummy_dataset
 	s := ""
