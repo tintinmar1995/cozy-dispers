@@ -12,22 +12,22 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestAsync(t *testing.T) {
+func TestAsyncDA(t *testing.T) {
 
 	state, err := FetchAsyncStateLayer("testquery", 0, 4)
 	assert.NoError(t, err)
 	assert.Equal(t, Waiting, state)
 
-	doc, err := NewAsyncTask("testquery", 0, 0, AsyncAggregation)
+	doc, err := NewAsyncTask("testquery", AsyncAggregation, 0, 0)
 	assert.NoError(t, err)
 
 	state, err = FetchAsyncStateLayer("testquery", 0, 4)
 	assert.NoError(t, err)
 	assert.Equal(t, Running, state)
 
-	doc.Data = map[string]interface{}{"hey": "you"}
+	doc.ResultDA = map[string]interface{}{"hey": "you"}
 	couchdb.UpdateDoc(PrefixerC, &doc)
-	data, err := FetchAsyncData("testquery", 0, 0)
+	data, err := FetchAsyncDataDA("testquery", 0, 0)
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]interface{}{"hey": "you"}, data)
 
