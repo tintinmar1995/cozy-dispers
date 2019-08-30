@@ -2,11 +2,11 @@ package enclave
 
 import (
 	"crypto/sha256"
-	"errors"
 
 	"github.com/cozy/cozy-stack/pkg/couchdb"
 	"github.com/cozy/cozy-stack/pkg/couchdb/mango"
 	"github.com/cozy/cozy-stack/pkg/crypto"
+	"github.com/cozy/cozy-stack/pkg/dispers/errors"
 	"github.com/cozy/cozy-stack/pkg/dispers/query"
 	"github.com/cozy/cozy-stack/pkg/prefixer"
 )
@@ -80,7 +80,7 @@ func decryptConcept(in *query.Concept, isEncrypted bool) (string, error) {
 	concept = string(in.EncryptedConcept)
 
 	if len(concept) == 0 {
-		return "", errors.New("Concept shouldn't be empty")
+		return "", errors.WrapErrors(errors.ErrEmptyConcept, concept)
 	}
 
 	return concept, nil
@@ -94,16 +94,17 @@ func getHash(concept string) ([]byte, error) {
 	req := &couchdb.FindRequest{Selector: mango.Equal("concept", concept)}
 	err := couchdb.FindDocs(PrefixerCI, doctypeSalt, req, &out)
 	if err != nil {
-		return hash, errors.New("Cannot fetch ConceptDoc in CI's db : " + err.Error())
+		return hash, errors.WrapErrors(errors.ErrConceptNotFound, "")
+
 	}
 
 	// Create a salt if no salt in the database for this concept
 	if len(out) == 1 {
 		hash = out[0].Hash
 	} else if len(out) == 0 {
-		return []byte{}, errors.New("Concept Indexor : no existing salt for this concept")
+		return []byte{}, errors.WrapErrors(errors.ErrConceptNotFound, "")
 	} else {
-		return []byte{}, errors.New("Concept Indexor : several salts for this concept")
+		return []byte{}, errors.WrapErrors(errors.ErrTooManyConceptDoc, "")
 	}
 
 	return hash, err
@@ -116,7 +117,7 @@ func isConceptExisting(concept string) (bool, error) {
 	req := &couchdb.FindRequest{Selector: mango.Equal("concept", concept)}
 	err := couchdb.FindDocs(PrefixerCI, doctypeSalt, req, &out)
 	if err != nil {
-		return false, errors.New("Cannot fetch ConceptDoc in CI's db : " + err.Error())
+		return false, errors.WrapErrors(errors.ErrConceptNotFound, "")
 	}
 
 	if len(out) > 0 {
@@ -160,7 +161,7 @@ func CreateConcept(in *query.Concept, isEncrypted bool) error {
 	}
 
 	if isExisting {
-		return errors.New("Concept is already existing")
+		return errors.WrapErrors(errors.ErrConceptAlreadyExisting, "")
 	}
 	doc, err := saveConcept(concept)
 	if err != nil {
@@ -197,7 +198,7 @@ func DeleteConcept(in *query.Concept, isEncrypted bool) error {
 	}
 
 	if len(out) == 0 {
-		return errors.New("No concept to delete. " + string(in.EncryptedConcept) + " not found")
+		return errors.WrapErrors(errors.ErrConceptNotFound, "")
 	}
 
 	// Delete every doc that match concept

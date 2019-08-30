@@ -2,9 +2,9 @@ package enclave
 
 import (
 	"encoding/json"
-	"errors"
 
 	"github.com/cozy/cozy-stack/pkg/dispers/aggregations"
+	"github.com/cozy/cozy-stack/pkg/dispers/errors"
 	"github.com/cozy/cozy-stack/pkg/dispers/query"
 	"github.com/cozy/cozy-stack/pkg/prefixer"
 )
@@ -38,7 +38,7 @@ func applyAggregateFunction(indexRow int, results map[string]interface{}, rowDat
 	case "logit_update":
 		return aggregations.LogisticRegressionUpdateParameters(results, rowData, function.Args)
 	default:
-		return nil, errors.New("Unknown aggregation function")
+		return nil, errors.WrapErrors(errors.ErrAggrUnknown, function.Function)
 	}
 }
 
@@ -50,10 +50,10 @@ func decryptInputDA(in *query.InputDA) ([]query.AggregationFunction, []map[strin
 	var functions []query.AggregationFunction
 	var data []map[string]interface{}
 	if err := json.Unmarshal(in.EncryptedFunctions, &functions); err != nil {
-		return functions, data, errors.New("Failed to unmarshal functions : " + err.Error())
+		return functions, data, errors.WrapErrors(errors.ErrUnmarshal, "")
 	}
 	if err := json.Unmarshal(in.EncryptedData, &data); err != nil {
-		return functions, data, errors.New("Failed to unmarshal data : " + err.Error())
+		return functions, data, errors.WrapErrors(errors.ErrUnmarshal, "")
 	}
 
 	return functions, data, nil
@@ -81,7 +81,7 @@ func AggregateData(in query.InputDA) (map[string]interface{}, error) {
 		for index, rowData := range data {
 			results, err = applyAggregateFunction(index, results, rowData, function)
 			if err != nil {
-				return results, errors.New("Failed to apply aggregate function " + function.Function + ": " + err.Error())
+				return results, errors.WrapErrors(errors.ErrAggrFailed, "")
 			}
 		}
 	}

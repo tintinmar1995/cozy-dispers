@@ -8,7 +8,11 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
+
+	dispersErr "github.com/cozy/cozy-stack/pkg/dispers/errors"
+	"github.com/cozy/cozy-stack/pkg/jsonapi"
 )
 
 // Hosts is the list of servers Cozy-DISPERS available
@@ -113,7 +117,7 @@ func (act *ExternalActor) MakeRequest(method string, token string, input interfa
 func (act *ExternalActor) handleError() error {
 	if strings.Contains(act.Outstr, "Error") {
 		act.Status = "404"
-		return errors.New("404 : Unknown route")
+		return dispersErr.WrapErrors(dispersErr.ErrRouteNotFound, "")
 	}
 
 	if strings.Contains(act.Outstr, "errors") {
@@ -124,15 +128,9 @@ func (act *ExternalActor) handleError() error {
 			return err
 		}
 
-		errorMsg := "cozy-dispers: " + act.Method + ">" + act.URL.String() + " error :"
-		for _, mapError := range receivedErrors["errors"] {
-			act.Status = mapError["status"].(string)
-			errorMsg = errorMsg + "\n"
-			errorMsg = errorMsg + mapError["status"].(string) + " "
-			errorMsg = errorMsg + mapError["detail"].(string)
-		}
-		return errors.New(errorMsg)
-
+		mapError := receivedErrors["errors"][0]
+		status, _ := strconv.Atoi(mapError["status"].(string))
+		return jsonapi.NewError(status, act.Method+">"+act.URL.String()+" error : "+mapError["detail"].(string))
 	}
 
 	var receivedError map[string]interface{}

@@ -2,7 +2,6 @@ package enclave
 
 import (
 	"encoding/json"
-	"errors"
 	"math/rand"
 	"net/url"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"github.com/cozy/cozy-stack/pkg/config/config"
 	"github.com/cozy/cozy-stack/pkg/couchdb"
 	"github.com/cozy/cozy-stack/pkg/couchdb/mango"
+	"github.com/cozy/cozy-stack/pkg/dispers/errors"
 	"github.com/cozy/cozy-stack/pkg/dispers/metadata"
 	"github.com/cozy/cozy-stack/pkg/dispers/network"
 	"github.com/cozy/cozy-stack/pkg/dispers/query"
@@ -137,18 +137,17 @@ func NewQuery(in *query.InputNewQuery) (*QueryDoc, error) {
 
 	hostname, err := os.Hostname()
 	if err != nil {
-		return q, errors.New("Failed to retrieve hostname : " + err.Error())
+		return q, errors.WrapErrors(errors.ErrHostnameConductor, "")
 	}
 	urlCond, err := url.Parse(hostname)
 	if err != nil {
-		return q, errors.New("Failed to parse hostname : " + err.Error())
+		return q, errors.WrapErrors(errors.ErrHostnameConductor, "")
 	}
 	meta, err := metadata.NewExecutionMetadata("Query", q.ID(), *urlCond)
 	if err != nil {
-		return q, errors.New("Failed to create a new ExecutionMetadata : " + err.Error())
+		return q, errors.WrapErrors(errors.ErrNewExecutionMetadata, "")
 	}
 	executionMetadata = &meta
-
 	return q, nil
 }
 
@@ -160,12 +159,12 @@ func NewQueryFetchingQueryDoc(queryid string, indexLayer int) (*QueryDoc, error)
 	q := &QueryDoc{}
 	err := couchdb.GetDoc(PrefixerC, "io.cozy.query", queryid, q)
 	if err != nil {
-		return q, errors.New("Failed to retrieve QueryDoc : " + err.Error())
+		return q, errors.WrapErrors(errors.ErrRetrievingQueryDoc, "")
 	}
 
 	executionMetadata, err = metadata.RetrieveExecutionMetadata(queryid)
 	if err != nil {
-		return q, errors.New("Failed to retrieve ExecutionMetadata : " + err.Error())
+		return q, errors.WrapErrors(errors.ErrRetrievingExecutionMetadata, "")
 	}
 
 	return q, err
@@ -206,7 +205,7 @@ func (q *QueryDoc) fetchListsOfInstancesFromDB() error {
 		}
 
 		if len(s) == 0 {
-			return executionMetadata.HandleError("FetchListsOfAddresses", task, errors.New("Cannot find SubscribeDoc associated to hash : "+string(concept.Hash)))
+			return executionMetadata.HandleError("FetchListsOfAddresses", task, errors.ErrSubscribeDocNotFound)
 		}
 
 		executionMetadata.HandleError("FetchListsOfAddresses", task, nil)
@@ -335,7 +334,7 @@ func (q *QueryDoc) aggregateLayer(indexLayer int, layer *query.LayerDA) error {
 	if indexLayer == 0 {
 		data = layer.Data
 		if len(data) < 50 {
-			return errors.New("We don't have enough data to compute the query")
+			return errors.WrapErrors(errors.ErrNotEnoughDataToComputeQuery, "")
 		}
 	} else {
 		for indexDA := 0; indexDA < q.Layers[indexLayer-1].Size; indexDA++ {
@@ -348,7 +347,7 @@ func (q *QueryDoc) aggregateLayer(indexLayer int, layer *query.LayerDA) error {
 	}
 
 	if len(data) == 0 {
-		return errors.New("No data fetched from previous layer")
+		return errors.WrapErrors(errors.ErrNotEnoughDataToComputeQuery, "")
 	}
 
 	// Shuffle Data to reduce bias
@@ -489,9 +488,6 @@ func (q *QueryDoc) TryToEndQuery() error {
 		if err != nil {
 			return err
 		}
-		if res == nil {
-			return errors.New("Results are nil")
-		}
 		q.Results = res
 		// mark checkpoint
 		q.CheckPoints["da"] = true
@@ -514,7 +510,7 @@ func RetrieveSubscribeDoc(hash []byte) ([]subscribe.SubscribeDoc, error) {
 	}
 
 	if len(out) > 1 {
-		return nil, errors.New("There is more than 1 subscribe doc in database for this concept")
+		return nil, errors.WrapErrors(errors.ErrTooManyDoc, "")
 	}
 
 	return out, nil
@@ -559,7 +555,7 @@ func CreateConceptInConductorDB(in *query.InputCI) error {
 	for _, concept := range out.Hashes {
 		s, err := RetrieveSubscribeDoc(concept.Hash)
 		if err != nil {
-			return nil
+			return err
 		}
 
 		// Check if Concept is unexistant
@@ -578,7 +574,7 @@ func CreateConceptInConductorDB(in *query.InputCI) error {
 			}
 		} else {
 			// TODO : Delete successfully created SubscribeDoc to finish with a statut quo
-			return errors.New("This concept already exists in Conductor's database")
+			return errors.WrapErrors(errors.ErrConceptAlreadyInConductorDB, "")
 		}
 	}
 
@@ -610,7 +606,7 @@ func Subscribe(in *subscribe.InputConductor) error {
 			return err
 		}
 		if len(docs) == 0 {
-			return errors.New("SubscribeDoc not found. Are you sure this concept exist ?")
+			return errors.WrapErrors(errors.ErrSubscribeDocNotFound, "")
 		}
 		doc := docs[0]
 

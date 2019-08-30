@@ -2,11 +2,11 @@ package enclave
 
 import (
 	"encoding/json"
-	"errors"
 	"net/url"
 	"strings"
 
 	"github.com/cozy/cozy-stack/model/job"
+	"github.com/cozy/cozy-stack/pkg/dispers/errors"
 	"github.com/cozy/cozy-stack/pkg/dispers/query"
 	"github.com/cozy/cozy-stack/pkg/prefixer"
 )
@@ -38,10 +38,10 @@ func decryptInputT(in *query.InputT) ([]query.Instance, query.LocalQuery, error)
 	}
 
 	if err := json.Unmarshal(in.EncryptedTargets, &targets); err != nil {
-		return targets, localQuery, errors.New("Failed to unmarshal targets : " + err.Error())
+		return targets, localQuery, errors.WrapErrors(errors.ErrUnmarshal, "")
 	}
 	if err := json.Unmarshal(in.EncryptedLocalQuery, &localQuery); err != nil {
-		return targets, localQuery, errors.New("Failed to unmarshal local query : " + err.Error())
+		return targets, localQuery, errors.WrapErrors(errors.ErrUnmarshal, "")
 	}
 
 	return targets, localQuery, nil
@@ -79,7 +79,7 @@ func QueryTarget(in query.InputT) error {
 	queries := make([]query.StackQuery, len(targets))
 
 	if len(targets) == 0 {
-		return errors.New("Targets is empty")
+		return errors.WrapErrors(errors.ErrNoTargets, "")
 	}
 
 	for index, target := range targets {

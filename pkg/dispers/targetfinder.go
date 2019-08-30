@@ -2,9 +2,9 @@ package enclave
 
 import (
 	"encoding/json"
-	"errors"
 	"strings"
 
+	"github.com/cozy/cozy-stack/pkg/dispers/errors"
 	"github.com/cozy/cozy-stack/pkg/dispers/query"
 )
 
@@ -16,7 +16,7 @@ func decryptInputsTF(in *query.InputTF) (string, map[string][]string, error) {
 
 	compressedTP := string(in.EncryptedTargetProfile)
 	if len(compressedTP) < 4 {
-		return "", nil, errors.New("Invalid target profile")
+		return "", nil, errors.WrapErrors(errors.ErrInvalidTargetProfile, compressedTP)
 	}
 
 	var listOfAddresses []string
@@ -121,7 +121,7 @@ func SelectAddresses(in query.InputTF) ([]string, error) {
 
 	compressedTP, listsOfAddresses, err := decryptInputsTF(&in)
 	if err != nil {
-		return nil, errors.New("Cannot decrypt concept : " + err.Error())
+		return nil, err
 	}
 
 	// Translate string target profile to OperationTree
@@ -131,15 +131,15 @@ func SelectAddresses(in query.InputTF) ([]string, error) {
 	}
 	var targetProfile query.OperationTree
 	if err := json.Unmarshal([]byte(jsonTP), &targetProfile); err != nil {
-		return nil, errors.New("Failed to unmarshal Target Profile : " + err.Error())
+		return nil, errors.WrapErrors(errors.ErrUnmarshal, "")
 	}
 
 	finalList, err := targetProfile.Compute(listsOfAddresses)
 	if err != nil {
-		return nil, errors.New("Failed to compute target profile : " + err.Error())
+		return nil, errors.WrapErrors(errors.ErrComputeTargetProfile, "")
 	}
 	if len(finalList) == 0 {
-		return nil, errors.New("Result of target profile is empty")
+		return nil, errors.WrapErrors(errors.ErrNoTargets, "")
 	}
 	// TODO: Encrypt final list
 

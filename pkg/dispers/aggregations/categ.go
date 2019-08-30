@@ -1,12 +1,12 @@
 package aggregations
 
 import (
-	"errors"
 	"math"
 	"math/rand"
 	"regexp"
 	"strings"
 
+	"github.com/cozy/cozy-stack/pkg/dispers/errors"
 	"github.com/james-bowman/nlp"
 	"gonum.org/v1/gonum/mat"
 )
@@ -141,7 +141,7 @@ func LogisticRegressionMap(result map[string]interface{}, row map[string]interfa
 	} else {
 		theta = args["theta"].([]float64)
 		if len(theta) != lenFeatures {
-			return nil, errors.New("Theta and features should have the same length")
+			return nil, errors.ErrLengthConsistency
 		}
 	}
 

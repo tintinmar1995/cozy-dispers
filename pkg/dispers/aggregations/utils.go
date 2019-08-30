@@ -1,11 +1,11 @@
 package aggregations
 
-import "errors"
+import "github.com/cozy/cozy-stack/pkg/dispers/errors"
 
 func asFloat64(in interface{}) (float64, error) {
 	switch in.(type) {
 	case string:
-		return 0.0, errors.New("Unable to operate on strings")
+		return 0.0, errors.ErrStrToFloat
 	case int:
 		return float64(in.(int)), nil
 	case bool:
@@ -23,7 +23,7 @@ func asFloat64(in interface{}) (float64, error) {
 func needArgs(args map[string]interface{}, keys ...string) error {
 	for _, key := range keys {
 		if _, ok := args[key]; !ok {
-			return errors.New("Arg " + key + " not found")
+			return errors.ErrKeyNotFound
 		}
 	}
 	return nil
@@ -43,8 +43,8 @@ func retrieveKeys(argsKeys interface{}) ([]string, error) {
 			}
 			return keys, nil
 		default:
-			return nil, errors.New("Cannot convert args[\"keys\"]")
+			return nil, errors.ErrInvalidKey
 		}
 	}
-	return nil, errors.New("Cannot find args[\"keys\"]")
+	return nil, errors.ErrArgNotFound
 }

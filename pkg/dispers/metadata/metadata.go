@@ -1,9 +1,10 @@
 package metadata
 
 import (
-	"errors"
 	"net/url"
 	"time"
+
+	"github.com/cozy/cozy-stack/pkg/dispers/errors"
 
 	"github.com/cozy/cozy-stack/pkg/couchdb"
 	"github.com/cozy/cozy-stack/pkg/couchdb/mango"
@@ -92,6 +93,7 @@ func NewExecutionMetadata(process string, queryid string, host url.URL) (Executi
 
 func (m *ExecutionMetadata) HandleError(name string, task TaskMetadata, err error) error {
 
+	err = errors.WrapErrors(err, "")
 	task.EndTask(err)
 	task.Name = name
 	m.Tasks[name] = task
@@ -125,11 +127,11 @@ func RetrieveExecutionMetadata(queryid string) (*ExecutionMetadata, error) {
 	}
 
 	if len(out) == 0 {
-		return &ExecutionMetadata{}, errors.New("No ExecutionMetadata for this query")
+		return &ExecutionMetadata{}, errors.WrapErrors(errors.ErrNoExecutionMetadata, "")
 	}
 
 	if len(out) > 1 {
-		return &ExecutionMetadata{}, errors.New("Too many ExecutionMetadata for this query")
+		return &ExecutionMetadata{}, errors.WrapErrors(errors.ErrTooManyConceptDoc, "")
 	}
 
 	return &out[0], nil

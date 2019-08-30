@@ -1,11 +1,11 @@
 package query
 
 import (
-	"errors"
 	"strconv"
 
 	"github.com/cozy/cozy-stack/pkg/couchdb"
 	"github.com/cozy/cozy-stack/pkg/couchdb/mango"
+	"github.com/cozy/cozy-stack/pkg/dispers/errors"
 	"github.com/cozy/cozy-stack/pkg/dispers/metadata"
 	"github.com/cozy/cozy-stack/pkg/prefixer"
 )
@@ -99,7 +99,7 @@ func (as *AsyncTask) SetData(data ...map[string]interface{}) error {
 		as.Data = data
 		return couchdb.UpdateDoc(PrefixerT, as)
 	default:
-		return errors.New("Unknow AsyncType")
+		return errors.WrapErrors(errors.ErrAsyncTypeUnknown, "")
 	}
 }
 
@@ -125,7 +125,7 @@ func NewAsyncTask(queryid string, asyncType AsyncType, integers ...int) (AsyncTa
 		err := couchdb.CreateDoc(PrefixerT, &doc)
 		return doc, err
 	default:
-		return AsyncTask{}, errors.New("Unknown type")
+		return AsyncTask{}, errors.ErrAsyncTypeUnknown
 	}
 }
 
@@ -157,11 +157,11 @@ func RetrieveAsyncTaskDA(queryid string, indexLayer int, indexDA int) (AsyncTask
 	}
 
 	if len(out) == 0 {
-		return AsyncTask{}, errors.New("Async task not found")
+		return AsyncTask{}, errors.ErrAsyncTaskNotFound
 	}
 
 	if len(out) > 1 {
-		return AsyncTask{}, errors.New(queryid + " " + strconv.Itoa(indexLayer) + " " + strconv.Itoa(indexDA) + " Too many async task for this task")
+		return AsyncTask{}, errors.ErrTooManyDoc
 	}
 
 	return out[0], nil
@@ -215,7 +215,7 @@ func FetchAsyncDataDA(queryid string, indexLayer int, indexDA int) (map[string]i
 	}
 
 	if len(out) == 0 {
-		return nil, errors.New("No async doc for this job. Perhaps it's still running")
+		return nil, errors.ErrAsyncTaskNotFound
 	}
 
 	return out[0].ResultDA, nil
