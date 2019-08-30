@@ -29,7 +29,6 @@ var AsyncTypes = []string{"AsyncAggregation"}
 const (
 	AsyncAggregation AsyncType = iota
 	AsyncQueryTarget
-	AsyncSendData
 )
 
 type AsyncTask struct {
@@ -39,8 +38,8 @@ type AsyncTask struct {
 	QueryID      string                `json:"query_id"`
 	TaskMetadata metadata.TaskMetadata `json:"task_metadata"`
 	// Attributes used for AsyncAggregation
-	IndexLayer int                    `json:"da_layer_id,omitempty"`
-	IndexDA    int                    `json:"da_id,omitempty"`
+	IndexLayer int                    `json:"da_layer_id"`
+	IndexDA    int                    `json:"da_id"`
 	StateDA    State                  `json:"da_state,omitempty"`
 	ResultDA   map[string]interface{} `json:"da_result,omitempty"`
 	// Attributes used for AsyncQueryTarget or AsyncSendData
@@ -84,7 +83,7 @@ func (as *AsyncTask) SetRev(rev string) {
 	as.AsyncRev = rev
 }
 
-func (as *AsyncTask) SetFinished(rev string) error {
+func (as *AsyncTask) SetFinished() error {
 	// Doc found, set as finished
 	as.StateDA = Finished
 	return couchdb.UpdateDoc(PrefixerC, as)
@@ -95,9 +94,6 @@ func (as *AsyncTask) SetData(data ...map[string]interface{}) error {
 	switch as.AsyncType {
 	case AsyncAggregation:
 		as.ResultDA = data[0]
-		return couchdb.UpdateDoc(PrefixerC, as)
-	case AsyncSendData:
-		as.Data = data
 		return couchdb.UpdateDoc(PrefixerC, as)
 	case AsyncQueryTarget:
 		as.Data = data
@@ -116,6 +112,7 @@ func NewAsyncTask(queryid string, asyncType AsyncType, integers ...int) (AsyncTa
 			IndexLayer: integers[0],
 			IndexDA:    integers[1],
 			StateDA:    Running,
+			AsyncType:  asyncType,
 		}
 		err := couchdb.CreateDoc(PrefixerC, &doc)
 		return doc, err
@@ -123,18 +120,28 @@ func NewAsyncTask(queryid string, asyncType AsyncType, integers ...int) (AsyncTa
 		doc := AsyncTask{
 			QueryID:         queryid,
 			NumberOfTargets: integers[0],
+			AsyncType:       asyncType,
 		}
 		err := couchdb.CreateDoc(PrefixerT, &doc)
 		return doc, err
-	case AsyncSendData:
-		doc := AsyncTask{
-			QueryID: queryid,
-		}
-		err := couchdb.CreateDoc(PrefixerC, &doc)
-		return doc, err
 	default:
-		return AsyncTask{}, nil
+		return AsyncTask{}, errors.New("Unknown type")
 	}
+}
+
+func IsAsyncTaskDAExisting(queryid string, indexLayer int, indexDA int) (bool, error) {
+
+	// Retrieve docs that matches with ids
+	var out []AsyncTask
+	if err := couchdb.EnsureDBExist(PrefixerC, "io.cozy.async"); err != nil {
+		return false, err
+	}
+	req := &couchdb.FindRequest{Selector: mango.And(mango.Equal("query_id", queryid), mango.Equal("da_layer_id", indexLayer), mango.Equal("da_id", indexDA))}
+	if err := couchdb.FindDocs(PrefixerC, "io.cozy.async", req, &out); err != nil {
+		return false, err
+	}
+
+	return !(len(out) == 0), nil
 }
 
 func RetrieveAsyncTaskDA(queryid string, indexLayer int, indexDA int) (AsyncTask, error) {
@@ -144,15 +151,15 @@ func RetrieveAsyncTaskDA(queryid string, indexLayer int, indexDA int) (AsyncTask
 	if err := couchdb.EnsureDBExist(PrefixerC, "io.cozy.async"); err != nil {
 		return AsyncTask{}, err
 	}
-	req := &couchdb.FindRequest{Selector: mango.And(mango.Equal("queryid", queryid), mango.Equal("layerid", indexLayer), mango.Equal("daid", indexDA))}
+	req := &couchdb.FindRequest{Selector: mango.And(mango.Equal("query_id", queryid), mango.Equal("da_layer_id", indexLayer), mango.Equal("da_id", indexDA))}
 	if err := couchdb.FindDocs(PrefixerC, "io.cozy.async", req, &out); err != nil {
 		return AsyncTask{}, err
 	}
 
-	// Problematic cases
 	if len(out) == 0 {
 		return AsyncTask{}, errors.New("Async task not found")
 	}
+
 	if len(out) > 1 {
 		return AsyncTask{}, errors.New(queryid + " " + strconv.Itoa(indexLayer) + " " + strconv.Itoa(indexDA) + " Too many async task for this task")
 	}
@@ -166,7 +173,7 @@ func FetchAsyncStateLayer(queryid string, indexLayer int, sizeLayer int) (State,
 
 	// Fetch everydoc that match queryid and indexLayer
 	var out []AsyncTask
-	req := &couchdb.FindRequest{Selector: mango.And(mango.Equal("queryid", queryid), mango.Equal("layerid", indexLayer))}
+	req := &couchdb.FindRequest{Selector: mango.And(mango.Equal("query_id", queryid), mango.Equal("da_layer_id", indexLayer))}
 	if err := couchdb.FindDocs(PrefixerC, "io.cozy.async", req, &out); err != nil {
 		return Waiting, err
 	}
@@ -201,7 +208,7 @@ func FetchAsyncDataDA(queryid string, indexLayer int, indexDA int) (map[string]i
 		return nil, err
 	}
 
-	req := &couchdb.FindRequest{Selector: mango.And(mango.Equal("queryid", queryid), mango.Equal("layerid", indexLayer), mango.Equal("daid", indexDA))}
+	req := &couchdb.FindRequest{Selector: mango.And(mango.Equal("query_id", queryid), mango.Equal("da_layer_id", indexLayer), mango.Equal("da_id", indexDA))}
 	err = couchdb.FindDocs(PrefixerC, "io.cozy.async", req, &out)
 	if err != nil {
 		return nil, err
@@ -214,7 +221,28 @@ func FetchAsyncDataDA(queryid string, indexLayer int, indexDA int) (map[string]i
 	return out[0].ResultDA, nil
 }
 
-func FetchAsyncDataT(queryid string) ([]map[string]interface{}, error) {
+func DeleteAsyncDataT(queryid string) error {
+
+	var tasks []AsyncTask
+	if err := couchdb.EnsureDBExist(PrefixerT, "io.cozy.async"); err != nil {
+		return err
+	}
+
+	req := &couchdb.FindRequest{Selector: mango.Equal("query_id", queryid)}
+	if err := couchdb.FindDocs(PrefixerT, "io.cozy.async", req, &tasks); err != nil {
+		return err
+	}
+
+	for _, task := range tasks {
+		if err := couchdb.DeleteDoc(PrefixerT, &task); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func FetchAsyncDataT(queryid string) (map[string]interface{}, error) {
 
 	var tasks []AsyncTask
 	var out []map[string]interface{}
@@ -222,7 +250,7 @@ func FetchAsyncDataT(queryid string) ([]map[string]interface{}, error) {
 		return nil, err
 	}
 
-	req := &couchdb.FindRequest{Selector: mango.Equal("queryid", queryid)}
+	req := &couchdb.FindRequest{Selector: mango.Equal("query_id", queryid)}
 	if err := couchdb.FindDocs(PrefixerT, "io.cozy.async", req, &tasks); err != nil {
 		return nil, err
 	}
@@ -231,13 +259,13 @@ func FetchAsyncDataT(queryid string) ([]map[string]interface{}, error) {
 		out = append(out, task.Data...)
 	}
 
-	return out, nil
+	return map[string]interface{}{"Data": out, "NumberOfTargets": len(tasks)}, nil
 }
 
 func FetchAsyncMetadata(queryid string) ([]metadata.TaskMetadata, error) {
 
 	var out []AsyncTask
-	req := &couchdb.FindRequest{Selector: mango.Equal("queryid", queryid)}
+	req := &couchdb.FindRequest{Selector: mango.Equal("query_id", queryid)}
 	if err := couchdb.EnsureDBExist(PrefixerC, "io.cozy.async"); err != nil {
 		return nil, err
 	}
@@ -252,8 +280,6 @@ func FetchAsyncMetadata(queryid string) ([]metadata.TaskMetadata, error) {
 		switch async.AsyncType {
 		case AsyncAggregation:
 			task.Name = AsyncTypes[async.AsyncType] + strconv.Itoa(async.IndexLayer) + "-" + strconv.Itoa(async.IndexDA)
-		case AsyncSendData:
-			task.Name = AsyncTypes[async.AsyncType]
 		}
 		meta[index] = task
 	}

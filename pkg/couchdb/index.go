@@ -51,10 +51,17 @@ var conceptIndexorIndexes = []*mango.Index{
 // ConductorIndexes is the index list required by an instance to run properly.
 var conductorIndexes = []*mango.Index{
 	mango.IndexOnFields("io.cozy.instances", "hash", []string{"hash"}),
-	mango.IndexOnFields("io.cozy.async", "async-task", []string{"queryid", "layerid", "daid"}),
-	mango.IndexOnFields("io.cozy.async", "async-tasks", []string{"queryid", "layerid"}),
-	mango.IndexOnFields("io.cozy.async", "async-metadata", []string{"queryid"}),
+	mango.IndexOnFields("io.cozy.async", "async-task", []string{"query_id", "da_layer_id", "da_id"}),
+	mango.IndexOnFields("io.cozy.async", "async-tasks", []string{"query_id", "da_layer_id"}),
+	mango.IndexOnFields("io.cozy.async", "async-metadata", []string{"query_id"}),
 	mango.IndexOnFields("io.cozy.execution.metadata", "metadata-index", []string{"query"}),
+}
+
+// TargetIndexes is the index list required by an instance to run properly.
+var targetIndexes = []*mango.Index{
+	mango.IndexOnFields("io.cozy.async", "async-task", []string{"query_id", "da_layer_id", "da_id"}),
+	mango.IndexOnFields("io.cozy.async", "async-tasks", []string{"query_id", "da_layer_id"}),
+	mango.IndexOnFields("io.cozy.async", "async-metadata", []string{"query_id"}),
 }
 
 // secretIndexes is the index list required on the secret databases to run
@@ -99,6 +106,12 @@ func InitGlobalDB() error {
 		return err
 	}
 	if err := DefineIndexes(prefixer.ConductorPrefixer, conductorIndexes); err != nil {
+		return err
+	}
+	if err := DefineIndexes(prefixer.TargetPrefixer, targetIndexes); err != nil {
+		return err
+	}
+	if err := DefineIndexes(prefixer.TestTargetPrefixer, targetIndexes); err != nil {
 		return err
 	}
 	if err := DefineIndexes(prefixer.TestConceptIndexorPrefixer, conceptIndexorIndexes); err != nil {

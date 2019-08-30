@@ -1,6 +1,7 @@
 package enclave
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/cozy/cozy-stack/pkg/dispers/query"
@@ -18,6 +19,6 @@ func TestBuildQuery(t *testing.T) {
 		FindRequest: map[string]interface{}{},
 	}
 
-	out := buildStackQuery(inst, localQuery)
+	out := buildStackQuery(5, url.URL{}, "fakequeryid", inst, localQuery)
 	assert.Equal(t, inst.Domain, out.Domain)
 }

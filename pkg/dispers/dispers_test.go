@@ -25,6 +25,7 @@ func TestMain(m *testing.M) {
 	PrefixerC = prefixer.TestConductorPrefixer
 	PrefixerCI = prefixer.TestConceptIndexorPrefixer
 	query.PrefixerC = prefixer.TestConductorPrefixer
+	query.PrefixerT = prefixer.TestTargetPrefixer
 
 	// Reinitiate DB
 	err := couchdb.ResetDB(PrefixerCI, "io.cozy.hashconcept")

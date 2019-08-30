@@ -250,6 +250,16 @@ func (q *QueryDoc) makeLocalQuery() error {
 
 	task := metadata.NewTaskMetadata()
 
+	// Set Conductor's URL
+	// TODO : Find a prettier solution for localhost issue
+	hostname, err := os.Hostname()
+	if err != nil {
+		return err
+	}
+	if hostname == "martin-perso" {
+		hostname = "localhost"
+	}
+
 	// Pass the list of targets to anther Cozy-DISPERS as Target
 	// Retrieve an array of encrypted data
 	inputT := query.InputT{
@@ -257,6 +267,11 @@ func (q *QueryDoc) makeLocalQuery() error {
 		EncryptedLocalQuery: q.EncryptedLocalQuery,
 		EncryptedTargets:    q.EncryptedTargets,
 		TaskMetadata:        task,
+		QueryID:             q.QueryID,
+		ConductorURL: url.URL{
+			Scheme: "http",
+			Host:   hostname + ":" + strconv.Itoa(config.GetConfig().Port),
+		},
 	}
 	t := network.NewExternalActor(network.RoleT, network.ModeQuery)
 	t.DefineDispersActor("query")
@@ -268,14 +283,7 @@ func (q *QueryDoc) makeLocalQuery() error {
 		return executionMetadata.HandleError("LocalQuery", task, err)
 	}
 
-	if len(q.Layers) == 0 {
-		return executionMetadata.HandleError("LocalQuery", task, errors.New("Query should have at least one aggregation array"))
-	}
-	if len(outputT.Data) == 0 {
-		return executionMetadata.HandleError("LocalQuery", task, errors.New("No data to query on"))
-	}
 	executionMetadata.HandleError("LocalQuery", outputT.TaskMetadata, nil)
-	q.Layers[0].Data = outputT.Data
 	q.CheckPoints["t"] = true
 	return couchdb.UpdateDoc(PrefixerC, q)
 }
@@ -326,9 +334,12 @@ func (q *QueryDoc) aggregateLayer(indexLayer int, layer *query.LayerDA) error {
 	var data []map[string]interface{}
 	if indexLayer == 0 {
 		data = layer.Data
+		if len(data) < 50 {
+			return errors.New("We don't have enough data to compute the query")
+		}
 	} else {
 		for indexDA := 0; indexDA < q.Layers[indexLayer-1].Size; indexDA++ {
-			rowData, err := query.FetchAsyncData(q.ID(), indexLayer-1, indexDA)
+			rowData, err := query.FetchAsyncDataDA(q.ID(), indexLayer-1, indexDA)
 			if err != nil {
 				return err
 			}
@@ -389,28 +400,15 @@ func (q *QueryDoc) aggregateLayer(indexLayer int, layer *query.LayerDA) error {
 		inputDA.EncryptedData = encData
 		inputDA.AggregationID = [2]int{indexLayer, indexDA}
 		inputDA.TaskMetadata = metadata.NewTaskMetadata()
-		// make the request and unmarshal answer
-		// check one last time that DA hasnot been launched to prevent conflict
-		state, err := query.FetchAsyncStateDA(q.ID(), indexLayer, indexDA)
-		if err != nil {
+		query.NewAsyncTask(q.ID(), query.AsyncAggregation, indexLayer, indexDA)
+		da := network.NewExternalActor(network.RoleDA, network.ModeQuery)
+		da.DefineDispersActor("aggregation")
+		if err := da.MakeRequest("POST", "", inputDA, nil); err != nil {
 			return err
 		}
-		if state == query.Waiting {
-			query.NewAsyncTask(q.ID(), indexLayer, indexDA, query.AsyncAggregation)
-			da := network.NewExternalActor(network.RoleDA, network.ModeQuery)
-			da.DefineDispersActor("aggregation")
-			if err := da.MakeRequest("POST", "", inputDA, nil); err != nil {
-				return err
-			}
-			var out query.OutputDA
-			if err := json.Unmarshal(da.Out, &out); err != nil {
-				return err
-			}
-		} else {
-			// The job has already been launch, this means that another worker has taken the job
-			// there is nothing to do
-			// This end of the process prevent conflict in couchdb
-			return nil
+		var out query.OutputDA
+		if err := json.Unmarshal(da.Out, &out); err != nil {
+			return err
 		}
 	}
 
@@ -444,6 +442,7 @@ func (q *QueryDoc) Lead() error {
 		if err := q.makeLocalQuery(); err != nil {
 			return err
 		}
+		return nil
 	}
 
 	if q.CheckPoints["da"] != true {
@@ -486,7 +485,7 @@ func (q *QueryDoc) TryToEndQuery() error {
 			return err
 		}
 		// get results
-		res, err := query.FetchAsyncData(q.ID(), len(q.Layers)-1, 0)
+		res, err := query.FetchAsyncDataDA(q.ID(), len(q.Layers)-1, 0)
 		if err != nil {
 			return err
 		}

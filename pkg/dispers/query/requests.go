@@ -253,6 +253,7 @@ type InputT struct {
 	IsEncrypted         bool                  `json:"is_encrypted,omitempty"`
 	EncryptedLocalQuery []byte                `json:"enc_local_query,omitempty"`
 	EncryptedTargets    []byte                `json:"enc_addresses,omitempty"`
+	ConductorURL        url.URL               `json:"conductor_url"`
 	QueryID             string                `json:"queryid,omitempty"`
 	TaskMetadata        metadata.TaskMetadata `json:"metadata_task,omitempty"`
 }
@@ -267,10 +268,13 @@ type Instance struct {
 
 // StackQuery is all the information needed by the conductor's and stack to make a query
 type StackQuery struct {
-	Domain      string     `json:"domain,omitempty"`
-	LocalQuery  LocalQuery `json:"local_query,omitempty"`
-	TokenBearer string     `json:"token_bearer,omitempty"`
-	IsEncrypted bool       `json:"is_encrypted,omitempty"`
+	Domain          string     `json:"domain"`
+	LocalQuery      LocalQuery `json:"local_query"`
+	TokenBearer     string     `json:"token_bearer"`
+	IsEncrypted     bool       `json:"is_encrypted"`
+	ConductorURL    url.URL    `json:"conductor_url"`
+	QueryID         string     `json:"queryid"`
+	NumberOfTargets int        `json:"number_targets"`
 }
 
 // OutputT is what Target returns to the conductor

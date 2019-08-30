@@ -11,6 +11,7 @@ import (
 	"github.com/cozy/cozy-stack/model/job"
 	"github.com/cozy/cozy-stack/pkg/dispers"
 	"github.com/cozy/cozy-stack/pkg/dispers/metadata"
+	"github.com/cozy/cozy-stack/pkg/dispers/network"
 	"github.com/cozy/cozy-stack/pkg/dispers/query"
 	"github.com/cozy/cozy-stack/pkg/prefixer"
 	"github.com/cozy/echo"
@@ -151,15 +152,12 @@ func queryCozy(c echo.Context) error {
 	}
 
 	inputT.TaskMetadata.Arrival = time.Now()
-
-	data, err := enclave.QueryTarget(inputT)
-	if err != nil {
+	if err := enclave.QueryTarget(inputT); err != nil {
 		return err
 	}
 
 	inputT.TaskMetadata.Returning = time.Now()
 	return c.JSON(http.StatusOK, query.OutputT{
-		Data:         data,
 		TaskMetadata: inputT.TaskMetadata,
 	})
 }
@@ -247,7 +245,72 @@ func createQuery(c echo.Context) error {
 	return c.JSON(http.StatusOK, echo.Map{"ok": true, "query_id": query.ID()})
 }
 
-func updateQueryDA(c echo.Context) error {
+func updateQueryDA(in query.OutputDA) error {
+
+	queryid := in.QueryID
+
+	// Check if you have not got already those results
+	async, err := query.RetrieveAsyncTaskDA(queryid, in.AggregationID[0], in.AggregationID[1])
+	if err != nil {
+		return err
+	}
+	if async.GetStateDA() == query.Running {
+		// This is the first we try to save results
+		// We can save it and try to resume query right after
+		if err := async.SetFinished(); err != nil {
+			return err
+		}
+		task := in.TaskMetadata
+		task.EndTask(nil)
+		async.TaskMetadata = task
+		if err := async.SetData(in.Results); err != nil {
+			return err
+		}
+	} else if async.GetStateDA() == query.Finished {
+		// There has been a conflict but there is no problem
+		// Results have been successfully saved the first time
+		// This thread has to be killed, another one is resuming the query
+		return nil
+	} else {
+		return errors.New("Cannot get results from a DA that has not been launched")
+	}
+
+	// AsyncDoc has successfully been updated, now try to resume query
+	// As first security to prevent conflict, we check if indexLayer is finished
+	// There will be more check-up later in the thread
+	queryDoc, err := enclave.NewQueryFetchingQueryDoc(queryid, in.AggregationID[0]+1)
+	if err != nil {
+		return err
+	}
+	stateLayer, err := query.FetchAsyncStateLayer(queryid, in.AggregationID[0], queryDoc.Layers[in.AggregationID[0]].Size)
+	if err != nil {
+		return err
+	}
+	if stateLayer == query.Finished {
+		if err = queryDoc.Lead(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func updateQueryT(in query.OutputT) error {
+
+	queryDoc, err := enclave.NewQueryFetchingQueryDoc(in.QueryID, 0)
+	if err != nil {
+		return err
+	}
+
+	queryDoc.Layers[0].Data = in.Data
+
+	if err = queryDoc.Lead(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func updateQuery(c echo.Context) error {
 
 	// Retrieve input
 	queryid := c.Param("queryid")
@@ -257,46 +320,17 @@ func updateQueryDA(c echo.Context) error {
 		return err
 	}
 
-	// Check if you have not got already those results
-	state, err := query.FetchAsyncStateDA(queryid, in.OutDA.AggregationID[0], in.OutDA.AggregationID[1])
-	if err != nil {
-		return err
-	}
-	if state == query.Running {
-		// This is the first we try to save results
-		// We can save it and try to resume query right after
-		if err := query.SetAsyncTaskAsFinished(queryid, in.OutDA.AggregationID[0], in.OutDA.AggregationID[1]); err != nil {
+	switch in.Role {
+	case network.RoleDA:
+		if err := updateQueryDA(in.OutDA); err != nil {
 			return err
 		}
-		task := in.OutDA.TaskMetadata
-		task.EndTask(nil)
-		if err := query.SetData(queryid, in.OutDA.AggregationID[0], in.OutDA.AggregationID[1], in.OutDA.Results, task); err != nil {
+	case network.RoleT:
+		if err := updateQueryT(in.OutT); err != nil {
 			return err
 		}
-	} else if state == query.Finished {
-		// There has been a conflict but there is no problem
-		// Results have been successfully saved the first time
-		// This thread has to be killed, another one is resuming the query
-		return c.JSON(http.StatusOK, echo.Map{"ok": true, "query_id": queryid})
-	} else {
-		return errors.New("Cannot get results from a DA that has not been launched")
-	}
-
-	// AsyncDoc has successfully been updated, now try to resume query
-	// As first security to prevent conflict, we check if indexLayer is finished
-	// There will be more check-up later in the thread
-	queryDoc, err := enclave.NewQueryFetchingQueryDoc(queryid, in.OutDA.AggregationID[0]+1)
-	if err != nil {
-		return err
-	}
-	stateLayer, err := query.FetchAsyncStateLayer(queryid, in.OutDA.AggregationID[0], queryDoc.Layers[in.OutDA.AggregationID[0]].Size)
-	if err != nil {
-		return err
-	}
-	if stateLayer == query.Finished {
-		if err = queryDoc.Lead(); err != nil {
-			return err
-		}
+	default:
+		return errors.New("Unknown role")
 	}
 
 	return c.JSON(http.StatusOK, echo.Map{"ok": true, "query_id": queryid})
@@ -328,7 +362,7 @@ func Routes(router *echo.Group) {
 
 	router.GET("/query/:queryid", getQuery)
 	router.POST("/query", createQuery)
-	router.PATCH("/query/:queryid", updateQueryDA)
+	router.PATCH("/query/:queryid", updateQuery)
 	router.DELETE("/query/:queryid", deleteQuery)
 
 }
