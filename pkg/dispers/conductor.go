@@ -399,15 +399,28 @@ func (q *QueryDoc) aggregateLayer(indexLayer int, layer *query.LayerDA) error {
 		inputDA.EncryptedData = encData
 		inputDA.AggregationID = [2]int{indexLayer, indexDA}
 		inputDA.TaskMetadata = metadata.NewTaskMetadata()
-		query.NewAsyncTask(q.ID(), query.AsyncAggregation, indexLayer, indexDA)
-		da := network.NewExternalActor(network.RoleDA, network.ModeQuery)
-		da.DefineDispersActor("aggregation")
-		if err := da.MakeRequest("POST", "", inputDA, nil); err != nil {
+		// make the request and unmarshal answer
+		// check one last time that DA hasnot been launched to prevent conflict
+		isExisting, err := query.IsAsyncTaskDAExisting(q.ID(), indexLayer, indexDA)
+		if err != nil {
 			return err
 		}
-		var out query.OutputDA
-		if err := json.Unmarshal(da.Out, &out); err != nil {
-			return err
+		if !isExisting {
+			query.NewAsyncTask(q.ID(), query.AsyncAggregation, indexLayer, indexDA)
+			da := network.NewExternalActor(network.RoleDA, network.ModeQuery)
+			da.DefineDispersActor("aggregation")
+			if err := da.MakeRequest("POST", "", inputDA, nil); err != nil {
+				return err
+			}
+			var out query.OutputDA
+			if err := json.Unmarshal(da.Out, &out); err != nil {
+				return err
+			}
+		} else {
+			// The job has already been launch, this means that another worker has taken the job
+			// there is nothing to do
+			// This end of the process prevent conflict in couchdb
+			return nil
 		}
 	}
 

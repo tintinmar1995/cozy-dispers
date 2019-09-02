@@ -114,15 +114,12 @@ func (m *ExecutionMetadata) EndExecution(err error) error {
 func RetrieveExecutionMetadata(queryid string) (*ExecutionMetadata, error) {
 
 	var out []ExecutionMetadata
-
-	err := couchdb.EnsureDBExist(prefixC, "io.cozy.execution.metadata")
-	if err != nil {
+	if err := couchdb.EnsureDBExist(prefixC, "io.cozy.execution.metadata"); err != nil {
 		return &ExecutionMetadata{}, err
 	}
 
 	req := &couchdb.FindRequest{Selector: mango.Equal("query", queryid)}
-	err = couchdb.FindDocs(prefixC, "io.cozy.execution.metadata", req, &out)
-	if err != nil {
+	if err := couchdb.FindDocs(prefixC, "io.cozy.execution.metadata", req, &out); err != nil {
 		return &ExecutionMetadata{}, err
 	}
 

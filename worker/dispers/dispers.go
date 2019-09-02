@@ -36,7 +36,7 @@ func handleError(err error) error {
 		fmt.Println(err.Error())
 		// Send err to conductor
 	}
-	return handleError(err)
+	return err
 }
 
 // WorkerQueryTarget is a worker that launch Target's treatment.
@@ -68,29 +68,35 @@ func WorkerQueryTarget(ctx *job.WorkerContext) error {
 	}
 
 	// Make the request to add index
-	err := stack.MakeRequest("POST", "Bearer "+queryStack.TokenBearer, input, nil)
-	if err != nil {
-		return handleError(err)
-	}
-
-	// Change URL and make request to get data
 	var outStack map[string]interface{}
-	stack.URL.Path = "data/" + queryStack.LocalQuery.Doctype + "/_find"
-	err = stack.MakeRequest("POST", "Bearer "+queryStack.TokenBearer, queryStack.LocalQuery.FindRequest, nil)
+	err := stack.MakeRequest("POST", "Bearer "+queryStack.TokenBearer, input, nil)
 	if err != nil {
 		// Catch error caused by an outdated token
 		if strings.Contains(strings.ToLower(err.Error()), "expired token") || strings.Contains(strings.ToLower(err.Error()), "invalid jwt token") {
 			outStack = map[string]interface{}{
-				"docs": []map[string]interface{}{},
+				"docs": []interface{}{},
 				"next": false,
 			}
 		} else {
 			return handleError(err)
 		}
 	} else {
-		err = json.Unmarshal(stack.Out, &outStack)
-		if err != nil {
-			return handleError(errors.New("Failed to unmarshal data of stack : " + err.Error()))
+		// Change URL and make request to get data
+		stack.URL.Path = "data/" + queryStack.LocalQuery.Doctype + "/_find"
+		if err := stack.MakeRequest("POST", "Bearer "+queryStack.TokenBearer, queryStack.LocalQuery.FindRequest, nil); err != nil {
+			// If token expires between the 2 request
+			if strings.Contains(strings.ToLower(err.Error()), "expired token") || strings.Contains(strings.ToLower(err.Error()), "invalid jwt token") {
+				outStack = map[string]interface{}{
+					"docs": []interface{}{},
+					"next": false,
+				}
+			} else {
+				return handleError(err)
+			}
+		} else {
+			if err := json.Unmarshal(stack.Out, &outStack); err != nil {
+				return handleError(errors.New("Failed to unmarshal data of stack : " + err.Error()))
+			}
 		}
 	}
 
