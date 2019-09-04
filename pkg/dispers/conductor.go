@@ -283,8 +283,8 @@ func (q *QueryDoc) makeLocalQuery() error {
 	}
 
 	executionMetadata.HandleError("LocalQuery", outputT.TaskMetadata, nil)
-	q.CheckPoints["t"] = true
-	return couchdb.UpdateDoc(PrefixerC, q)
+	// We just launched Async tasks, to avoid conflict, we can't modify the QueryDoc !
+	return nil
 }
 
 // ShouldBeComputed is used by the Conductor to know when to pause/resume/stop the query

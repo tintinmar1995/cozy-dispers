@@ -51,7 +51,7 @@ var conceptIndexorIndexes = []*mango.Index{
 // ConductorIndexes is the index list required by an instance to run properly.
 var conductorIndexes = []*mango.Index{
 	mango.IndexOnFields("io.cozy.instances", "hash", []string{"hash"}),
-	mango.IndexOnFields("io.cozy.async", "async-task", []string{"query_id", "da_layer_id", "da_id"}),
+	mango.IndexOnFields("io.cozy.async", "async-task", []string{"_id", "query_id", "da_layer_id", "da_id"}),
 	mango.IndexOnFields("io.cozy.async", "async-tasks", []string{"query_id", "da_layer_id"}),
 	mango.IndexOnFields("io.cozy.async", "async-metadata", []string{"query_id"}),
 	mango.IndexOnFields("io.cozy.execution.metadata", "metadata-index", []string{"query"}),

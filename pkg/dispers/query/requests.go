@@ -289,6 +289,7 @@ type LocalQuery struct {
 	FindRequest FindParams             `json:"findrequest"`
 	Doctype     string                 `json:"doctype"`
 	Index       map[string]interface{} `json:"index"`
+	Limit       int                    `json:"limit,omitempty"`
 }
 
 // FindParams describes to query to make to stacks

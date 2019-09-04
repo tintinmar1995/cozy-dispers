@@ -151,7 +151,10 @@ func RetrieveAsyncTaskDA(queryid string, indexLayer int, indexDA int) (AsyncTask
 	if err := couchdb.EnsureDBExist(PrefixerC, "io.cozy.async"); err != nil {
 		return AsyncTask{}, err
 	}
-	req := &couchdb.FindRequest{Selector: mango.And(mango.Equal("query_id", queryid), mango.Equal("da_layer_id", indexLayer), mango.Equal("da_id", indexDA))}
+	req := &couchdb.FindRequest{
+		Selector: mango.And(mango.Equal("query_id", queryid), mango.Equal("da_layer_id", indexLayer), mango.Equal("da_id", indexDA)),
+		Sort:     mango.SortBy{mango.SortByField{Field: "_id", Direction: mango.Asc}},
+	}
 	if err := couchdb.FindDocs(PrefixerC, "io.cozy.async", req, &out); err != nil {
 		return AsyncTask{}, err
 	}
@@ -160,8 +163,14 @@ func RetrieveAsyncTaskDA(queryid string, indexLayer int, indexDA int) (AsyncTask
 		return AsyncTask{}, errors.ErrAsyncTaskNotFound
 	}
 
-	if len(out) > 1 {
-		return AsyncTask{}, errors.ErrTooManyDoc
+	// If more than one doc is found, it means we did not succeeded in avoiding conflicts from happening
+	// We need to prevent conflict from disturbing the query
+	// the first doc is chosen and the others are deleted
+	indexDoc := 1
+	for indexDoc < len(out) {
+		if err := couchdb.DeleteDoc(PrefixerC, &out[indexDoc]); err != nil {
+			return AsyncTask{}, err
+		}
 	}
 
 	return out[0], nil

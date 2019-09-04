@@ -3,7 +3,6 @@ package enclave
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/url"
 	"runtime"
 	"time"
@@ -33,7 +32,6 @@ func init() {
 func handleError(err error) error {
 
 	if err != nil {
-		fmt.Println(err.Error())
 		// Send err to conductor
 	}
 	return err
@@ -82,7 +80,12 @@ func WorkerQueryTarget(ctx *job.WorkerContext) error {
 
 	// Deal with pagination when target's data overflow limit
 	pagination := 0
-	for pagination == 0 || outStack["next"].(bool) == true {
+
+	if &queryStack.LocalQuery.FindRequest == nil {
+		queryStack.LocalQuery.FindRequest.Limit = 100
+	}
+
+	for pagination == 0 || (queryStack.LocalQuery.Limit <= queryStack.LocalQuery.FindRequest.Limit && outStack["next"].(bool) == true) {
 		if processError == nil {
 			// If we succeeded to add a new index
 			// Change URL and make request to get data
@@ -101,8 +104,6 @@ func WorkerQueryTarget(ctx *job.WorkerContext) error {
 		}
 		pagination = pagination + 1
 	}
-
-	fmt.Println(processError)
 
 	// Decrypt and unmarshal data
 

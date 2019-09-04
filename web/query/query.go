@@ -302,6 +302,7 @@ func updateQueryT(in query.OutputT) error {
 	}
 
 	queryDoc.Layers[0].Data = in.Data
+	queryDoc.CheckPoints["t"] = true
 
 	if err = queryDoc.Lead(); err != nil {
 		return err
