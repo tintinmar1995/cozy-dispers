@@ -29,7 +29,7 @@ func applyAggregateFunction(indexRow int, results map[string]interface{}, rowDat
 	case "max":
 		return aggregations.Max(results, rowData, function.Args)
 	// From categ.go
-	case "bank_preprocess":
+	case "preprocess":
 		return aggregations.Preprocessing(results, rowData, function.Args)
 	case "logit_map":
 		return aggregations.LogisticRegressionMap(results, rowData, function.Args)

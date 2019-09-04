@@ -38,7 +38,7 @@ func TestCategPreprocessing(t *testing.T) {
 	args["doctype"] = "io.cozy.bank.operations"
 	encData, _ := json.Marshal(data)
 	encFunc, _ := json.Marshal([]query.AggregationFunction{query.AggregationFunction{
-		Function: "bank_preprocess",
+		Function: "preprocess",
 		Args:     args,
 	}})
 	in := query.InputDA{

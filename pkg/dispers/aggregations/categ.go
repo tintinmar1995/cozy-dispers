@@ -68,7 +68,7 @@ func getSanitizedLabel(label string) string {
 // TODO : Broke the preprocess function in pieces to create more atomic functions
 func Preprocessing(result map[string]interface{}, row map[string]interface{}, args map[string]interface{}) (map[string]interface{}, error) {
 
-	if err := needArgs(args, "voc", "doctype"); err != nil {
+	if err := needArgs(args, "voc", "doctype", "target_key", "target_value"); err != nil {
 		return nil, err
 	}
 	if _, ok := result["preprocessed_data"]; !ok {
@@ -178,6 +178,10 @@ func LogisticRegressionMap(result map[string]interface{}, row map[string]interfa
 
 // LogisticRegressionReduce sums up Gradient and Hessian (if Newton Raphson)
 func LogisticRegressionReduce(result map[string]interface{}, row map[string]interface{}, args map[string]interface{}) (map[string]interface{}, error) {
+
+	if err := needArgs(args, "optimize"); err != nil {
+		return nil, err
+	}
 
 	// Initialize results if needed
 	if _, ok := result["gradient"]; !ok {
