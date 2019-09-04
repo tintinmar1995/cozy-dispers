@@ -21,7 +21,7 @@ type TaskMetadata struct {
 	Returning time.Time `json:"returning,omitempty"`
 	End       time.Time `json:"end,omitempty"`
 	URL       url.URL   `json:"url,omitempty"`
-	Error     error     `json:"error,omitempty"`
+	ErrorMsg  string    `json:"error,omitempty"`
 }
 
 // NewTaskMetadata returns a new TaskMetadata object
@@ -37,7 +37,11 @@ func NewTaskMetadata() TaskMetadata {
 // Save the ExecutionMetadata in Conductor's database
 func (t *TaskMetadata) EndTask(err error) {
 	t.End = time.Now()
-	t.Error = err
+	if err != nil {
+		t.ErrorMsg = err.Error()
+	} else {
+		t.ErrorMsg = ""
+	}
 }
 
 // ExecutionMetadata are written on the conductor's database. The querier can read those ExecutionMetadata to know his query's state

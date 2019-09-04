@@ -286,9 +286,18 @@ type OutputT struct {
 
 // LocalQuery decribes which data the stack has to retrieve
 type LocalQuery struct {
-	FindRequest map[string]interface{} `json:"findrequest,omitempty"`
-	Doctype     string                 `json:"doctype,omitempty"`
-	Index       map[string]interface{} `json:"index,omitempty"`
+	FindRequest FindParams             `json:"findrequest"`
+	Doctype     string                 `json:"doctype"`
+	Index       map[string]interface{} `json:"index"`
+}
+
+// FindParams describes to query to make to stacks
+// It follows CouchDB conventions
+type FindParams struct {
+	Selector map[string]interface{} `json:"selector"`
+	Skip     int                    `json:"skip,omitempty"`
+	Limit    int                    `json:"limit,omitempty"`
+	Sort     []map[string]string    `json:"sort,omitempty"`
 }
 
 /*

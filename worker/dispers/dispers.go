@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"net/url"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/cozy/cozy-stack/model/job"
 	"github.com/cozy/cozy-stack/pkg/dispers"
+	"github.com/cozy/cozy-stack/pkg/dispers/metadata"
 	"github.com/cozy/cozy-stack/pkg/dispers/network"
 	"github.com/cozy/cozy-stack/pkg/dispers/query"
 )
@@ -42,6 +42,9 @@ func handleError(err error) error {
 // WorkerQueryTarget is a worker that launch Target's treatment.
 func WorkerQueryTarget(ctx *job.WorkerContext) error {
 
+	// Create a task metadata
+	task := metadata.NewTaskMetadata()
+
 	// Read Input
 	queryStack := &query.StackQuery{}
 	if err := ctx.UnmarshalMessage(queryStack); err != nil {
@@ -50,6 +53,12 @@ func WorkerQueryTarget(ctx *job.WorkerContext) error {
 	if &queryStack.LocalQuery == nil {
 		return handleError(errors.New("An index is required"))
 	}
+
+	// Success or not, we have to sent an array of data to the conductor
+	// Query should not stop because of a particular isntance that ruine everything
+	// Conductor can decide to stop the query if there is not enough data
+	var outStack map[string]interface{}
+	var processError error
 
 	// Initialize communication with the stack
 	stack := network.NewExternalActor(network.RoleStack, network.ModeStack)
@@ -67,66 +76,57 @@ func WorkerQueryTarget(ctx *job.WorkerContext) error {
 		"type":  "json",
 	}
 
-	// Make the request to add index
-	var outStack map[string]interface{}
-	err := stack.MakeRequest("POST", "Bearer "+queryStack.TokenBearer, input, nil)
-	if err != nil {
-		// Catch error caused by an outdated token
-		if strings.Contains(strings.ToLower(err.Error()), "expired token") || strings.Contains(strings.ToLower(err.Error()), "invalid jwt token") {
-			outStack = map[string]interface{}{
-				"docs": []interface{}{},
-				"next": false,
-			}
-		} else {
-			return handleError(err)
+	// Create variable to save received data
+	data := []map[string]interface{}{}
+	processError = stack.MakeRequest("POST", "Bearer "+queryStack.TokenBearer, input, nil)
+
+	// Deal with pagination when target's data overflow limit
+	pagination := 0
+	for pagination == 0 || outStack["next"].(bool) == true {
+		if processError == nil {
+			// If we succeeded to add a new index
+			// Change URL and make request to get data
+			queryStack.LocalQuery.FindRequest.Skip = pagination * queryStack.LocalQuery.FindRequest.Limit
+			stack.URL.Path = "data/" + queryStack.LocalQuery.Doctype + "/_find"
+			processError = stack.MakeRequest("POST", "Bearer "+queryStack.TokenBearer, queryStack.LocalQuery.FindRequest, nil)
 		}
-	} else {
-		// Change URL and make request to get data
-		stack.URL.Path = "data/" + queryStack.LocalQuery.Doctype + "/_find"
-		if err := stack.MakeRequest("POST", "Bearer "+queryStack.TokenBearer, queryStack.LocalQuery.FindRequest, nil); err != nil {
-			// If token expires between the 2 request
-			if strings.Contains(strings.ToLower(err.Error()), "expired token") || strings.Contains(strings.ToLower(err.Error()), "invalid jwt token") {
-				outStack = map[string]interface{}{
-					"docs": []interface{}{},
-					"next": false,
-				}
-			} else {
-				return handleError(err)
-			}
-		} else {
-			if err := json.Unmarshal(stack.Out, &outStack); err != nil {
-				return handleError(errors.New("Failed to unmarshal data of stack : " + err.Error()))
+
+		if processError == nil {
+			// If we succeded to add an index and to make the request
+			// Unmarshal outputs to get data
+			processError = json.Unmarshal(stack.Out, &outStack)
+			for _, rowData := range outStack["docs"].([]interface{}) {
+				data = append(data, rowData.(map[string]interface{}))
 			}
 		}
+		pagination = pagination + 1
 	}
 
-	for outStack["next"].(bool) != false {
-		// TODO : Deal with pagination when target's data overflow limit
-	}
+	fmt.Println(processError)
 
 	// Decrypt and unmarshal data
-	// TODO : Decrypt data when encrypted by the stack
 
 	// Save data in Target's database
+	// Step 1, create a new AsyncTask doc
 	doc, err := query.NewAsyncTask(queryStack.QueryID, query.AsyncQueryTarget, queryStack.NumberOfTargets)
 	if err != nil {
 		return handleError(errors.New("Failed to create AsyncTask doc : " + err.Error()))
 	}
-	// Create an []map[string]interface{}
-	data := []map[string]interface{}{}
-	for _, rowData := range outStack["docs"].([]interface{}) {
-		data = append(data, rowData.(map[string]interface{}))
-	}
+	// Step 2 : end task
+	task.EndTask(processError)
+	doc.TaskMetadata = task
+	// Step 3 : Create an []map[string]interface{} and set data
+	// This step update the doc in database and save the TaskMetadata from step 2
 	if err := doc.SetData(data...); err != nil {
 		return handleError(errors.New("Failed set data on AsyncTask : " + err.Error()))
 	}
 
-	// Count the number of targets
+	// Now we try to figure out if every target has been contact to fetch data
+	// Counting the number of targets
 	fetchEveryTargets, err := query.FetchAsyncDataT(queryStack.QueryID)
 	if err != nil {
-		return handleError(err)
+		return handleError(errors.New("Failed fetch targets : " + err.Error()))
 	}
-
 	if fetchEveryTargets["NumberOfTargets"].(int) == queryStack.NumberOfTargets {
 		// Send result to Conductor
 		out := query.InputPatchQuery{
@@ -137,10 +137,12 @@ func WorkerQueryTarget(ctx *job.WorkerContext) error {
 			Role: network.RoleT,
 		}
 
+		// Contact the conductor to send data and continue the query
 		conductor := network.NewExternalActor(network.RoleConductor, network.ModeQuery)
 		conductor.DefineConductor(queryStack.ConductorURL, queryStack.QueryID)
 		if err := conductor.MakeRequest("PATCH", "", out, nil); err != nil {
 			if conductor.Status == "409" {
+				// If conflict, we try a second time
 				if err := conductor.MakeRequest("PATCH", "", out, nil); err != nil {
 					query.DeleteAsyncDataT(queryStack.QueryID)
 					return handleError(err)

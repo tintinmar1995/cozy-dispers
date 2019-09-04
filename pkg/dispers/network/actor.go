@@ -85,8 +85,10 @@ func (act *ExternalActor) MakeRequest(method string, token string, input interfa
 		}
 	}
 
+	act.Method = method
+
 	client := http.Client{}
-	request, err := http.NewRequest(method, act.URL.String(), bytes.NewReader(body))
+	request, err := http.NewRequest(act.Method, act.URL.String(), bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
@@ -115,7 +117,7 @@ func (act *ExternalActor) MakeRequest(method string, token string, input interfa
 }
 
 func (act *ExternalActor) handleError() error {
-	if strings.Contains(act.Outstr, "Error") {
+	if act.Outstr == "Error" {
 		act.Status = "404"
 		return dispersErr.WrapErrors(dispersErr.ErrRouteNotFound, "")
 	}
