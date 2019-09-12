@@ -403,24 +403,24 @@ func TestAggregate(t *testing.T) {
 	args2 := make(map[string]interface{})
 	args2["keys"] = []string{"sepal_length", "sepal_width"}
 	args2["weight"] = "length"
-	encFunc1, _ := json.Marshal([]query.AggregationFunction{query.AggregationFunction{
-		Function: "sum",
-		Args:     args1,
+	encJob1, _ := json.Marshal([]query.AggregationJob{query.AggregationJob{
+		Job:  "sum",
+		Args: args1,
 	}})
-	encFunc2, _ := json.Marshal([]query.AggregationFunction{query.AggregationFunction{
-		Function: "sum",
-		Args:     args2,
+	encJob2, _ := json.Marshal([]query.AggregationJob{query.AggregationJob{
+		Job:  "sum",
+		Args: args2,
 	}})
 	layers := []query.LayerDA{
 		query.LayerDA{
-			EncryptedFunctions: encFunc1,
-			Data:               data,
-			Size:               4,
+			EncryptedJobs: encJob1,
+			Data:          data,
+			Size:          4,
 		},
 		query.LayerDA{
-			EncryptedFunctions: encFunc2,
-			Data:               data,
-			Size:               4,
+			EncryptedJobs: encJob2,
+			Data:          data,
+			Size:          4,
 		},
 	}
 	in.LayersDA = layers

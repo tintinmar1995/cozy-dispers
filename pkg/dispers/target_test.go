@@ -16,7 +16,7 @@ func TestBuildQuery(t *testing.T) {
 	}
 
 	localQuery := query.LocalQuery{
-		FindRequest: map[string]interface{}{},
+		FindRequest: query.FindParams{},
 	}
 
 	out := buildStackQuery(5, url.URL{}, "fakequeryid", inst, localQuery)

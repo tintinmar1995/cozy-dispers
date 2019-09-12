@@ -113,11 +113,11 @@ func NewQuery(in *query.InputNewQuery) (*QueryDoc, error) {
 		}
 
 		for index, layer := range in.LayersDA {
-			encryptedFunctions, err := json.Marshal(layer.Functions)
+			encryptedJobs, err := json.Marshal(layer.Jobs)
 			if err != nil {
 				return q, err
 			}
-			in.LayersDA[index].EncryptedFunctions = encryptedFunctions
+			in.LayersDA[index].EncryptedJobs = encryptedJobs
 		}
 
 		q = &QueryDoc{
@@ -370,8 +370,8 @@ func (q *QueryDoc) aggregateLayer(indexLayer int, layer *query.LayerDA) error {
 
 	// Create InputDA for the layer
 	inputDA := query.InputDA{
-		EncryptedFunctions: layer.EncryptedFunctions,
-		QueryID:            q.ID(),
+		EncryptedJobs: layer.EncryptedJobs,
+		QueryID:       q.ID(),
 	}
 
 	// Set Conductor's URL

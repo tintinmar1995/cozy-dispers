@@ -81,11 +81,15 @@ func WorkerQueryTarget(ctx *job.WorkerContext) error {
 	// Deal with pagination when target's data overflow limit
 	pagination := 0
 
-	if &queryStack.LocalQuery.FindRequest == nil {
+	if &queryStack.LocalQuery.Limit != nil && queryStack.LocalQuery.Limit != 0 {
+		queryStack.LocalQuery.FindRequest.Limit = queryStack.LocalQuery.Limit
+	} else {
 		queryStack.LocalQuery.FindRequest.Limit = 100
 	}
 
-	for pagination == 0 || (queryStack.LocalQuery.Limit <= queryStack.LocalQuery.FindRequest.Limit && outStack["next"].(bool) == true) {
+	// If limit has been specified, we only need one request to get them all
+	// We keep iterrogating Cozy only if no limit has been specified
+	for pagination == 0 || outStack["next"] != nil && queryStack.LocalQuery.Limit == 0 && outStack["next"].(bool) == true {
 		if processError == nil {
 			// If we succeeded to add a new index
 			// Change URL and make request to get data

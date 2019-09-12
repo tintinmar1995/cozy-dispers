@@ -33,6 +33,8 @@ var (
 	ErrInvalidKey        = errors.New("Invalid key")
 	ErrStrToFloat        = errors.New("Cannot convert string to float64")
 	ErrAggrUnknown       = errors.New("Unknown aggregation function")
+	ErrJobUnknown        = errors.New("Unknown aggregation job")
+	ErrPatchUnknown      = errors.New("Unknown aggregation patch")
 	ErrAggrFailed        = errors.New("Failed to apply aggregate function")
 	ErrLengthConsistency = errors.New("Theta and features should have the same length")
 

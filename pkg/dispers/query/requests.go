@@ -27,10 +27,10 @@ type InputNewQuery struct {
 }
 
 type LayerDA struct {
-	Data               []map[string]interface{} `json:"layer_data,omitempty"`
-	Size               int                      `json:"layer_size"`
-	EncryptedFunctions []byte                   `json:"layer_enc_func"`
-	Functions          []AggregationFunction    `json:"layer_func"`
+	Data          []map[string]interface{} `json:"layer_data,omitempty"`
+	Size          int                      `json:"layer_size"`
+	EncryptedJobs []byte                   `json:"layer_enc_jobs"`
+	Jobs          []AggregationJob         `json:"layer_jobs"`
 }
 
 type InputPatchQuery struct {
@@ -307,20 +307,32 @@ Data Aggregators' Input & Output
 *
 */
 
-// AggregationFunction is transmitted
+// AggregationJob is transmitted by the Querier
+type AggregationJob struct {
+	Job  string                 `json:"job,omitempty"`
+	Args map[string]interface{} `json:"args,omitempty"`
+}
+
+// AggregationFunction is created by DA from AggregationJob
 type AggregationFunction struct {
 	Function string                 `json:"func,omitempty"`
 	Args     map[string]interface{} `json:"args,omitempty"`
 }
 
+// AggregationPatch is created by DA from AggregationJob
+type AggregationPatch struct {
+	Patch string                 `json:"patch,omitempty"`
+	Args  map[string]interface{} `json:"args,omitempty"`
+}
+
 type InputDA struct {
-	QueryID            string                `json:"queryid"`
-	AggregationID      [2]int                `json:"aggregationid,omitempty"`
-	ConductorURL       url.URL               `json:"conductor_url"`
-	IsEncrypted        bool                  `json:"is_encrypted"`
-	EncryptedFunctions []byte                `json:"enc_func,omitempty"`
-	EncryptedData      []byte                `json:"enc_data,omitempty"`
-	TaskMetadata       metadata.TaskMetadata `json:"metadata_task,omitempty"`
+	QueryID       string                `json:"queryid"`
+	AggregationID [2]int                `json:"aggregationid,omitempty"`
+	ConductorURL  url.URL               `json:"conductor_url"`
+	IsEncrypted   bool                  `json:"is_encrypted"`
+	EncryptedJobs []byte                `json:"enc_jobs,omitempty"`
+	EncryptedData []byte                `json:"enc_data,omitempty"`
+	TaskMetadata  metadata.TaskMetadata `json:"metadata_task,omitempty"`
 }
 
 type OutputDA struct {

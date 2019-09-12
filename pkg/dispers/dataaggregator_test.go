@@ -37,13 +37,13 @@ func TestCategPreprocessing(t *testing.T) {
 	args["target_value"] = "400340"
 	args["doctype"] = "io.cozy.bank.operations"
 	encData, _ := json.Marshal(data)
-	encFunc, _ := json.Marshal([]query.AggregationFunction{query.AggregationFunction{
-		Function: "preprocess",
-		Args:     args,
+	encJob, _ := json.Marshal([]query.AggregationJob{query.AggregationJob{
+		Job:  "preprocess",
+		Args: args,
 	}})
 	in := query.InputDA{
-		EncryptedData:      encData,
-		EncryptedFunctions: encFunc,
+		EncryptedData: encData,
+		EncryptedJobs: encJob,
 	}
 	_, err = AggregateData(in)
 	assert.NoError(t, err)
@@ -63,10 +63,13 @@ func TestAggregateOneLayer(t *testing.T) {
 	// Test Sum
 	results := make(map[string]interface{})
 	args := make(map[string]interface{})
-	args["keys"] = []string{"sepal_length", "sepal_width"}
 	function := "sum"
 	for idx, rowData := range data {
-		results, err = applyAggregateFunction(idx, results, rowData, query.AggregationFunction{Function: function, Args: args})
+		args["key"] = "sepal_length"
+		err = applyAggregateFunction(idx, &results, rowData, query.AggregationFunction{Function: function, Args: args})
+		assert.NoError(t, err)
+		args["key"] = "sepal_width"
+		err = applyAggregateFunction(idx, &results, rowData, query.AggregationFunction{Function: function, Args: args})
 		assert.NoError(t, err)
 	}
 	assert.Equal(t, map[string]interface{}{"sum_sepal_length": 876.5000000000002, "sum_sepal_width": 458.10000000000014}, results)
@@ -77,7 +80,11 @@ func TestAggregateOneLayer(t *testing.T) {
 	args["keys"] = []string{"sepal_length", "sepal_width"}
 	function = "sum_square"
 	for idx, rowData := range data {
-		results, err = applyAggregateFunction(idx, results, rowData, query.AggregationFunction{Function: function, Args: args})
+		args["key"] = "sepal_length"
+		err = applyAggregateFunction(idx, &results, rowData, query.AggregationFunction{Function: function, Args: args})
+		assert.NoError(t, err)
+		args["key"] = "sepal_width"
+		err = applyAggregateFunction(idx, &results, rowData, query.AggregationFunction{Function: function, Args: args})
 		assert.NoError(t, err)
 	}
 	assert.Equal(t, map[string]interface{}{"sum_square_sepal_length": 5223.849999999998, "sum_square_sepal_width": 1427.049999999999}, results)
@@ -85,10 +92,13 @@ func TestAggregateOneLayer(t *testing.T) {
 	// Test Min
 	results = make(map[string]interface{})
 	args = make(map[string]interface{})
-	args["keys"] = []string{"sepal_length", "sepal_width"}
 	function = "min"
 	for idx, rowData := range data {
-		results, err = applyAggregateFunction(idx, results, rowData, query.AggregationFunction{Function: function, Args: args})
+		args["key"] = "sepal_length"
+		err = applyAggregateFunction(idx, &results, rowData, query.AggregationFunction{Function: function, Args: args})
+		assert.NoError(t, err)
+		args["key"] = "sepal_width"
+		err = applyAggregateFunction(idx, &results, rowData, query.AggregationFunction{Function: function, Args: args})
 		assert.NoError(t, err)
 	}
 	assert.Equal(t, map[string]interface{}{"min_sepal_length": 4.3, "min_sepal_width": 2.0}, results)
@@ -96,10 +106,13 @@ func TestAggregateOneLayer(t *testing.T) {
 	// Test Max
 	results = make(map[string]interface{})
 	args = make(map[string]interface{})
-	args["keys"] = []string{"sepal_length", "sepal_width"}
 	function = "max"
 	for idx, rowData := range data {
-		results, err = applyAggregateFunction(idx, results, rowData, query.AggregationFunction{Function: function, Args: args})
+		args["key"] = "sepal_length"
+		err = applyAggregateFunction(idx, &results, rowData, query.AggregationFunction{Function: function, Args: args})
+		assert.NoError(t, err)
+		args["key"] = "sepal_width"
+		err = applyAggregateFunction(idx, &results, rowData, query.AggregationFunction{Function: function, Args: args})
 		assert.NoError(t, err)
 	}
 	assert.Equal(t, map[string]interface{}{"max_sepal_length": 7.9, "max_sepal_width": 4.4}, results)
@@ -121,10 +134,14 @@ func TestAggregateMean(t *testing.T) {
 
 		results := make(map[string]interface{})
 		args := make(map[string]interface{})
-		args["keys"] = []string{"sepal_length", "sepal_width"}
 		function := "sum"
 		for idx, rowData := range data {
-			results, _ = applyAggregateFunction(idx, results, rowData, query.AggregationFunction{Function: function, Args: args})
+			args["key"] = "sepal_length"
+			err := applyAggregateFunction(idx, &results, rowData, query.AggregationFunction{Function: function, Args: args})
+			assert.NoError(t, err)
+			args["key"] = "sepal_width"
+			err = applyAggregateFunction(idx, &results, rowData, query.AggregationFunction{Function: function, Args: args})
+			assert.NoError(t, err)
 		}
 		results["length"] = len(data)
 		res[i] = results
@@ -132,17 +149,25 @@ func TestAggregateMean(t *testing.T) {
 	}
 	assert.Equal(t, []map[string]interface{}{map[string]interface{}{"length": 7, "sum_sepal_length": 34.3, "sum_sepal_width": 23.699999999999996}, map[string]interface{}{"length": 21, "sum_sepal_length": 106.6, "sum_sepal_width": 73.19999999999999}, map[string]interface{}{"length": 37, "sum_sepal_length": 198.99999999999997, "sum_sepal_width": 115.7}, map[string]interface{}{"length": 85, "sum_sepal_length": 536.5999999999998, "sum_sepal_width": 245.50000000000003}}, res)
 
-	args := make(map[string]interface{})
-	args["keys"] = []string{"sum_sepal_length", "sum_sepal_width"}
-	args["weight"] = "length"
 	encData, _ := json.Marshal(res)
-	encFunc, _ := json.Marshal([]query.AggregationFunction{query.AggregationFunction{
-		Function: "sum",
-		Args:     args,
-	}})
+	aggrJobs := []query.AggregationJob{
+		query.AggregationJob{
+			Job: "mean",
+			Args: map[string]interface{}{
+				"sum": "sum_sepal_width",
+			},
+		},
+		query.AggregationJob{
+			Job: "mean",
+			Args: map[string]interface{}{
+				"sum": "sum_sepal_length",
+			},
+		},
+	}
+	encJob, _ := json.Marshal(aggrJobs)
 	in2 := query.InputDA{
-		EncryptedData:      encData,
-		EncryptedFunctions: encFunc,
+		EncryptedData: encData,
+		EncryptedJobs: encJob,
 	}
 	means, err := AggregateData(in2)
 	assert.NoError(t, err)
