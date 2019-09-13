@@ -171,5 +171,5 @@ func TestAggregateMean(t *testing.T) {
 	}
 	means, err := AggregateData(in2)
 	assert.NoError(t, err)
-	assert.Equal(t, map[string]interface{}{"length": 4, "sum_sum_sepal_length": 21.667510031039438, "sum_sum_sepal_width": 12.886690892573245}, means)
+	assert.Equal(t, map[string]interface{}{"length": 4, "mean_sepal_length": 5.843333333333332, "mean_sepal_width": 3.0540000000000003, "sum_length": 150.0, "sum_sum_sepal_length": 876.4999999999998, "sum_sum_sepal_width": 458.1}, means)
 }

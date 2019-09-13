@@ -16,7 +16,7 @@ import (
 var (
 	in = query.InputNewQuery{
 		IsEncrypted:   false,
-		TargetProfile: "OR(OR(test1:test2):OR(test3:test4))",
+		TargetProfile: "OR(OR(\"test1\",\"test2\"),OR(\"test3\",\"test4\"))",
 	}
 )
 

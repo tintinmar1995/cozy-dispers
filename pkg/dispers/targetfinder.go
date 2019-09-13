@@ -47,11 +47,12 @@ func decryptInputsTF(in *query.InputTF) (string, map[string][]string, error) {
 
 func developpTargetProfile(compressedTP string) (string, error) {
 
-	compressedTP = strings.ReplaceAll(compressedTP, ")", ":):")
+	compressedTP = strings.ReplaceAll(compressedTP, "\"", "")
+	compressedTP = strings.ReplaceAll(compressedTP, ")", ",),")
 	secondSplit := []string{}
 	firstSplit := strings.Split(compressedTP, "(")
 	for _, a := range firstSplit {
-		secondSplit = append(secondSplit, strings.Split(a, ":")...)
+		secondSplit = append(secondSplit, strings.Split(a, ",")...)
 	}
 
 	// Remove empty element

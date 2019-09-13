@@ -10,23 +10,27 @@ import (
 
 func TestDeveloppTargetProfile(t *testing.T) {
 
-	tp, err := developpTargetProfile("OR(asse:losc)")
+	tp, err := developpTargetProfile("OR(\"asse\",\"losc\")")
 	assert.NoError(t, err)
 	assert.Equal(t, "{\"type\":1,\"left_node\":{\"type\":0,\"value\":\"asse\"},\"right_node\":{\"type\":0,\"value\":\"losc\"}}", tp)
 
-	tp, err = developpTargetProfile("asse")
+	tp, err = developpTargetProfile("\"asse\"")
 	assert.NoError(t, err)
 	assert.Equal(t, "{\"type\":0,\"value\":\"asse\"}", tp)
 
-	tp, err = developpTargetProfile("OR(AND(asse:losc):psg)")
+	tp, err = developpTargetProfile("OR(AND(\"asse\",\"losc\"),\"psg\")")
 	assert.NoError(t, err)
 	assert.Equal(t, "{\"type\":1,\"left_node\":{\"type\":2,\"left_node\":{\"type\":0,\"value\":\"asse\"},\"right_node\":{\"type\":0,\"value\":\"losc\"}},\"right_node\":{\"type\":0,\"value\":\"psg\"}}", tp)
 
-	tp, err = developpTargetProfile("OR(AND(asse:losc):AND(psg:srfc))")
+	tp, err = developpTargetProfile("OR(AND(\"asse\",\"losc\"),AND(\"psg\",\"srfc\"))")
 	assert.NoError(t, err)
 	assert.Equal(t, "{\"type\":1,\"left_node\":{\"type\":2,\"left_node\":{\"type\":0,\"value\":\"asse\"},\"right_node\":{\"type\":0,\"value\":\"losc\"}},\"right_node\":{\"type\":2,\"left_node\":{\"type\":0,\"value\":\"psg\"},\"right_node\":{\"type\":0,\"value\":\"srfc\"}}}", tp)
 
-	tp, err = developpTargetProfile("AND(asse:losc)")
+	tp, err = developpTargetProfile("OR(AND(\"asse\",\"losc\")AND(\"psg\",\"srfc\"))")
+	assert.NoError(t, err)
+	assert.Equal(t, "{\"type\":1,\"left_node\":{\"type\":2,\"left_node\":{\"type\":0,\"value\":\"asse\"},\"right_node\":{\"type\":0,\"value\":\"losc\"}},\"right_node\":{\"type\":2,\"left_node\":{\"type\":0,\"value\":\"psg\"},\"right_node\":{\"type\":0,\"value\":\"srfc\"}}}", tp)
+
+	tp, err = developpTargetProfile("AND(\"asse\",\"losc\")")
 	assert.NoError(t, err)
 	assert.Equal(t, "{\"type\":2,\"left_node\":{\"type\":0,\"value\":\"asse\"},\"right_node\":{\"type\":0,\"value\":\"losc\"}}", tp)
 
@@ -88,7 +92,7 @@ func TestTargetFinder(t *testing.T) {
 	in := query.InputTF{
 		IsEncrypted:               false,
 		EncryptedListsOfAddresses: encLoA,
-		EncryptedTargetProfile:    []byte("OR(AND(test1:test2)AND(test3:test4))"),
+		EncryptedTargetProfile:    []byte("OR(AND(\"test1\",\"test2\")AND(\"test3\",\"test4\"))"),
 	}
 	out, err := SelectAddresses(in)
 	assert.NoError(t, err)
@@ -97,7 +101,7 @@ func TestTargetFinder(t *testing.T) {
 	in = query.InputTF{
 		IsEncrypted:               false,
 		EncryptedListsOfAddresses: encLoA,
-		EncryptedTargetProfile:    []byte("AND(OR(test1:test2)OR(test3:test7))"),
+		EncryptedTargetProfile:    []byte("AND(OR(\"test1\",\"test2\")OR(\"test3\",\"test7\"))"),
 	}
 	_, err = SelectAddresses(in)
 	assert.Error(t, err)
@@ -105,7 +109,7 @@ func TestTargetFinder(t *testing.T) {
 	in = query.InputTF{
 		IsEncrypted:               false,
 		EncryptedListsOfAddresses: encLoA,
-		EncryptedTargetProfile:    []byte("AND(test4:test4)"),
+		EncryptedTargetProfile:    []byte("\"test4\""),
 	}
 	out, err = SelectAddresses(in)
 	assert.NoError(t, err)
