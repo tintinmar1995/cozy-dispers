@@ -91,6 +91,8 @@ type Config struct {
 
 	DevMode bool
 
+	RemoteCozyDISPERS map[string]string
+
 	RemoteAssets map[string]string
 
 	Fs            Fs
@@ -587,6 +589,8 @@ func UseViper(v *viper.Viper) error {
 		Hooks:                 v.GetString("hooks"),
 		GeoDB:                 v.GetString("geodb"),
 		PasswordResetInterval: v.GetDuration("password_reset_interval"),
+
+		RemoteCozyDISPERS: v.GetStringMapString("remote_cozy_dispers"),
 
 		RemoteAssets: v.GetStringMapString("remote_assets"),
 

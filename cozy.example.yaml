@@ -21,6 +21,10 @@ port: 8080
 #  - flat, like https://<user>-<app>.<domain>/ (easier when using wildcard TLS certificate)
 subdomains: nested
 
+# defines a list of servers that can contributes to the query.
+remote_cozy_dispers:
+  itself: http://cozy.tools:8008
+
 # defines a list of assets that can be fetched via the /remote/:asset-name
 # route.
 remote_assets:

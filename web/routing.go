@@ -3,12 +3,15 @@
 package web
 
 import (
+	"fmt"
+	"net/url"
 	"strconv"
 	"time"
 
 	build "github.com/cozy/cozy-stack/pkg/config"
 	"github.com/cozy/cozy-stack/pkg/config/config"
 	"github.com/cozy/cozy-stack/pkg/dispers"
+	"github.com/cozy/cozy-stack/pkg/dispers/network"
 	"github.com/cozy/cozy-stack/pkg/metrics"
 	"github.com/cozy/cozy-stack/pkg/prefixer"
 	"github.com/cozy/cozy-stack/web/errors"
@@ -95,6 +98,22 @@ func SetupRoutes(router *echo.Echo) (*echo.Echo, error) {
 	if config.GetConfig().DevMode {
 		enclave.PrefixerC = prefixer.TestConductorPrefixer
 		enclave.PrefixerCI = prefixer.TestConceptIndexorPrefixer
+	}
+
+	tmpHosts := []url.URL{}
+	if len(config.GetConfig().RemoteCozyDISPERS) > 0 {
+		for key, value := range config.GetConfig().RemoteCozyDISPERS {
+			tmpURL, _ := url.Parse(value)
+			fmt.Println("Actor", key, value)
+			tmpHosts = append(tmpHosts, *tmpURL)
+			if key == "itself" {
+				enclave.ConductorURL = *tmpURL
+			}
+			network.Hosts = tmpHosts
+		}
+	} else {
+		enclave.ConductorURL = url.URL{Host: "cozy.tools:8008", Scheme: "http"}
+		network.Hosts = []url.URL{url.URL{Host: "cozy.tools:8008", Scheme: "http"}}
 	}
 
 	router.Use(timersMiddleware)

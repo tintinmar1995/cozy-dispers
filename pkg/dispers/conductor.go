@@ -2,13 +2,13 @@ package enclave
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/rand"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
 
-	"github.com/cozy/cozy-stack/pkg/config/config"
 	"github.com/cozy/cozy-stack/pkg/couchdb"
 	"github.com/cozy/cozy-stack/pkg/couchdb/mango"
 	"github.com/cozy/cozy-stack/pkg/dispers/errors"
@@ -20,14 +20,8 @@ import (
 )
 
 var (
-	// hosts is a list of hosts where Cozy-DISPERS is running.
-	// Those hosts can be called to play the role of CI/TF/T/DA
-	hosts = []url.URL{
-		url.URL{
-			Scheme: "http",
-			Host:   "localhost:8008",
-		},
-	}
+	ConductorURL = url.URL{}
+
 	// PrefixerC is exported to easilly pass in dev-mode
 	PrefixerC = prefixer.ConductorPrefixer
 
@@ -249,16 +243,6 @@ func (q *QueryDoc) makeLocalQuery() error {
 
 	task := metadata.NewTaskMetadata()
 
-	// Set Conductor's URL
-	// TODO : Find a prettier solution for localhost issue
-	hostname, err := os.Hostname()
-	if err != nil {
-		return err
-	}
-	if hostname == "martin-perso" {
-		hostname = "localhost"
-	}
-
 	// Pass the list of targets to anther Cozy-DISPERS as Target
 	// Retrieve an array of encrypted data
 	inputT := query.InputT{
@@ -267,11 +251,11 @@ func (q *QueryDoc) makeLocalQuery() error {
 		EncryptedTargets:    q.EncryptedTargets,
 		TaskMetadata:        task,
 		QueryID:             q.QueryID,
-		ConductorURL: url.URL{
-			Scheme: "http",
-			Host:   hostname + ":" + strconv.Itoa(config.GetConfig().Port),
-		},
+		ConductorURL:        ConductorURL,
 	}
+
+	fmt.Println("ConductorURL", ConductorURL)
+
 	t := network.NewExternalActor(network.RoleT, network.ModeQuery)
 	t.DefineDispersActor("query")
 	if err := t.MakeRequest("POST", "", inputT, nil); err != nil {
@@ -375,19 +359,7 @@ func (q *QueryDoc) aggregateLayer(indexLayer int, layer *query.LayerDA) error {
 	}
 
 	// Set Conductor's URL
-	// TODO : Find a prettier solution for localhost issue
-	hostname, err := os.Hostname()
-	if err != nil {
-		return err
-	}
-	if hostname == "martin-perso" {
-		hostname = "localhost"
-	}
-
-	inputDA.ConductorURL = url.URL{
-		Scheme: "http",
-		Host:   hostname + ":" + strconv.Itoa(config.GetConfig().Port),
-	}
+	inputDA.ConductorURL = ConductorURL
 
 	for indexDA := 0; indexDA < layer.Size; indexDA++ {
 

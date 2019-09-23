@@ -14,7 +14,7 @@ import (
 	"github.com/cozy/cozy-stack/tests/testutils"
 )
 
-var dispersURL = url.URL{Host: "localhost:8008", Scheme: "http"}
+var testDispersURL = url.URL{Host: "cozy.tools:8008", Scheme: "http"}
 
 func TestMain(m *testing.M) {
 	config.UseTestFile()
@@ -50,11 +50,11 @@ func TestMain(m *testing.M) {
 	}
 	couchdb.InitGlobalDB()
 
-	testutils.NeedOtherDispersServer(dispersURL)
+	testutils.NeedOtherDispersServer(testDispersURL)
 
 	// Hosts is used for conductor_test
-	hosts = []url.URL{dispersURL}
-	network.Hosts = hosts
+	ConductorURL = testDispersURL
+	network.Hosts = []url.URL{testDispersURL}
 	res := m.Run()
 	os.Exit(res)
 }
